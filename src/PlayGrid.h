@@ -19,25 +19,20 @@
  *
  */
 
-#include "qmlplugin.h"
+#ifndef PLAYGRID_H
+#define PLAYGRID_H
 
-#include <QtQml/qqml.h>
-#include <QQmlEngine>
-#include <QQmlContext>
+#include <QQuickItem>
 
-#include "Note.h"
-#include "NotesModel.h"
-#include "PlayGrid.h"
-#include "SettingsContainer.h"
-
-void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
+class PlayGrid : public QQuickItem
 {
-}
+    Q_OBJECT
+public:
+    explicit PlayGrid(QQuickItem *parent = nullptr);
+    ~PlayGrid() override;
+private:
+    class Private;
+    Private *d;
+};
 
-void QmlPlugins::registerTypes(const char *uri)
-{
-    qmlRegisterUncreatableType<Note>(uri, 1, 0, "Note", "Use the getNote function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<SettingsContainer>(uri, 1, 0, "SettingsContainer", "This is for internal use only");
-    qmlRegisterType<PlayGrid>(uri, 1, 0, "PlayGrid");
-}
+#endif//PLAYGRID_H

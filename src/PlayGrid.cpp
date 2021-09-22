@@ -19,25 +19,39 @@
  *
  */
 
-#include "qmlplugin.h"
-
-#include <QtQml/qqml.h>
-#include <QQmlEngine>
-#include <QQmlContext>
-
-#include "Note.h"
-#include "NotesModel.h"
 #include "PlayGrid.h"
-#include "SettingsContainer.h"
 
-void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
+class PlayGrid::Private
+{
+public:
+    Private() {}
+    QString name;
+    QString getDataDir()
+    {
+        // test and make sure that this env var contains something, or spit out .local/zynthian or something
+        return QString("%1/playgrid/%2").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR"))).arg(name);
+    }
+
+    QString getSafeFilename(const QString& unsafe)
+    {
+        QStringList keepcharacters{" ",".","_"};
+        QString safe;
+        for (const QChar &letter : unsafe) {
+            if (letter.isLetterOrNumber() || keepcharacters.contains(letter)) {
+                safe.append(letter);
+            }
+        }
+        return getDataDir() + "/" + safe;
+    }
+};
+
+PlayGrid::PlayGrid(QQuickItem* parent)
+    : QQuickItem(parent)
+    , d(new Private)
 {
 }
 
-void QmlPlugins::registerTypes(const char *uri)
+PlayGrid::~PlayGrid()
 {
-    qmlRegisterUncreatableType<Note>(uri, 1, 0, "Note", "Use the getNote function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<SettingsContainer>(uri, 1, 0, "SettingsContainer", "This is for internal use only");
-    qmlRegisterType<PlayGrid>(uri, 1, 0, "PlayGrid");
+    delete d;
 }
