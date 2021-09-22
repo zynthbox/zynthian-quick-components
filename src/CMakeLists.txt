@@ -2,6 +2,7 @@ add_library(zynthian-quick-plugin SHARED)
 target_sources(zynthian-quick-plugin
     PRIVATE
     qmlplugin.cpp
+    Note.cpp
     #resources.qrc
 )
 target_link_libraries(zynthian-quick-plugin Qt5::Core Qt5::Qml ${X11_LIBRARIES} ${LIBXDO_LIBRARIES})

@@ -25,11 +25,13 @@
 #include <QQmlEngine>
 #include <QQmlContext>
 
+#include "Note.h"
+
 void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
 {
 }
 
 void QmlPlugins::registerTypes(const char *uri)
 {
-//     qmlRegisterType<XDoWrapper>(uri, 1, 0, "XDoWrapper");
+    qmlRegisterType<Note>(uri, 1, 0, "Note");
 }
