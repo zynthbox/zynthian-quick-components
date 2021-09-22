@@ -19,23 +19,54 @@
  *
  */
 
-#include "qmlplugin.h"
-
-#include <QtQml/qqml.h>
-#include <QQmlEngine>
-#include <QQmlContext>
-
-#include "Note.h"
-#include "NotesModel.h"
 #include "SettingsContainer.h"
 
-void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
+#include <QHash>
+
+class SettingsContainer::Private
 {
+public:
+    Private() {}
+    QString name;
+    QHash<QString, QVariant> entries;
+};
+
+SettingsContainer::SettingsContainer(QString name, QObject* parent)
+    : QObject(parent)
+    , d(new Private)
+{
+    d->name = name;
 }
 
-void QmlPlugins::registerTypes(const char *uri)
+SettingsContainer::~SettingsContainer()
 {
-    qmlRegisterUncreatableType<Note>(uri, 1, 0, "Note", "Use the getNote function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<SettingsContainer>(uri, 1, 0, "SettingsContainer", "This is for internal use only");
+    delete d;
+}
+
+QString SettingsContainer::name() const
+{
+    return d->name;
+}
+
+QVariant SettingsContainer::getProperty(const QString& property) const
+{
+    if (hasProperty(property)) {
+        return d->entries[property];
+    }
+    return QVariant();
+}
+
+void SettingsContainer::setProperty(const QString& property, const QVariant& value)
+{
+    d->entries[property] = value;
+}
+
+void SettingsContainer::clearProperty(const QString& property)
+{
+    d->entries.remove(property);
+}
+
+bool SettingsContainer::hasProperty(const QString& property) const
+{
+    return d->entries.contains(property);
 }

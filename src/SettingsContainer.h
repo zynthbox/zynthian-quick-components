@@ -19,23 +19,29 @@
  *
  */
 
-#include "qmlplugin.h"
+#ifndef SETTINGSCONTAINER_H
+#define SETTINGSCONTAINER_H
 
-#include <QtQml/qqml.h>
-#include <QQmlEngine>
-#include <QQmlContext>
+#include <QObject>
+#include <QVariant>
 
-#include "Note.h"
-#include "NotesModel.h"
-#include "SettingsContainer.h"
-
-void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
+class SettingsContainer : public QObject
 {
-}
+    Q_OBJECT
+    Q_PROPERTY(QString name READ name CONSTANT)
+public:
+    explicit SettingsContainer(QString name, QObject *parent = nullptr);
+    ~SettingsContainer() override;
 
-void QmlPlugins::registerTypes(const char *uri)
-{
-    qmlRegisterUncreatableType<Note>(uri, 1, 0, "Note", "Use the getNote function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<SettingsContainer>(uri, 1, 0, "SettingsContainer", "This is for internal use only");
-}
+    QString name() const;
+
+    Q_INVOKABLE QVariant getProperty(const QString &property) const;
+    Q_INVOKABLE void setProperty(const QString &property, const QVariant &value);
+    Q_INVOKABLE void clearProperty(const QString &property);
+    Q_INVOKABLE bool hasProperty(const QString &property) const;
+private:
+    class Private;
+    Private* d;
+};
+
+#endif//SETTINGSCONTAINER_H
