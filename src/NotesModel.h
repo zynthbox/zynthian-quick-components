@@ -19,21 +19,34 @@
  *
  */
 
-#include "qmlplugin.h"
+#ifndef NOTESMODEL_H
+#define NOTESMODEL_H
 
-#include <QtQml/qqml.h>
-#include <QQmlEngine>
-#include <QQmlContext>
+#include <QAbstractItemModel>
 
-#include "Note.h"
-#include "NotesModel.h"
-
-void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
+class NotesModel : public QAbstractItemModel
 {
-}
+    Q_OBJECT
+    Q_PROPERTY(int rows READ rowCount NOTIFY rowsChanged)
+public:
+    explicit NotesModel(QObject *parent = nullptr);
+    ~NotesModel() override;
 
-void QmlPlugins::registerTypes(const char *uri)
-{
-    qmlRegisterUncreatableType<Note>(uri, 1, 0, "Note", "Use the getNote function on the main PlayGrid global object to get one of these");
-    qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
-}
+    enum Roles {
+        NoteRole = Qt::UserRole + 1,
+    };
+    QHash<int, QByteArray> roleNames() const override;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex &index, int role) const override;
+
+    Q_SIGNAL void rowsChanged();
+
+    Q_INVOKABLE void clear();
+    Q_INVOKABLE void addRow(QObjectList notes);
+private:
+    class Private;
+    Private* d;
+};
+
+#endif//NOTESMODEL_H

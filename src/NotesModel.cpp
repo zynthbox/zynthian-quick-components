@@ -1,0 +1,100 @@
+/*
+ * Copyright (C) 2021 Dan Leinir Turthra Jensen <admin@leinir.dk>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) version 3, or any
+ * later version accepted by the membership of KDE e.V. (or its
+ * successor approved by the membership of KDE e.V.), which shall
+ * act as a proxy defined in Section 6 of version 3 of the license.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+#include "NotesModel.h"
+#include "Note.h"
+
+class NotesModel::Private {
+public:
+    Private() {}
+    QList<QObjectList> entries;
+};
+
+NotesModel::NotesModel(QObject* parent)
+    : QAbstractItemModel(parent)
+    , d(new Private)
+{
+}
+
+NotesModel::~NotesModel()
+{
+    delete d;
+}
+
+QHash<int, QByteArray> NotesModel::roleNames() const
+{
+    static const QHash<int, QByteArray> roles{
+        {NoteRole, "note"}
+    };
+    return roles;
+}
+
+int NotesModel::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid()) {
+        return 0;
+    }
+    return d->entries.count();
+}
+
+int NotesModel::columnCount(const QModelIndex& parent) const
+{
+    int count = 0;
+    if (parent.isValid() && parent.row() > 0 && parent.row() < d->entries.count()) {
+        count = d->entries.at(parent.row()).count();
+    }
+    return count;
+}
+
+QVariant NotesModel::data(const QModelIndex& index, int role) const
+{
+    QVariant result;
+    if (checkIndex(index)) {
+        Note* note = qobject_cast<Note*>(d->entries.at(index.row()).at(index.column()));
+        if (note) {
+            switch(role) {
+                case NoteRole:
+                    result.setValue<QObject*>(note);
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    return result;
+}
+
+void NotesModel::clear()
+{
+    beginResetModel();
+    d->entries.clear();
+    endResetModel();
+    Q_EMIT rowsChanged();
+}
+
+void NotesModel::addRow(QObjectList notes)
+{
+    int newRow = d->entries.count();
+    beginInsertRows(QModelIndex(), newRow, newRow);
+    d->entries.append(notes);
+    endInsertRows();
+    Q_EMIT rowsChanged();
+}
