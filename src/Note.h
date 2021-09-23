@@ -32,7 +32,7 @@ class Note : public QObject
     Q_PROPERTY(int midiNote READ midiNote NOTIFY midiNoteChanged)
     Q_PROPERTY(int midiChannel READ midiChannel NOTIFY midiChannelChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
-    Q_PROPERTY(QObjectList subnotes READ subnotes WRITE setSubnotes NOTIFY subnotesChanged)
+    Q_PROPERTY(QVariantList subnotes READ subnotes WRITE setSubnotes NOTIFY subnotesChanged)
 public:
     explicit Note(PlayGridManager *parent = nullptr);
     ~Note() override;
@@ -53,8 +53,8 @@ public:
     bool isPlaying() const;
     Q_SIGNAL void isPlayingChanged();
 
-    void setSubnotes(const QObjectList& subnotes);
-    QObjectList subnotes() const;
+    void setSubnotes(const QVariantList& subnotes);
+    QVariantList subnotes() const;
     Q_SIGNAL void subnotesChanged();
 
     Q_INVOKABLE void setOn(int velocity = 64);

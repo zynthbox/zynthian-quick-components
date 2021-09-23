@@ -29,7 +29,7 @@ public:
     int midiNote{0};
     int midiChannel{0};
     bool isPlaying{false};
-    QObjectList subnotes;
+    QVariantList subnotes;
 };
 
 Note::Note(PlayGridManager* parent)
@@ -96,7 +96,7 @@ bool Note::isPlaying() const
     return d->isPlaying;
 }
 
-void Note::setSubnotes(const QObjectList& subnotes)
+void Note::setSubnotes(const QVariantList& subnotes)
 {
     bool different = false;
     if (subnotes.count() == d->subnotes.count()) {
@@ -113,7 +113,7 @@ void Note::setSubnotes(const QObjectList& subnotes)
     }
 }
 
-QObjectList Note::subnotes() const
+QVariantList Note::subnotes() const
 {
     return d->subnotes;
 }
