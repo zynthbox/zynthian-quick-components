@@ -22,15 +22,49 @@
 #include "NotesModel.h"
 #include "Note.h"
 
+#include <QTimer>
+
 class NotesModel::Private {
 public:
-    Private() {}
+    Private(NotesModel *q)
+        : q(q)
+    {
+        noteDataChangedUpdater.setInterval(1);
+        noteDataChangedUpdater.setSingleShot(true);
+        QObject::connect(&noteDataChangedUpdater, &QTimer::timeout, q, [this,q](){
+            for (const QObjectList &list : entries) {
+                for (QObject *obj : list) {
+                    Note *note = qobject_cast<Note*>(obj);
+                    note->disconnect(q);
+                    connect(note, &Note::nameChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                    connect(note, &Note::midiNoteChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                    connect(note, &Note::midiChannelChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                    connect(note, &Note::isPlayingChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                    connect(note, &Note::subnotesChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                }
+            }
+        });
+    }
+    NotesModel *q;
     QList<QObjectList> entries;
+
+    QTimer noteDataChangedUpdater;
+    void emitNoteDataChanged(Note* note) {
+        for (int row = 0; row < entries.count(); ++row) {
+            QObjectList rowEntries = entries[row];
+            for (int column = 0; column < rowEntries.count(); ++column) {
+                if (rowEntries[column] == note) {
+                    QModelIndex idx = q->index(row, column);
+                    q->dataChanged(idx, idx);
+                }
+            }
+        }
+    }
 };
 
 NotesModel::NotesModel(QObject* parent)
-    : QAbstractItemModel(parent)
-    , d(new Private)
+    : QAbstractListModel(parent)
+    , d(new Private(this))
 {
 }
 
@@ -85,6 +119,11 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
 void NotesModel::clear()
 {
     beginResetModel();
+    for (QObjectList &list : d->entries) {
+        for (QObject *obj : list) {
+            obj->disconnect(this);
+        }
+    }
     d->entries.clear();
     endResetModel();
     Q_EMIT rowsChanged();
@@ -95,6 +134,7 @@ void NotesModel::addRow(QObjectList notes)
     int newRow = d->entries.count();
     beginInsertRows(QModelIndex(), newRow, newRow);
     d->entries.append(notes);
+    d->noteDataChangedUpdater.start();
     endInsertRows();
     Q_EMIT rowsChanged();
 }

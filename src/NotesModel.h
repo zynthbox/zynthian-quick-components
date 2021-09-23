@@ -22,9 +22,9 @@
 #ifndef NOTESMODEL_H
 #define NOTESMODEL_H
 
-#include <QAbstractItemModel>
+#include <QAbstractListModel>
 
-class NotesModel : public QAbstractItemModel
+class NotesModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int rows READ rowCount NOTIFY rowsChanged)
