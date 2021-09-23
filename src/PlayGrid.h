@@ -30,6 +30,9 @@ class PlayGrid : public QQuickItem
 public:
     explicit PlayGrid(QQuickItem *parent = nullptr);
     ~PlayGrid() override;
+
+    Q_INVOKABLE QString loadData(const QString &key);
+    Q_INVOKABLE bool saveData(const QString &key, const QString &data);
 private:
     class Private;
     Private *d;

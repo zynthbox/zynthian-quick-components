@@ -21,6 +21,8 @@
 
 #include "PlayGrid.h"
 
+#include <QDir>
+
 class PlayGrid::Private
 {
 public:
@@ -54,4 +56,30 @@ PlayGrid::PlayGrid(QQuickItem* parent)
 PlayGrid::~PlayGrid()
 {
     delete d;
+}
+
+QString PlayGrid::loadData(const QString& key)
+{
+    QString data;
+    QFile file(d->getSafeFilename(key));
+    if (file.exists()) {
+        if (file.open(QIODevice::ReadOnly)) {
+            data = QString::fromUtf8(file.readAll());
+            file.close();
+        }
+    }
+    return data;
+}
+
+bool PlayGrid::saveData(const QString& key, const QString& data)
+{
+    bool success = false;
+    QDir confLocation(d->getDataDir());
+    if (confLocation.exists() || confLocation.mkpath(confLocation.path())) {
+        QFile dataFile(d->getSafeFilename(key));
+        if (dataFile.write(data.toUtf8())) {
+            success = true;
+        }
+    }
+    return success;
 }
