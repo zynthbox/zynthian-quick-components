@@ -24,6 +24,7 @@
 class Note::Private {
 public:
     Private() {}
+    PlayGridManager* playGridManager;
     QString name;
     int midiNote{0};
     int midiChannel{0};
@@ -31,10 +32,11 @@ public:
     QObjectList subnotes;
 };
 
-Note::Note(QObject* parent)
+Note::Note(PlayGridManager* parent)
     : QObject(parent)
     , d(new Private)
 {
+    d->playGridManager = parent;
 }
 
 Note::~Note()
@@ -114,4 +116,16 @@ void Note::setSubnotes(const QObjectList& subnotes)
 QObjectList Note::subnotes() const
 {
     return d->subnotes;
+}
+
+void Note::setOn(int velocity)
+{
+    // TODO actually send the midi command to do the thing...
+    d->playGridManager->sendMidiMessage();
+}
+
+void Note::setOff()
+{
+    // TODO actually send the midi command to do the thing...
+    d->playGridManager->sendMidiMessage();
 }

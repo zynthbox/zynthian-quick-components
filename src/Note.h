@@ -23,6 +23,7 @@
 #define NOTE_H
 
 #include <QObject>
+#include "PlayGridManager.h"
 
 class Note : public QObject
 {
@@ -33,7 +34,7 @@ class Note : public QObject
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     Q_PROPERTY(QObjectList subnotes READ subnotes WRITE setSubnotes NOTIFY subnotesChanged)
 public:
-    explicit Note(QObject *parent = nullptr);
+    explicit Note(PlayGridManager *parent = nullptr);
     ~Note() override;
 
     void setName(const QString& name);
@@ -55,6 +56,9 @@ public:
     void setSubnotes(const QObjectList& subnotes);
     QObjectList subnotes() const;
     Q_SIGNAL void subnotesChanged();
+
+    Q_INVOKABLE void setOn(int velocity = 64);
+    Q_INVOKABLE void setOff();
 private:
     class Private;
     Private* d;
