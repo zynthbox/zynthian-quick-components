@@ -43,7 +43,7 @@ public:
     Q_SIGNAL void rowsChanged();
 
     Q_INVOKABLE void clear();
-    Q_INVOKABLE void addRow(QObjectList notes);
+    Q_INVOKABLE void addRow(const QVariantList &notes);
 private:
     class Private;
     Private* d;

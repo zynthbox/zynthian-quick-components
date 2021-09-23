@@ -129,12 +129,18 @@ void NotesModel::clear()
     Q_EMIT rowsChanged();
 }
 
-void NotesModel::addRow(QObjectList notes)
+void NotesModel::addRow(const QVariantList &notes)
 {
-    int newRow = d->entries.count();
-    beginInsertRows(QModelIndex(), newRow, newRow);
-    d->entries.append(notes);
-    d->noteDataChangedUpdater.start();
-    endInsertRows();
-    Q_EMIT rowsChanged();
+    QObjectList actualNotes;
+    for (const QVariant &var : notes) {
+        actualNotes << var.value<QObject*>();
+    }
+    if (actualNotes.count() > 0) {
+        int newRow = d->entries.count();
+        beginInsertRows(QModelIndex(), newRow, newRow);
+        d->entries.append(actualNotes);
+        d->noteDataChangedUpdater.start();
+        endInsertRows();
+        Q_EMIT rowsChanged();
+    }
 }
