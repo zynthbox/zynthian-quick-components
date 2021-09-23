@@ -31,7 +31,23 @@ public:
     explicit PlayGrid(QQuickItem *parent = nullptr);
     ~PlayGrid() override;
 
+    /**
+     * \brief Load a string value saved to disk under a specified name
+     * @param key The name of the data you wish to retrieve
+     * @return A string containing the data contained in the specified key (an empty string if none was found)
+     */
     Q_INVOKABLE QString loadData(const QString &key);
+    /**
+     * \brief Save a string value to disk under a specified name
+     *
+     * @note The key will be turned into a filesystem-safe string before attempting to save the data
+     *       to disk. This also means that if you are overly clever with naming, you may end up with
+     *       naming clashes. In other words, be sensible in naming your keys, and your behaviour will
+     *       be more predictable.
+     * @param key The name of the data you wish to store
+     * @param data The contents you wish to store, in string form
+     * @return True if successful, false if unsuccessful
+     */
     Q_INVOKABLE bool saveData(const QString &key, const QString &data);
 private:
     class Private;
