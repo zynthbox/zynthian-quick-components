@@ -77,7 +77,7 @@ bool PlayGrid::saveData(const QString& key, const QString& data)
     QDir confLocation(d->getDataDir());
     if (confLocation.exists() || confLocation.mkpath(confLocation.path())) {
         QFile dataFile(d->getSafeFilename(key));
-        if (dataFile.write(data.toUtf8())) {
+        if (dataFile.open(QIODevice::WriteOnly) && dataFile.write(data.toUtf8())) {
             success = true;
         }
     }
