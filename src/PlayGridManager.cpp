@@ -172,7 +172,7 @@ QObject* PlayGridManager::getCompoundNote(const QVariantList& notes)
         if (!note) {
             note = new Note(this);
             note->setMidiNote(fake_midi_note);
-            note->setSubnotes(actualNotes);
+            note->setSubnotes(notes);
             QQmlEngine::setObjectOwnership(note, QQmlEngine::CppOwnership);
             d->notes << note;
         }
@@ -219,7 +219,11 @@ void PlayGridManager::setNoteOff(QObject* note)
 void PlayGridManager::setNoteState(Note* note, int velocity, bool setOn)
 {
     if (note) {
-        QObjectList subnotes = note->subnotes();
+        QObjectList subnotes;
+        const QVariantList tempSubnotes = note->subnotes();
+        for (const QVariant &tempSubnote : tempSubnotes) {
+            subnotes << tempSubnote.value<QObject*>();
+        }
         int subnoteCount = subnotes.count();
         if (subnoteCount > 0) {
             for (QObject *note : subnotes) {
