@@ -279,7 +279,6 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
         Note *note = d->findExistingNote(midiNote, midiChannel);
         note->setIsPlaying(false);
     }
-    qDebug() << Q_FUNC_INFO << metadata;
 }
 
 int PlayGridManager::metronomeBeat4th() const
