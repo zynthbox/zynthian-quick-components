@@ -73,7 +73,11 @@ public:
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
 
     Q_INVOKABLE void startMetronome();
+    // TODO This is a temporary thing while we get the c++ side integrated properly
+    Q_SIGNAL void requestMetronomeStart();
     Q_INVOKABLE void stopMetronome();
+    // TODO This is a temporary thing while we get the c++ side integrated properly
+    Q_SIGNAL void requestMetronomeStop();
 
     int metronomeBeat4th() const;
     Q_SIGNAL void metronomeBeat4thChanged();
@@ -82,7 +86,8 @@ public:
     int metronomeBeat16th() const;
     Q_SIGNAL void metronomeBeat16thChanged();
 
-    void sendMidiMessage(/* need to do the thing here */);
+    // TODO This is a temporary thing while we get the c++ side integrated properly
+    Q_SIGNAL void sendAMidiNoteMessage(int midiNote, int velocity, int channel, bool setOn);
 private:
     class Private;
     Private *d;

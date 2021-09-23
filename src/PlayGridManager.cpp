@@ -240,7 +240,7 @@ void PlayGridManager::setNoteState(Note* note, int velocity, bool setOn)
             }
         }
     } else {
-        qDebug() << "Attempted to set the state of a None-value note";
+        qDebug() << "Attempted to set the state of a null-value note";
     }
 }
 
@@ -263,20 +263,18 @@ void PlayGridManager::startMetronome()
 {
     // TODO Send start metronome request to libzl
     // TODO connect to libzl timer signals
+    Q_EMIT requestMetronomeStart();
 }
 
 void PlayGridManager::stopMetronome()
 {
     // TODO disconnect from libzl timer signals
     // TODO Send stop metronome request to libzl
+    Q_EMIT requestMetronomeStop();
     d->metronomeBeat4th = 0;
     d->metronomeBeat8th = 0;
     d->metronomeBeat16th = 0;
     Q_EMIT metronomeBeat4thChanged();
     Q_EMIT metronomeBeat8thChanged();
     Q_EMIT metronomeBeat16thChanged();
-}
-
-void PlayGridManager::sendMidiMessage()
-{
 }

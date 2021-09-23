@@ -120,12 +120,10 @@ QObjectList Note::subnotes() const
 
 void Note::setOn(int velocity)
 {
-    // TODO actually send the midi command to do the thing...
-    d->playGridManager->sendMidiMessage();
+    Q_EMIT d->playGridManager->sendAMidiNoteMessage(d->midiNote, velocity, d->midiChannel, true);
 }
 
 void Note::setOff()
 {
-    // TODO actually send the midi command to do the thing...
-    d->playGridManager->sendMidiMessage();
+    Q_EMIT d->playGridManager->sendAMidiNoteMessage(d->midiNote, 0, d->midiChannel, false);
 }
