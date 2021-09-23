@@ -73,6 +73,14 @@ NotesModel::~NotesModel()
     delete d;
 }
 
+QVariantMap NotesModel::roles() const
+{
+    static const QVariantMap roles{
+        {"note", NoteRole}
+    };
+    return roles;
+}
+
 QHash<int, QByteArray> NotesModel::roleNames() const
 {
     static const QHash<int, QByteArray> roles{
@@ -92,7 +100,7 @@ int NotesModel::rowCount(const QModelIndex& parent) const
 int NotesModel::columnCount(const QModelIndex& parent) const
 {
     int count = 0;
-    if (parent.isValid() && parent.row() > 0 && parent.row() < d->entries.count()) {
+    if (parent.isValid() && parent.row() >= 0 && parent.row() < d->entries.count()) {
         count = d->entries.at(parent.row()).count();
     }
     return count;
@@ -119,8 +127,8 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
 QModelIndex NotesModel::index(int row, int column, const QModelIndex& /*parent*/) const
 {
     QModelIndex idx;
-    if (row > 0 && row < d->entries.count()) {
-        if (column > 0 && column < d->entries[row].count()) {
+    if (row >= 0 && row < d->entries.count()) {
+        if (column >= 0 && column < d->entries[row].count()) {
             idx = createIndex(row, column);
         }
     }

@@ -28,6 +28,7 @@ class NotesModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int rows READ rowCount NOTIFY rowsChanged)
+    Q_PROPERTY(QVariantMap roles READ roles CONSTANT)
 public:
     explicit NotesModel(QObject *parent = nullptr);
     ~NotesModel() override;
@@ -35,6 +36,7 @@ public:
     enum Roles {
         NoteRole = Qt::UserRole + 1,
     };
+    QVariantMap roles() const;
     QHash<int, QByteArray> roleNames() const override;
     Q_INVOKABLE int rowCount(const QModelIndex &parent = QModelIndex()) const override;
     Q_INVOKABLE int columnCount(const QModelIndex &parent = QModelIndex()) const override;
