@@ -71,6 +71,7 @@ public:
     Q_SIGNAL void noteStateChanged(QObject *note);
     Q_SIGNAL QVariantList mostRecentlyChangedNotes() const;
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
+    Q_INVOKABLE void updateNoteState(QVariantMap metadata);
 
     Q_INVOKABLE void startMetronome();
     // TODO This is a temporary thing while we get the c++ side integrated properly

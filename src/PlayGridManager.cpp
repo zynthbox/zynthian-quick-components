@@ -254,6 +254,11 @@ void PlayGridManager::setNoteState(Note* note, int velocity, bool setOn)
     }
 }
 
+void PlayGridManager::updateNoteState(QVariantMap metadata)
+{
+    qDebug() << Q_FUNC_INFO << metadata;
+}
+
 int PlayGridManager::metronomeBeat4th() const
 {
     return d->metronomeBeat4th;
