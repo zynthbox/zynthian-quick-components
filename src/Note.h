@@ -30,6 +30,7 @@ class Note : public QObject
     Q_OBJECT
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
     Q_PROPERTY(int midiNote READ midiNote NOTIFY midiNoteChanged)
+    Q_PROPERTY(int octave READ octave NOTIFY midiNoteChanged)
     Q_PROPERTY(int midiChannel READ midiChannel NOTIFY midiChannelChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     Q_PROPERTY(QVariantList subnotes READ subnotes WRITE setSubnotes NOTIFY subnotesChanged)
@@ -43,6 +44,7 @@ public:
 
     void setMidiNote(int midiNote);
     int midiNote() const;
+    int octave() const;
     Q_SIGNAL void midiNoteChanged();
 
     void setMidiChannel(int midiChannel);

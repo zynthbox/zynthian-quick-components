@@ -70,6 +70,11 @@ int Note::midiNote() const
     return d->midiNote;
 }
 
+int Note::octave() const
+{
+    return d->midiNote % 12;
+}
+
 void Note::setMidiChannel(int midiChannel)
 {
     if (midiChannel != d->midiChannel) {
