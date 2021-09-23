@@ -59,11 +59,11 @@ public:
 
     Q_INVOKABLE QObject* getNotesModel(const QString &name);
     Q_INVOKABLE QObject* getNote(int midiNote, int midiChannel = 0);
-    Q_INVOKABLE QObject* getCompoundNote(const QObjectList &notes);
+    Q_INVOKABLE QObject* getCompoundNote(const QVariantList &notes);
     Q_INVOKABLE QObject* getSettingsStore(const QString &name);
 
-    Q_INVOKABLE void setNotesOn(QObjectList notes, QVariantList velocities);
-    Q_INVOKABLE void setNotesOff(QObjectList notes);
+    Q_INVOKABLE void setNotesOn(QVariantList notes, QVariantList velocities);
+    Q_INVOKABLE void setNotesOff(QVariantList notes);
     Q_INVOKABLE void setNoteOn(QObject *note, int velocity = 64);
     Q_INVOKABLE void setNoteOff(QObject *note);
 

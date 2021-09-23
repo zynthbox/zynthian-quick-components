@@ -132,7 +132,9 @@ QObject* PlayGridManager::getNote(int midiNote, int midiChannel)
         }
     }
     if (!note) {
+        static const QStringList note_int_to_str_map{"C", "C#","D","D#","E","F","F#","G","G#","A","A#","B"};
         note = new Note(this);
+        note->setName(note_int_to_str_map.value(midiNote % 12));
         note->setMidiNote(midiNote);
         note->setMidiChannel(midiChannel);
         QQmlEngine::setObjectOwnership(note, QQmlEngine::CppOwnership);
@@ -141,12 +143,16 @@ QObject* PlayGridManager::getNote(int midiNote, int midiChannel)
     return note;
 }
 
-QObject* PlayGridManager::getCompoundNote(const QObjectList& notes)
+QObject* PlayGridManager::getCompoundNote(const QVariantList& notes)
 {
+    QObjectList actualNotes;
+    for (const QVariant &var : notes) {
+        actualNotes << var.value<QObject*>();
+    }
     Note *note{nullptr};
     // Make the compound note's fake note value...
     int fake_midi_note = 128;
-    for (QObject *subnote : notes) {
+    for (QObject *subnote : actualNotes) {
         Note *actualSubnote = qobject_cast<Note*>(subnote);
         if (actualSubnote) {
             fake_midi_note = fake_midi_note + (127 * actualSubnote->midiNote());
@@ -166,7 +172,7 @@ QObject* PlayGridManager::getCompoundNote(const QObjectList& notes)
         if (!note) {
             note = new Note(this);
             note->setMidiNote(fake_midi_note);
-            note->setSubnotes(notes);
+            note->setSubnotes(actualNotes);
             QQmlEngine::setObjectOwnership(note, QQmlEngine::CppOwnership);
             d->notes << note;
         }
@@ -185,19 +191,19 @@ QObject* PlayGridManager::getSettingsStore(const QString& name)
     return settings;
 }
 
-void PlayGridManager::setNotesOn(QObjectList notes, QVariantList velocities)
+void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)
 {
     if (notes.count() == velocities.count()) {
         for (int i = 0; i < notes.count(); ++i) {
-            setNoteState(qobject_cast<Note*>(notes[i]), velocities[i].toInt(), true);
+            setNoteState(qobject_cast<Note*>(notes[i].value<QObject*>()), velocities[i].toInt(), true);
         }
     }
 }
 
-void PlayGridManager::setNotesOff(QObjectList notes)
+void PlayGridManager::setNotesOff(QVariantList notes)
 {
     for (int i = 0; i < notes.count(); ++i) {
-        setNoteState(qobject_cast<Note*>(notes[i]), 0, false);
+        setNoteState(qobject_cast<Note*>(notes[i].value<QObject*>()), 0, false);
     }
 }
 void PlayGridManager::setNoteOn(QObject* note, int velocity)
