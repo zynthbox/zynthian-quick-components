@@ -30,6 +30,7 @@ public:
     int midiChannel{0};
     bool isPlaying{false};
     QVariantList subnotes;
+    int scaleIndex{0};
 };
 
 Note::Note(PlayGridManager* parent)
@@ -123,6 +124,19 @@ void Note::setSubnotes(const QVariantList& subnotes)
 QVariantList Note::subnotes() const
 {
     return d->subnotes;
+}
+
+void Note::setScaleIndex(int scaleIndex)
+{
+    if (d->scaleIndex != scaleIndex) {
+        d->scaleIndex = scaleIndex;
+        Q_EMIT scaleIndexChanged();
+    }
+}
+
+int Note::scaleIndex() const
+{
+    return d->scaleIndex;
 }
 
 void Note::setOn(int velocity)

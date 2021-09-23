@@ -34,6 +34,8 @@ class Note : public QObject
     Q_PROPERTY(int midiChannel READ midiChannel NOTIFY midiChannelChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     Q_PROPERTY(QVariantList subnotes READ subnotes WRITE setSubnotes NOTIFY subnotesChanged)
+    // This is arbitrary metadata... do we want to keep this?
+    Q_PROPERTY(int scaleIndex READ scaleIndex WRITE setScaleIndex NOTIFY scaleIndexChanged)
 public:
     explicit Note(PlayGridManager *parent = nullptr);
     ~Note() override;
@@ -58,6 +60,10 @@ public:
     void setSubnotes(const QVariantList& subnotes);
     QVariantList subnotes() const;
     Q_SIGNAL void subnotesChanged();
+
+    void setScaleIndex(int scaleIndex);
+    int scaleIndex() const;
+    Q_SIGNAL void scaleIndexChanged();
 
     Q_INVOKABLE void setOn(int velocity = 64);
     Q_INVOKABLE void setOff();
