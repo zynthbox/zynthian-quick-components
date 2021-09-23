@@ -40,4 +40,11 @@ void QmlPlugins::registerTypes(const char *uri)
     qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
     qmlRegisterUncreatableType<SettingsContainer>(uri, 1, 0, "SettingsContainer", "This is for internal use only");
     qmlRegisterType<PlayGrid>(uri, 1, 0, "PlayGrid");
+    qmlRegisterSingletonType<PlayGridManager>(uri, 1, 0, "PlayGridManager", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
+        Q_UNUSED(engine)
+        Q_UNUSED(scriptEngine)
+        PlayGridManager *playGridManager = new PlayGridManager(engine);
+        QQmlEngine::setObjectOwnership(playGridManager, QQmlEngine::CppOwnership);
+        return playGridManager;
+    });
 }

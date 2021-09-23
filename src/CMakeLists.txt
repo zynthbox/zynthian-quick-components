@@ -5,6 +5,7 @@ target_sources(zynthian-quick-plugin
     Note.cpp
     NotesModel.cpp
     PlayGrid.cpp
+    PlayGridManager.cpp
     SettingsContainer.cpp
     #resources.qrc
 )
