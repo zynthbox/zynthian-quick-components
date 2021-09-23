@@ -72,7 +72,7 @@ int Note::midiNote() const
 
 int Note::octave() const
 {
-    return d->midiNote % 12;
+    return d->midiNote / 12;
 }
 
 void Note::setMidiChannel(int midiChannel)
