@@ -111,6 +111,8 @@ void Note::setSubnotes(const QVariantList& subnotes)
                 break;
             }
         }
+    } else {
+        different = true;
     }
     if (different) {
         d->subnotes = subnotes;
