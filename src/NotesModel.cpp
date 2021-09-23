@@ -116,6 +116,17 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
     return result;
 }
 
+QModelIndex NotesModel::index(int row, int column, const QModelIndex& /*parent*/) const
+{
+    QModelIndex idx;
+    if (row > 0 && row < d->entries.count()) {
+        if (column > 0 && column < d->entries[row].count()) {
+            idx = createIndex(row, column);
+        }
+    }
+    return idx;
+}
+
 void NotesModel::clear()
 {
     beginResetModel();
