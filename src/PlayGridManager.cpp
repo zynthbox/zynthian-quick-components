@@ -52,6 +52,17 @@ public:
             Q_EMIT q->playgridsChanged();
         }
     }
+
+    Note *findExistingNote(int midiNote, int midiChannel) {
+        Note *note{nullptr};
+        for (Note *aNote : notes) {
+            if (aNote->midiNote() == midiNote && aNote->midiChannel() == midiChannel) {
+                note = aNote;
+                break;
+            }
+        }
+        return note;
+    }
 };
 
 PlayGridManager::PlayGridManager(QObject* parent)
@@ -256,6 +267,18 @@ void PlayGridManager::setNoteState(Note* note, int velocity, bool setOn)
 
 void PlayGridManager::updateNoteState(QVariantMap metadata)
 {
+    static const QLatin1String note_on{"note_on"};
+    static const QLatin1String note_off{"note_off"};
+    int midiNote = metadata.value("note").toInt();
+    int midiChannel = metadata.value("channel").toInt();
+    const QString messageType = metadata.value("type").toString();
+    if (messageType == note_on) {
+        Note *note = d->findExistingNote(midiNote, midiChannel);
+        note->setIsPlaying(true);
+    } else if (messageType == note_off) {
+        Note *note = d->findExistingNote(midiNote, midiChannel);
+        note->setIsPlaying(false);
+    }
     qDebug() << Q_FUNC_INFO << metadata;
 }
 
