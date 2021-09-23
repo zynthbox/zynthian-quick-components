@@ -109,15 +109,18 @@ int NotesModel::columnCount(const QModelIndex& parent) const
 QVariant NotesModel::data(const QModelIndex& index, int role) const
 {
     QVariant result;
-    if (checkIndex(index)) {
-        Note* note = qobject_cast<Note*>(d->entries.at(index.row()).at(index.column()));
-        if (note) {
-            switch(role) {
+    if (index.row() >= 0 && index.row() < d->entries.count()) {
+        QObjectList rowEntries = d->entries.at(index.row());
+        if (index.column() >= 0 && index.column() < rowEntries.count()) {
+            Note* note = qobject_cast<Note*>(rowEntries.at(index.column()));
+            if (note) {
+                switch(role) {
                 case NoteRole:
                     result.setValue<QObject*>(note);
                     break;
                 default:
                     break;
+                }
             }
         }
     }
