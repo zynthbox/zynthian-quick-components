@@ -28,6 +28,15 @@ class PlayGrid : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(QObject* playGridManager READ playGridManager WRITE setPlayGridManager NOTIFY playGridManagerChanged)
+
+    /**
+     * \brief A way to set the pitch shift value (between -8192 and 8191, 0 being no shift)
+     */
+    Q_PROPERTY(int pitch READ pitch WRITE setPitch NOTIFY pitchChanged)
+    /**
+     * \brief A way to set the modulation value (between -127 and 127, with 0 being no modulation)
+     */
+    Q_PROPERTY(int modulation READ modulation WRITE setModulation NOTIFY modulationChanged)
 public:
     explicit PlayGrid(QQuickItem *parent = nullptr);
     ~PlayGrid() override;
@@ -54,6 +63,14 @@ public:
     QObject *playGridManager() const;
     void setPlayGridManager(QObject *playGridManager);
     Q_SIGNAL void playGridManagerChanged();
+
+    int pitch() const;
+    void setPitch(int pitch);
+    Q_SIGNAL void pitchChanged();
+
+    int modulation() const;
+    void setModulation(int modulation);
+    Q_SIGNAL void modulationChanged();
 private:
     class Private;
     Private *d;

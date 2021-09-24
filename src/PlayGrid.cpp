@@ -20,6 +20,7 @@
  */
 
 #include "PlayGrid.h"
+#include "PlayGridManager.h"
 
 #include <QDir>
 
@@ -28,7 +29,7 @@ class PlayGrid::Private
 public:
     Private() {}
     QString name;
-    QObject *playGridManager{nullptr};
+    PlayGridManager *playGridManager{nullptr};
     QString getDataDir()
     {
         // test and make sure that this env var contains something, or spit out .local/zynthian or something
@@ -85,15 +86,50 @@ bool PlayGrid::saveData(const QString& key, const QString& data)
     return success;
 }
 
+void PlayGrid::setPlayGridManager(QObject* playGridManager)
+{
+    if (d->playGridManager != playGridManager) {
+        if (d->playGridManager) {
+            d->playGridManager->disconnect(this);
+        }
+        d->playGridManager = qobject_cast<PlayGridManager*>(playGridManager);
+        connect(d->playGridManager, &PlayGridManager::pitchChanged, this, &PlayGrid::pitchChanged);
+        connect(d->playGridManager, &PlayGridManager::modulationChanged, this, &PlayGrid::modulationChanged);
+        Q_EMIT playGridManagerChanged();
+    }
+}
+
 QObject* PlayGrid::playGridManager() const
 {
     return d->playGridManager;
 }
 
-void PlayGrid::setPlayGridManager(QObject* playGridManager)
+void PlayGrid::setPitch(int pitch)
 {
-    if (d->playGridManager != playGridManager) {
-        d->playGridManager = playGridManager;
-        Q_EMIT playGridManagerChanged();
+    if (d->playGridManager) {
+        d->playGridManager->setPitch(pitch);
     }
+}
+
+int PlayGrid::pitch() const
+{
+    if (d->playGridManager) {
+        return d->playGridManager->pitch();
+    }
+    return 0;
+}
+
+void PlayGrid::setModulation(int modulation)
+{
+    if (d->playGridManager) {
+        d->playGridManager->setModulation(modulation);
+    }
+}
+
+int PlayGrid::modulation() const
+{
+    if (d->playGridManager) {
+        return d->playGridManager->modulation();
+    }
+    return 0;
 }
