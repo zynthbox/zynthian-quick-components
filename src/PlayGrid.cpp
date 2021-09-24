@@ -28,6 +28,7 @@ class PlayGrid::Private
 public:
     Private() {}
     QString name;
+    QObject *playGridManager{nullptr};
     QString getDataDir()
     {
         // test and make sure that this env var contains something, or spit out .local/zynthian or something
@@ -82,4 +83,17 @@ bool PlayGrid::saveData(const QString& key, const QString& data)
         }
     }
     return success;
+}
+
+QObject* PlayGrid::playGridManager() const
+{
+    return d->playGridManager;
+}
+
+void PlayGrid::setPlayGridManager(QObject* playGridManager)
+{
+    if (d->playGridManager != playGridManager) {
+        d->playGridManager = playGridManager;
+        Q_EMIT playGridManagerChanged();
+    }
 }

@@ -27,6 +27,7 @@
 class PlayGrid : public QQuickItem
 {
     Q_OBJECT
+    Q_PROPERTY(QObject* playGridManager READ playGridManager WRITE setPlayGridManager NOTIFY playGridManagerChanged)
 public:
     explicit PlayGrid(QQuickItem *parent = nullptr);
     ~PlayGrid() override;
@@ -49,6 +50,10 @@ public:
      * @return True if successful, false if unsuccessful
      */
     Q_INVOKABLE bool saveData(const QString &key, const QString &data);
+
+    QObject *playGridManager() const;
+    void setPlayGridManager(QObject *playGridManager);
+    Q_SIGNAL void playGridManagerChanged();
 private:
     class Private;
     Private *d;
