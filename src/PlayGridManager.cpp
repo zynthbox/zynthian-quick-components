@@ -283,7 +283,18 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
 
 void PlayGridManager::metronomeTick(int beat)
 {
-    qDebug() << "tick" << beat;
+    if (beat % 4 == 0) {
+        d->metronomeBeat4th = beat / 4;
+        Q_EMIT metronomeBeat4thChanged();
+    }
+
+    if (beat % 2 == 0) {
+        d->metronomeBeat8th = beat / 2;
+        Q_EMIT metronomeBeat8thChanged();
+    }
+
+    d->metronomeBeat16th = beat;
+    Q_EMIT metronomeBeat16thChanged();
 }
 
 int PlayGridManager::metronomeBeat4th() const
