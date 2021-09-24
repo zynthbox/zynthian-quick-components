@@ -229,3 +229,27 @@ int PlayGrid::metronomeBeat16th() const
     }
     return 0;
 }
+
+int PlayGrid::metronomeBeat32nd() const
+{
+    if (d->playGridManager) {
+        return d->playGridManager->metronomeBeat32nd();
+    }
+    return 0;
+}
+
+int PlayGrid::metronomeBeat64th() const
+{
+    if (d->playGridManager) {
+        return d->playGridManager->metronomeBeat64th();
+    }
+    return 0;
+}
+
+int PlayGrid::metronomeBeat128th() const
+{
+    if (d->playGridManager) {
+        return d->playGridManager->metronomeBeat128th();
+    }
+    return 0;
+}

@@ -55,6 +55,24 @@ class PlayGrid : public QQuickItem
      * @see stopMetronome()
      */
     Q_PROPERTY(int metronomeBeat16th READ metronomeBeat16th NOTIFY metronomeBeat16thChanged)
+    /**
+     * \brief A number which changes from 1 through 32 every 32nd beat when the metronome is running
+     * @see startMetronome()
+     * @see stopMetronome()
+     */
+    Q_PROPERTY(int metronomeBeat32nd READ metronomeBeat32nd NOTIFY metronomeBeat32ndChanged)
+    /**
+     * \brief A number which changes from 1 through 64 every 64th beat when the metronome is running
+     * @see startMetronome()
+     * @see stopMetronome()
+     */
+    Q_PROPERTY(int metronomeBeat64th READ metronomeBeat64th NOTIFY metronomeBeat64thChanged)
+    /**
+     * \brief A number which changes from 1 through 128 every 128th beat when the metronome is running
+     * @see startMetronome()
+     * @see stopMetronome()
+     */
+    Q_PROPERTY(int metronomeBeat128th READ metronomeBeat128th NOTIFY metronomeBeat128thChanged)
 public:
     explicit PlayGrid(QQuickItem *parent = nullptr);
     ~PlayGrid() override;
@@ -181,6 +199,12 @@ public:
     Q_SIGNAL void metronomeBeat8thChanged();
     int metronomeBeat16th() const;
     Q_SIGNAL void metronomeBeat16thChanged();
+    int metronomeBeat32nd() const;
+    Q_SIGNAL void metronomeBeat32ndChanged();
+    int metronomeBeat64th() const;
+    Q_SIGNAL void metronomeBeat64thChanged();
+    int metronomeBeat128th() const;
+    Q_SIGNAL void metronomeBeat128thChanged();
 private:
     class Private;
     Private *d;
