@@ -80,6 +80,7 @@ public:
     // TODO This is a temporary thing while we get the c++ side integrated properly
     Q_SIGNAL void requestMetronomeStop();
 
+    Q_INVOKABLE void metronomeTick(int beat);
     int metronomeBeat4th() const;
     Q_SIGNAL void metronomeBeat4thChanged();
     int metronomeBeat8th() const;
