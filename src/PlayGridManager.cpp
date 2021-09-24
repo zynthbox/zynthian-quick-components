@@ -69,6 +69,7 @@ public:
             if (dir.exists()) {
                 QDirIterator it(dir);
                 while (it.hasNext()) {
+                    it.next();
                     const QFileInfo fi = it.fileInfo();
                     if (fi.isDir()) {
                         if (fi.exists("main.qml")) {
