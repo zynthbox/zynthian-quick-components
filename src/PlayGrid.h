@@ -30,6 +30,14 @@ class PlayGrid : public QQuickItem
     Q_PROPERTY(QObject* playGridManager READ playGridManager WRITE setPlayGridManager NOTIFY playGridManagerChanged)
 
     /**
+     * \brief The human-facing name of your playgrid (shown anywhere the grid is referred to in the UI)
+     *
+     * You should not make this overly long or awkward, as it is used as the visual identifier by your user.
+     * Clever is fine, but always remember: unique is not a selling point in its own right.
+     */
+    Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
+
+    /**
      * \brief A way to set the pitch shift value (between -8192 and 8191, 0 being no shift)
      */
     Q_PROPERTY(int pitch READ pitch WRITE setPitch NOTIFY pitchChanged)
@@ -167,6 +175,10 @@ public:
     QObject *playGridManager() const;
     void setPlayGridManager(QObject *playGridManager);
     Q_SIGNAL void playGridManagerChanged();
+
+    QString name() const;
+    void setName(const QString &name);
+    Q_SIGNAL void nameChanged();
 
     int pitch() const;
     void setPitch(int pitch);

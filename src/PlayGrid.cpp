@@ -82,7 +82,7 @@ QObject* PlayGrid::getModel(const QString& modelName)
 {
     QObject *result{nullptr};
     if (d->playGridManager) {
-        result = d->playGridManager->getNotesModel(modelName);
+        result = d->playGridManager->getNotesModel(d->name + modelName);
     }
     return result;
 }
@@ -160,6 +160,19 @@ void PlayGrid::setPlayGridManager(QObject* playGridManager)
 QObject* PlayGrid::playGridManager() const
 {
     return d->playGridManager;
+}
+
+void PlayGrid::setName(const QString& name)
+{
+    if (d->name != name) {
+        d->name = name;
+        Q_EMIT nameChanged();
+    }
+}
+
+QString PlayGrid::name() const
+{
+    return d->name;
 }
 
 void PlayGrid::setPitch(int pitch)
