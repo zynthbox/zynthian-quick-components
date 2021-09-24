@@ -184,20 +184,22 @@ QObject* PlayGridManager::getNotesModel(const QString& name)
 QObject* PlayGridManager::getNote(int midiNote, int midiChannel)
 {
     Note *note{nullptr};
-    for (Note *aNote : d->notes) {
-        if (aNote->midiNote() == midiNote && aNote->midiChannel() == midiChannel) {
-            note = aNote;
-            break;
+    if (0 <= midiNote && midiNote <= 127 && 0 <= midiChannel && midiChannel <= 15) {
+        for (Note *aNote : d->notes) {
+            if (aNote->midiNote() == midiNote && aNote->midiChannel() == midiChannel) {
+                note = aNote;
+                break;
+            }
         }
-    }
-    if (!note) {
-        static const QStringList note_int_to_str_map{"C", "C#","D","D#","E","F","F#","G","G#","A","A#","B"};
-        note = new Note(this);
-        note->setName(note_int_to_str_map.value(midiNote % 12));
-        note->setMidiNote(midiNote);
-        note->setMidiChannel(midiChannel);
-        QQmlEngine::setObjectOwnership(note, QQmlEngine::CppOwnership);
-        d->notes << note;
+        if (!note) {
+            static const QStringList note_int_to_str_map{"C", "C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+            note = new Note(this);
+            note->setName(note_int_to_str_map.value(midiNote % 12));
+            note->setMidiNote(midiNote);
+            note->setMidiChannel(midiChannel);
+            QQmlEngine::setObjectOwnership(note, QQmlEngine::CppOwnership);
+            d->notes << note;
+        }
     }
     return note;
 }
