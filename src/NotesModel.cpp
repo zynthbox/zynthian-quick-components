@@ -158,9 +158,8 @@ void NotesModel::addRow(const QVariantList &notes)
         actualNotes << var.value<QObject*>();
     }
     if (actualNotes.count() > 0) {
-        int newRow = d->entries.count();
-        beginInsertRows(QModelIndex(), newRow, newRow);
-        d->entries.append(actualNotes);
+        beginInsertRows(QModelIndex(), 0, 0);
+        d->entries.insert(0, actualNotes);
         d->noteDataChangedUpdater.start();
         endInsertRows();
         Q_EMIT rowsChanged();
