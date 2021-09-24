@@ -38,6 +38,9 @@ class PlayGridManager : public QObject
     Q_PROPERTY(int metronomeBeat4th READ metronomeBeat4th NOTIFY metronomeBeat4thChanged)
     Q_PROPERTY(int metronomeBeat8th READ metronomeBeat8th NOTIFY metronomeBeat8thChanged)
     Q_PROPERTY(int metronomeBeat16th READ metronomeBeat16th NOTIFY metronomeBeat16thChanged)
+    Q_PROPERTY(int metronomeBeat32nd READ metronomeBeat32nd NOTIFY metronomeBeat32ndChanged)
+    Q_PROPERTY(int metronomeBeat64th READ metronomeBeat64th NOTIFY metronomeBeat64thChanged)
+    Q_PROPERTY(int metronomeBeat128th READ metronomeBeat128th NOTIFY metronomeBeat128thChanged)
 public:
     explicit PlayGridManager(QObject *parent = nullptr);
     ~PlayGridManager() override;
@@ -69,7 +72,7 @@ public:
 
     Q_INVOKABLE void setNoteState(Note *note, int velocity = 64, bool setOn = true);
     Q_SIGNAL void noteStateChanged(QObject *note);
-    Q_SIGNAL QVariantList mostRecentlyChangedNotes() const;
+    Q_INVOKABLE QVariantList mostRecentlyChangedNotes() const;
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
     Q_INVOKABLE void updateNoteState(QVariantMap metadata);
 
@@ -87,6 +90,12 @@ public:
     Q_SIGNAL void metronomeBeat8thChanged();
     int metronomeBeat16th() const;
     Q_SIGNAL void metronomeBeat16thChanged();
+    int metronomeBeat32nd() const;
+    Q_SIGNAL void metronomeBeat32ndChanged();
+    int metronomeBeat64th() const;
+    Q_SIGNAL void metronomeBeat64thChanged();
+    int metronomeBeat128th() const;
+    Q_SIGNAL void metronomeBeat128thChanged();
 
     // TODO This is a temporary thing while we get the c++ side integrated properly
     Q_SIGNAL void sendAMidiNoteMessage(int midiNote, int velocity, int channel, bool setOn);

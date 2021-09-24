@@ -40,9 +40,13 @@ public:
     QList<Note*> notes;
     QMap<QString, SettingsContainer*> settingsContainers;
     QMap<Note*, int> noteStateMap;
+    QVariantList mostRecentlyChangedNotes;
     int metronomeBeat4th{0};
     int metronomeBeat8th{0};
     int metronomeBeat16th{0};
+    int metronomeBeat32nd{0};
+    int metronomeBeat64th{0};
+    int metronomeBeat128th{0};
 
     void updatePlaygrids()
     {
@@ -265,6 +269,11 @@ void PlayGridManager::setNoteState(Note* note, int velocity, bool setOn)
     }
 }
 
+QVariantList PlayGridManager::mostRecentlyChangedNotes() const
+{
+    return d->mostRecentlyChangedNotes;
+}
+
 void PlayGridManager::updateNoteState(QVariantMap metadata)
 {
     static const QLatin1String note_on{"note_on"};
@@ -283,18 +292,29 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
 
 void PlayGridManager::metronomeTick(int beat)
 {
-    if (beat % 4 == 0) {
-        d->metronomeBeat4th = beat / 4;
+    if (beat % 32 == 0) {
+        d->metronomeBeat4th = beat / 32;
         Q_EMIT metronomeBeat4thChanged();
     }
-
-    if (beat % 2 == 0) {
-        d->metronomeBeat8th = beat / 2;
+    if (beat % 16 == 0) {
+        d->metronomeBeat8th = beat / 16;
         Q_EMIT metronomeBeat8thChanged();
     }
+    if (beat % 8 == 0) {
+        d->metronomeBeat16th = beat / 8;
+        Q_EMIT metronomeBeat16thChanged();
+    }
+    if (beat % 4 == 0) {
+        d->metronomeBeat32nd = beat / 4;
+        Q_EMIT metronomeBeat32ndChanged();
+    }
+    if (beat % 2 == 0) {
+        d->metronomeBeat64th = beat / 2;
+        Q_EMIT metronomeBeat64thChanged();
+    }
 
-    d->metronomeBeat16th = beat;
-    Q_EMIT metronomeBeat16thChanged();
+    d->metronomeBeat128th = beat;
+    Q_EMIT metronomeBeat128thChanged();
 }
 
 int PlayGridManager::metronomeBeat4th() const
@@ -310,6 +330,21 @@ int PlayGridManager::metronomeBeat8th() const
 int PlayGridManager::metronomeBeat16th() const
 {
     return d->metronomeBeat16th;
+}
+
+int PlayGridManager::metronomeBeat32nd() const
+{
+    return d->metronomeBeat32nd;
+}
+
+int PlayGridManager::metronomeBeat64th() const
+{
+    return d->metronomeBeat64th;
+}
+
+int PlayGridManager::metronomeBeat128th() const
+{
+    return d->metronomeBeat128th;
 }
 
 void PlayGridManager::startMetronome()
