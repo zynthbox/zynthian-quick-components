@@ -47,6 +47,7 @@ public:
 
     QStringList playgrids() const;
     Q_SIGNAL void playgridsChanged();
+    Q_INVOKABLE void updatePlaygrids();
 
     QVariantMap currentPlaygrids() const;
     Q_SIGNAL void currentPlaygridsChanged();

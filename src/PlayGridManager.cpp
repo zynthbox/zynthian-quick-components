@@ -26,11 +26,20 @@
 
 #include <QQmlEngine>
 #include <QDebug>
+#include <QDir>
+#include <QDirIterator>
+#include <QFileSystemWatcher>
+#include <QStandardPaths>
 
 class PlayGridManager::Private
 {
 public:
-    Private(PlayGridManager *q) : q(q) {}
+    Private(PlayGridManager *q) : q(q) {
+        updatePlaygrids();
+        connect(&watcher, &QFileSystemWatcher::directoryChanged, q, [this](){
+            updatePlaygrids();
+        });
+    }
     PlayGridManager *q;
     QStringList playgrids;
     QVariantMap currentPlaygrids;
@@ -48,13 +57,41 @@ public:
     int metronomeBeat64th{0};
     int metronomeBeat128th{0};
 
+    QFileSystemWatcher watcher;
+
     void updatePlaygrids()
     {
+        static const QStringList searchlist{QStandardPaths::writableLocation(QStandardPaths::HomeLocation) + "/.local/share/zynthian/playgrids", "/home/pi/zynthian-ui/qml-ui/playgrids"};
         QStringList newPlaygrids;
-        if (playgrids != newPlaygrids) {
-            playgrids = newPlaygrids;
-            Q_EMIT q->playgridsChanged();
+
+        for (const QString &searchdir : searchlist) {
+            QDir dir(searchdir);
+            if (dir.exists()) {
+                QDirIterator it(dir);
+                while (it.hasNext()) {
+                    QFile file(it.next() + "/main.qml");
+                    if (file.exists()) {
+                        newPlaygrids << file.fileName();
+                    } else {
+                        qDebug() << Q_FUNC_INFO << "A stray directory that does not contain a main.qml file was found in one of the playgrid search locations: " << file.fileName();
+                    }
+                }
+            } else {
+                // A little naughty, but knewstuff kind of removes directories once everything in it's gone
+                dir.mkpath(searchdir);
+            }
+            if (!watcher.directories().contains(searchdir)) {
+                watcher.addPath(searchdir);
+            }
         }
+
+        newPlaygrids.sort();
+        // Start out by clearing known playgrids - it's a bit of a hack, but it ensures that for e.g. when updating a playgrid from the store, that will also be picked up and reloaded
+        playgrids.clear();
+        Q_EMIT q->playgridsChanged();
+        playgrids = newPlaygrids;
+        Q_EMIT q->playgridsChanged();
+        qDebug() << Q_FUNC_INFO << "We now have the following known grids:" << playgrids;
     }
 
     Note *findExistingNote(int midiNote, int midiChannel) {
@@ -83,6 +120,11 @@ PlayGridManager::~PlayGridManager()
 QStringList PlayGridManager::playgrids() const
 {
     return d->playgrids;
+}
+
+void PlayGridManager::updatePlaygrids()
+{
+    d->updatePlaygrids();
 }
 
 QVariantMap PlayGridManager::currentPlaygrids() const
@@ -362,7 +404,13 @@ void PlayGridManager::stopMetronome()
     d->metronomeBeat4th = 0;
     d->metronomeBeat8th = 0;
     d->metronomeBeat16th = 0;
+    d->metronomeBeat32nd = 0;
+    d->metronomeBeat64th = 0;
+    d->metronomeBeat128th = 0;
     Q_EMIT metronomeBeat4thChanged();
     Q_EMIT metronomeBeat8thChanged();
     Q_EMIT metronomeBeat16thChanged();
+    Q_EMIT metronomeBeat32ndChanged();
+    Q_EMIT metronomeBeat64thChanged();
+    Q_EMIT metronomeBeat128thChanged();
 }
