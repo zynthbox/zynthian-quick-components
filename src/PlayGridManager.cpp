@@ -69,11 +69,13 @@ public:
             if (dir.exists()) {
                 QDirIterator it(dir);
                 while (it.hasNext()) {
-                    QFile file(it.next() + "/main.qml");
-                    if (file.exists()) {
-                        newPlaygrids << file.fileName();
-                    } else {
-                        qDebug() << Q_FUNC_INFO << "A stray directory that does not contain a main.qml file was found in one of the playgrid search locations: " << file.fileName();
+                    const QFileInfo fi = it.fileInfo();
+                    if (fi.isDir()) {
+                        if (fi.exists("main.qml")) {
+                            newPlaygrids << searchdir;
+                        } else {
+                            qDebug() << Q_FUNC_INFO << "A stray directory that does not contain a main.qml file was found in one of the playgrid search locations: " << searchdir;
+                        }
                     }
                 }
             } else {
