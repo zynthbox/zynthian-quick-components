@@ -9,7 +9,8 @@ target_sources(zynthian-quick-plugin
     SettingsContainer.cpp
     #resources.qrc
 )
-target_link_libraries(zynthian-quick-plugin Qt5::Core Qt5::Qml Qt5::Quick)
+target_link_libraries(zynthian-quick-plugin Qt5::Core Qt5::Qml Qt5::Quick ${LIBZL_LIBRARIES})
+target_include_directories(zynthian-quick-plugin PRIVATE ${LIBZL_INCLUDE_DIRS})
 
 install(TARGETS zynthian-quick-plugin DESTINATION ${QML_INSTALL_DIR}/org/zynthian/quick)
 install(FILES qmldir DESTINATION ${QML_INSTALL_DIR}/org/zynthian/quick)

@@ -35,6 +35,7 @@ class PlayGridManager : public QObject
     Q_PROPERTY(int modulation READ modulation WRITE setModulation NOTIFY modulationChanged)
     Q_PROPERTY(QVariantList mostRecentlyChangedNotes READ mostRecentlyChangedNotes NOTIFY mostRecentlyChangedNotesChanged)
 
+    Q_PROPERTY(QObject* syncTimer READ syncTimer WRITE setSyncTimer NOTIFY syncTimerChanged)
     Q_PROPERTY(int metronomeBeat4th READ metronomeBeat4th NOTIFY metronomeBeat4thChanged)
     Q_PROPERTY(int metronomeBeat8th READ metronomeBeat8th NOTIFY metronomeBeat8thChanged)
     Q_PROPERTY(int metronomeBeat16th READ metronomeBeat16th NOTIFY metronomeBeat16thChanged)
@@ -76,6 +77,10 @@ public:
     Q_INVOKABLE QVariantList mostRecentlyChangedNotes() const;
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
     Q_INVOKABLE void updateNoteState(QVariantMap metadata);
+
+    QObject *syncTimer() const;
+    void setSyncTimer(QObject *syncTimer);
+    Q_SIGNAL void syncTimerChanged();
 
     Q_INVOKABLE void startMetronome();
     // TODO This is a temporary thing while we get the c++ side integrated properly

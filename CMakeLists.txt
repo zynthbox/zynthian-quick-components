@@ -17,6 +17,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ECM_MODULE_PATH} ${CMAKE_CURRENT_LI
 
 find_package(Qt5 ${QT_MIN_VERSION} REQUIRED CONFIG COMPONENTS Quick)
 find_package(KF5Kirigami2 2.7.0)
+find_package(LibZL)
 
 include(KDEInstallDirs)
 include(ECMInstallIcons)

@@ -24,12 +24,23 @@
 #include "NotesModel.h"
 #include "SettingsContainer.h"
 
+// ZynthiLoops library
+#include <libzl/SyncTimer.h>
+
 #include <QQmlEngine>
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
 #include <QFileSystemWatcher>
+#include <QList>
 #include <QStandardPaths>
+
+Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
+void timer_callback(int beat) {
+    for (PlayGridManager* pgm : *timer_callback_tickers) {
+        pgm->metronomeTick(beat);
+    }
+}
 
 class PlayGridManager::Private
 {
@@ -50,6 +61,8 @@ public:
     QMap<QString, SettingsContainer*> settingsContainers;
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
+
+    SyncTimer *syncTimer;
     int metronomeBeat4th{0};
     int metronomeBeat8th{0};
     int metronomeBeat16th{0};
@@ -393,17 +406,34 @@ int PlayGridManager::metronomeBeat128th() const
     return d->metronomeBeat128th;
 }
 
+void PlayGridManager::setSyncTimer(QObject* syncTimer)
+{
+    if (d->syncTimer != syncTimer) {
+        if (d->syncTimer) {
+            d->syncTimer->removeCallback(&timer_callback);
+        }
+        d->syncTimer = qobject_cast<SyncTimer*>(syncTimer);
+        d->syncTimer->addCallback(&timer_callback);
+        Q_EMIT syncTimerChanged();
+    }
+}
+
+QObject* PlayGridManager::syncTimer() const
+{
+    return d->syncTimer;
+}
+
 void PlayGridManager::startMetronome()
 {
     // TODO Send start metronome request to libzl
-    // TODO connect to libzl timer signals
+    timer_callback_tickers->append(this);
     Q_EMIT requestMetronomeStart();
 }
 
 void PlayGridManager::stopMetronome()
 {
-    // TODO disconnect from libzl timer signals
     // TODO Send stop metronome request to libzl
+    timer_callback_tickers->removeAll(this);
     Q_EMIT requestMetronomeStop();
     d->metronomeBeat4th = 0;
     d->metronomeBeat8th = 0;
