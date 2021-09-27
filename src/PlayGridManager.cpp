@@ -62,7 +62,7 @@ public:
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
 
-    SyncTimer *syncTimer;
+    SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
     int metronomeBeat8th{0};
     int metronomeBeat16th{0};
@@ -413,9 +413,18 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
             d->syncTimer->removeCallback(&timer_callback);
         }
         d->syncTimer = qobject_cast<SyncTimer*>(syncTimer);
-        d->syncTimer->addCallback(&timer_callback);
+        if (d->syncTimer) {
+            d->syncTimer->addCallback(&timer_callback);
+        }
         Q_EMIT syncTimerChanged();
     }
+}
+
+void PlayGridManager::setSyncTimerObj(int memoryAddress)
+{
+    qDebug() << Q_FUNC_INFO << "Setting sync timer object by explicitly interpreting an integer as a memory address. This isn't awesome, but it'll have to do for now. See todo in PlayGridManage.h";
+    QObject* thing = reinterpret_cast<QObject*>(memoryAddress);
+    setSyncTimer(thing);
 }
 
 QObject* PlayGridManager::syncTimer() const
