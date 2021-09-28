@@ -153,6 +153,9 @@ void PlayGrid::setPlayGridManager(QObject* playGridManager)
         connect(d->playGridManager, &PlayGridManager::metronomeBeat4thChanged, this, &PlayGrid::metronomeBeat4thChanged);
         connect(d->playGridManager, &PlayGridManager::metronomeBeat8thChanged, this, &PlayGrid::metronomeBeat8thChanged);
         connect(d->playGridManager, &PlayGridManager::metronomeBeat16thChanged, this, &PlayGrid::metronomeBeat16thChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat32ndChanged, this, &PlayGrid::metronomeBeat32ndChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat64thChanged, this, &PlayGrid::metronomeBeat64thChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, &PlayGrid::metronomeBeat128thChanged);
         Q_EMIT playGridManagerChanged();
     }
 }
