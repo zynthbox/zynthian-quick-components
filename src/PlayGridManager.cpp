@@ -434,9 +434,12 @@ QObject* PlayGridManager::syncTimer() const
 
 void PlayGridManager::startMetronome()
 {
-    // TODO Send start metronome request to libzl
-    timer_callback_tickers->append(this);
-    Q_EMIT requestMetronomeStart();
+    // If we've already registered ourselves to get a callback, don't do that again, it just gets silly
+    if (!timer_callback_tickers->contains(this)) {
+        // TODO Send start metronome request to libzl
+        timer_callback_tickers->append(this);
+        Q_EMIT requestMetronomeStart();
+    }
 }
 
 void PlayGridManager::stopMetronome()
