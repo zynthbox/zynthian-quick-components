@@ -138,6 +138,65 @@ QModelIndex NotesModel::index(int row, int column, const QModelIndex& /*parent*/
     return idx;
 }
 
+QObject* NotesModel::getNote(int row, int column) const
+{
+    QObject *obj{nullptr};
+    if (row >= 0 && row < d->entries.count()) {
+        QObjectList rowEntries = d->entries.at(row);
+        if (column >= 0 && column < rowEntries.count()) {
+            obj = rowEntries.at(column);
+        }
+    }
+    return obj;
+}
+
+void NotesModel::setNote(int row, int column, QObject* note)
+{
+    if (d->entries.count() < row - 1) {
+        beginInsertRows(QModelIndex(), d->entries.count(), row);
+        for (int i = d->entries.count() - 1; i < row + 1; ++i) {
+            d->entries << QObjectList();
+        }
+        endInsertRows();
+    }
+    QObjectList rowList = d->entries[row];
+    if (rowList.count() < column) {
+        beginInsertColumns(QModelIndex(), rowList.count(), column);
+        for (int i = rowList.count() - 1; i < column + 1; ++i) {
+            rowList << nullptr;
+        }
+        endInsertColumns();
+    }
+    rowList[column] = note;
+    d->entries[row] = rowList;
+    QModelIndex changed = createIndex(row, column);
+    dataChanged(changed, changed);
+}
+
+void NotesModel::trim()
+{
+    QList<QObjectList> newList;
+    for (const QObjectList &rowList : d->entries) {
+        QObjectList newRow;
+        QObjectList trailing;
+        for (QObject *obj : rowList) {
+            if (obj) {
+                newRow << trailing;
+                trailing.clear();
+                newRow << obj;
+            } else {
+                trailing << nullptr;
+            }
+        }
+        if (newRow.count() > 0) {
+            newList << newRow;
+        }
+    }
+    beginResetModel();
+    d->entries = newList;
+    endResetModel();
+}
+
 void NotesModel::clear()
 {
     beginResetModel();
