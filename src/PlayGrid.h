@@ -122,6 +122,52 @@ public:
     Q_INVOKABLE QObject* getModel(const QString &modelName);
 
     /**
+     * \brief Get a JSON representation of the given model
+     *
+     * @param model A NotesModel object
+     * @return A string containing a representation of the model's notes in JSON form
+     */
+    Q_INVOKABLE QString modelToJson(QObject *model) const;
+    /**
+     * \brief Set the contents of the given model based on the given JSON representation
+     *
+     * @param model A NotesModel object to set to match the json structure
+     * @param json A string containing a JSON formatted representation of a model's contents (or a list, see notesListToJson())
+     */
+    Q_INVOKABLE void setModelFromJson(QObject *model, const QString &json);
+    /**
+     * \brief Get a JSON representation of a list of Note objects
+     *
+     * Given a list of Note objects (empty entries are allowed in this list), you can use this function
+     * to get a JSON representation which you can save using for example saveData()
+     *
+     * @param notes A list of Note objects to get a JSON representation of
+     * @return A JSON formatted string representing the list of notes
+     */
+    Q_INVOKABLE QString notesListToJson(const QVariantList &notes) const;
+    /**
+     * \brief Get a list of notes based on a JSON representation (may contain null notes)
+     *
+     * @param json A JSON formatted representation of notes (empty fields allowed)
+     * @return A list of Note objects (or empty positions), or an empty list if invalid
+     */
+    Q_INVOKABLE QVariantList jsonToNotesList(const QString &json);
+    /**
+     * \brief Get a JSON representation of a single Note object
+     *
+     * @param note The Note object you wish to get a JSON representation of
+     * @return A JSON string representation of the Note object
+     */
+    Q_INVOKABLE QString noteToJson(QObject *note) const;
+    /**
+     * \brief Get the Note object represented by the given JSON string (may return null)
+     *
+     * @param json A JSON representation of a Note
+     * @return The Note object represented by the JSON passed to the function (or null if invalid)
+     */
+    Q_INVOKABLE QObject* jsonToNote(const QString &json);
+
+    /**
      * \brief Turns the note passed to it on, if it is not already playing
      *
      * This will turn on the note, but it will not turn the note off and back on again if it is already

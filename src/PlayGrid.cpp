@@ -21,8 +21,13 @@
 
 #include "PlayGrid.h"
 #include "PlayGridManager.h"
+#include "Note.h"
+#include "NotesModel.h"
 
 #include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 class PlayGrid::Private
 {
@@ -46,6 +51,38 @@ public:
             }
         }
         return getDataDir() + "/" + safe;
+    }
+
+    QJsonObject noteToJsonObject(Note *note) {
+        QJsonObject jsonObject;
+        if (note) {
+            jsonObject.insert("midiNote", note->midiNote());
+            jsonObject.insert("midiChannel", note->midiChannel());
+            if (note->subnotes().count() > 0) {
+                QJsonArray subnoteArray;
+                for (const QVariant &subnote : note->subnotes()) {
+                    subnoteArray << noteToJsonObject(qobject_cast<Note*>(subnote.value<QObject*>()));
+                }
+                jsonObject.insert("subnotes", subnoteArray);
+            }
+        }
+        return jsonObject;
+    }
+
+    Note *jsonObjectToNote(const QJsonObject &jsonObject) {
+        Note *note{nullptr};
+        if (jsonObject.contains("subnotes")) {
+            QJsonArray subnotes = jsonObject["subnotes"].toArray();
+            QVariantList subnotesList;
+            for (const QJsonValue &val : subnotes) {
+                Note *subnote = jsonObjectToNote(val.toObject());
+                subnotesList.append(QVariant::fromValue<QObject*>(subnote));
+            }
+            note = qobject_cast<Note*>(playGridManager->getCompoundNote(subnotesList));
+        } else {
+            note = qobject_cast<Note*>(playGridManager->getNote(jsonObject.value("midiNote").toInt(), jsonObject.value("midiChannel").toInt()));
+        }
+        return note;
     }
 };
 
@@ -85,6 +122,81 @@ QObject* PlayGrid::getModel(const QString& modelName)
         result = d->playGridManager->getNotesModel(d->name + modelName);
     }
     return result;
+}
+
+QString PlayGrid::modelToJson(QObject* model) const
+{
+    QJsonDocument json;
+    NotesModel* actualModel = qobject_cast<NotesModel*>(model);
+    if (actualModel) {
+        QJsonArray modelArray;
+        for (int row = 0; row < actualModel->rowCount(); ++row) {
+            QJsonArray rowArray;
+            for (int column = 0; column < actualModel->columnCount(actualModel->index(row)); ++column) {
+                rowArray.append(d->noteToJsonObject(qobject_cast<Note*>(actualModel->getNote(row, column))));
+            }
+            modelArray << rowArray;
+        }
+        json.setArray(modelArray);
+    }
+    return json.toJson();
+}
+
+void PlayGrid::setModelFromJson(QObject* model, const QString& json)
+{
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+    NotesModel* actualModel = qobject_cast<NotesModel*>(model);
+    actualModel->clear();
+    if (jsonDoc.isArray()) {
+        QJsonArray notesArray = jsonDoc.array();
+        QVariantList rowList;
+        for (const QJsonValue &row : notesArray) {
+            if (row.isArray()) {
+                QJsonArray rowArray = row.toArray();
+                for (const QJsonValue &note : rowArray) {
+                    rowList << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note.toObject()));
+                }
+            }
+        }
+        actualModel->addRow(rowList);
+    }
+}
+
+QString PlayGrid::notesListToJson(const QVariantList& notes) const
+{
+    QJsonDocument json;
+    QJsonArray notesArray;
+    for (const QVariant &element : notes) {
+        notesArray << d->noteToJsonObject(qobject_cast<Note*>(element.value<QObject*>()));
+    }
+    json.setArray(notesArray);
+    return json.toJson();
+}
+
+QVariantList PlayGrid::jsonToNotesList(const QString& json)
+{
+    QVariantList notes;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+    if (jsonDoc.isArray()) {
+        QJsonArray notesArray = jsonDoc.array();
+        for (const QJsonValue &note : notesArray) {
+            notes << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note.toObject()));
+        }
+    }
+    return notes;
+}
+
+QString PlayGrid::noteToJson(QObject* note) const
+{
+    QJsonDocument doc;
+    doc.setObject(d->noteToJsonObject(qobject_cast<Note*>(note)));
+    return doc.toJson();
+}
+
+QObject* PlayGrid::jsonToNote(const QString& json)
+{
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+    return d->jsonObjectToNote(jsonDoc.object());
 }
 
 void PlayGrid::setNoteOn(QObject* note, int velocity)
