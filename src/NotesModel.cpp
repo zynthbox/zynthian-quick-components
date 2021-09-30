@@ -24,6 +24,11 @@
 
 #include <QTimer>
 
+struct Entry {
+    Note* note{nullptr};
+    QVariant metaData;
+};
+
 class NotesModel::Private {
 public:
     Private(NotesModel *q)
@@ -32,9 +37,9 @@ public:
         noteDataChangedUpdater.setInterval(1);
         noteDataChangedUpdater.setSingleShot(true);
         QObject::connect(&noteDataChangedUpdater, &QTimer::timeout, q, [this,q](){
-            for (const QObjectList &list : entries) {
-                for (QObject *obj : list) {
-                    Note *note = qobject_cast<Note*>(obj);
+            for (const QList<Entry> &list : entries) {
+                for (const Entry &obj : list) {
+                    Note *note = obj.note;
                     note->disconnect(q);
                     connect(note, &Note::nameChanged, q, [this,note](){ emitNoteDataChanged(note); });
                     connect(note, &Note::midiNoteChanged, q, [this,note](){ emitNoteDataChanged(note); });
@@ -46,14 +51,33 @@ public:
         });
     }
     NotesModel *q;
-    QList<QObjectList> entries;
+    QList< QList<Entry> > entries;
 
+    void ensurePositionExists(int row, int column) {
+        if (entries.count() < row - 1) {
+            q->beginInsertRows(QModelIndex(), entries.count(), row);
+            for (int i = entries.count() - 1; i < row + 1; ++i) {
+                entries << QList<Entry>();
+            }
+            q->endInsertRows();
+        }
+        QList<Entry> rowList = entries[row];
+        if (rowList.count() < column + 1) {
+            q->beginInsertColumns(QModelIndex(), rowList.count(), column + 1);
+            for (int i = rowList.count() - 1; i < column + 1; ++i) {
+                rowList << Entry();
+            }
+            q->endInsertColumns();
+        }
+        entries[row] = rowList;
+    }
     QTimer noteDataChangedUpdater;
     void emitNoteDataChanged(Note* note) {
         for (int row = 0; row < entries.count(); ++row) {
-            QObjectList rowEntries = entries[row];
+            QList<Entry> rowEntries = entries[row];
             for (int column = 0; column < rowEntries.count(); ++column) {
-                if (rowEntries[column] == note) {
+                const Entry &entry = rowEntries.at(column);
+                if (entry.note == note) {
                     QModelIndex idx = q->index(row, column);
                     q->dataChanged(idx, idx);
                 }
@@ -76,7 +100,8 @@ NotesModel::~NotesModel()
 QVariantMap NotesModel::roles() const
 {
     static const QVariantMap roles{
-        {"note", NoteRole}
+        {"note", NoteRole},
+        {"metadata", MetadataRole}
     };
     return roles;
 }
@@ -84,7 +109,8 @@ QVariantMap NotesModel::roles() const
 QHash<int, QByteArray> NotesModel::roleNames() const
 {
     static const QHash<int, QByteArray> roles{
-        {NoteRole, "note"}
+        {NoteRole, "note"},
+        {MetadataRole, "metadata"}
     };
     return roles;
 }
@@ -110,17 +136,18 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
 {
     QVariant result;
     if (index.row() >= 0 && index.row() < d->entries.count()) {
-        QObjectList rowEntries = d->entries.at(index.row());
+        QList<Entry> rowEntries = d->entries.at(index.row());
         if (index.column() >= 0 && index.column() < rowEntries.count()) {
-            Note* note = qobject_cast<Note*>(rowEntries.at(index.column()));
-            if (note) {
-                switch(role) {
-                case NoteRole:
-                    result.setValue<QObject*>(note);
-                    break;
-                default:
-                    break;
-                }
+            const Entry &entry = rowEntries.at(index.column());
+            switch(role) {
+            case NoteRole:
+                result.setValue<QObject*>(entry.note);
+                break;
+            case MetadataRole:
+                result = entry.metaData;
+                break;
+            default:
+                break;
             }
         }
     }
@@ -142,9 +169,9 @@ QObject* NotesModel::getNote(int row, int column) const
 {
     QObject *obj{nullptr};
     if (row >= 0 && row < d->entries.count()) {
-        QObjectList rowEntries = d->entries.at(row);
+        QList<Entry> rowEntries = d->entries.at(row);
         if (column >= 0 && column < rowEntries.count()) {
-            obj = rowEntries.at(column);
+            obj = rowEntries.at(column).note;
         }
     }
     return obj;
@@ -152,22 +179,31 @@ QObject* NotesModel::getNote(int row, int column) const
 
 void NotesModel::setNote(int row, int column, QObject* note)
 {
-    if (d->entries.count() < row - 1) {
-        beginInsertRows(QModelIndex(), d->entries.count(), row);
-        for (int i = d->entries.count() - 1; i < row + 1; ++i) {
-            d->entries << QObjectList();
+    d->ensurePositionExists(row, column);
+    QList<Entry> rowList = d->entries[row];
+    rowList[column].note = qobject_cast<Note*>(note);
+    d->entries[row] = rowList;
+    QModelIndex changed = createIndex(row, column);
+    dataChanged(changed, changed);
+}
+
+QVariant NotesModel::getMetadata(int row, int column) const
+{
+    QVariant data;
+    if (row >= 0 && row < d->entries.count()) {
+        QList<Entry> rowEntries = d->entries.at(row);
+        if (column >= 0 && column < rowEntries.count()) {
+            data = rowEntries.at(column).metaData;
         }
-        endInsertRows();
     }
-    QObjectList rowList = d->entries[row];
-    if (rowList.count() < column) {
-        beginInsertColumns(QModelIndex(), rowList.count(), column);
-        for (int i = rowList.count() - 1; i < column + 1; ++i) {
-            rowList << nullptr;
-        }
-        endInsertColumns();
-    }
-    rowList[column] = note;
+    return data;
+}
+
+void NotesModel::setMetadata(int row, int column, QVariant metadata)
+{
+    d->ensurePositionExists(row, column);
+    QList<Entry> rowList = d->entries[row];
+    rowList[column].metaData = metadata;
     d->entries[row] = rowList;
     QModelIndex changed = createIndex(row, column);
     dataChanged(changed, changed);
@@ -175,17 +211,17 @@ void NotesModel::setNote(int row, int column, QObject* note)
 
 void NotesModel::trim()
 {
-    QList<QObjectList> newList;
-    for (const QObjectList &rowList : d->entries) {
-        QObjectList newRow;
-        QObjectList trailing;
-        for (QObject *obj : rowList) {
-            if (obj) {
+    QList< QList<Entry> > newList;
+    for (const QList<Entry> &rowList : d->entries) {
+        QList<Entry> newRow;
+        QList<Entry> trailing;
+        for (const Entry& entry : rowList) {
+            if (entry.note) {
                 newRow << trailing;
                 trailing.clear();
-                newRow << obj;
+                newRow << entry;
             } else {
-                trailing << nullptr;
+                trailing << entry;
             }
         }
         if (newRow.count() > 0) {
@@ -200,9 +236,11 @@ void NotesModel::trim()
 void NotesModel::clear()
 {
     beginResetModel();
-    for (QObjectList &list : d->entries) {
-        for (QObject *obj : list) {
-            obj->disconnect(this);
+    for (QList<Entry> &list : d->entries) {
+        for (const Entry &entry : list) {
+            if (entry.note) {
+                entry.note->disconnect(this);
+            }
         }
     }
     d->entries.clear();
@@ -212,9 +250,12 @@ void NotesModel::clear()
 
 void NotesModel::addRow(const QVariantList &notes)
 {
-    QObjectList actualNotes;
+    QList<Entry> actualNotes;
     for (const QVariant &var : notes) {
-        actualNotes << var.value<QObject*>();
+        Note *note = qobject_cast<Note*>(var.value<QObject*>());
+        Entry entry;
+        entry.note = note;
+        actualNotes << entry;
     }
     if (actualNotes.count() > 0) {
         beginInsertRows(QModelIndex(), 0, 0);

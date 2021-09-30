@@ -35,6 +35,7 @@ public:
 
     enum Roles {
         NoteRole = Qt::UserRole + 1,
+        MetadataRole,
     };
     QVariantMap roles() const;
     QHash<int, QByteArray> roleNames() const override;
@@ -61,7 +62,22 @@ public:
      */
     Q_INVOKABLE void setNote(int row, int column, QObject *note);
     /**
+     * \brief Retrieve the metadata set for the given position
+     * @param row The row of the position to fetch metadata for
+     * @param column The column of the position to fetch metadata for
+     * @return A QVariant which contains the metadata (this may be invalid if there was none set for the position)
+     */
+    Q_INVOKABLE QVariant getMetadata(int row, int column) const;
+    /**
+     * \brief Set an abstract piece of metadata for the given position
+     * @param row The row of the position to set metadata for
+     * @param column The column of the position to set the metadata for
+     * @param metadata The piece of metadata you wish to set
+     */
+    Q_INVOKABLE void setMetadata(int row, int column, QVariant metadata);
+    /**
      * \brief Trims the rows in the model of all trailing empty columns, and removes any empty rows
+     * \note This will disregard metadata set on any trailing fields (only notes are counted as the model being filled)
      */
     Q_INVOKABLE void trim();
 
