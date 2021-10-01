@@ -347,6 +347,8 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
         Note *note = d->findExistingNote(midiNote, midiChannel);
         note->setIsPlaying(false);
     }
+    d->mostRecentlyChangedNotes << metadata;
+    Q_EMIT mostRecentlyChangedNotesChanged();
 }
 
 void PlayGridManager::metronomeTick(int beat)
