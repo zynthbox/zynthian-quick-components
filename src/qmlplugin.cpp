@@ -25,6 +25,7 @@
 #include <QQmlEngine>
 #include <QQmlContext>
 
+#include "FilterProxy.h"
 #include "Note.h"
 #include "NotesModel.h"
 #include "PlayGrid.h"
@@ -36,6 +37,7 @@ void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
 
 void QmlPlugins::registerTypes(const char *uri)
 {
+    qmlRegisterType<FilterProxy>(uri, 0, 1, "FilterProxy");
     qmlRegisterUncreatableType<Note>(uri, 1, 0, "Note", "Use the getNote function on the main PlayGrid global object to get one of these");
     qmlRegisterUncreatableType<NotesModel>(uri, 1, 0, "NotesModel", "Use the getModel function on the main PlayGrid global object to get one of these");
     qmlRegisterUncreatableType<SettingsContainer>(uri, 1, 0, "SettingsContainer", "This is for internal use only");

@@ -2,6 +2,7 @@ add_library(zynthian-quick-plugin SHARED)
 target_sources(zynthian-quick-plugin
     PRIVATE
     qmlplugin.cpp
+    FilterProxy.cpp
     Note.cpp
     NotesModel.cpp
     PlayGrid.cpp
