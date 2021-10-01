@@ -45,6 +45,12 @@ public:
     Q_INVOKABLE QModelIndex index(int row, int column = 0, const QModelIndex &parent = QModelIndex()) const override;
 
     /**
+     * \brief Get a list with all the notes in the specified row
+     * @param row The row you wish to get a list of notes from
+     * @return A list containing all the notes for a specific row
+     */
+    Q_INVOKABLE QVariantList getRow(int row) const;
+    /**
      * \brief Get the note object stored at the specified location
      * @param row The row to look in
      * @param column The column of that row to look in
@@ -61,6 +67,12 @@ public:
      * @param note The new note to be set in the specified location (this may be null, to clear the position)
      */
     Q_INVOKABLE void setNote(int row, int column, QObject *note);
+    /**
+     * \brief Get the metadata instances for an entire row (matching the positions in the row)
+     * @param row The row you wish to get a list of metadata from
+     * @return The list of metadata
+     */
+    Q_INVOKABLE QVariantList getRowMetadata(int row) const;
     /**
      * \brief Retrieve the metadata set for the given position
      * @param row The row of the position to fetch metadata for

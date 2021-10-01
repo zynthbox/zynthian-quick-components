@@ -165,6 +165,18 @@ QModelIndex NotesModel::index(int row, int column, const QModelIndex& /*parent*/
     return idx;
 }
 
+QVariantList NotesModel::getRow(int row) const
+{
+    QVariantList list;
+    if (row >= 0 && row < d->entries.count()) {
+        const QList<Entry> &entries = d->entries.at(row);
+        for (const Entry &entry : entries) {
+            list << QVariant::fromValue<QObject*>(entry.note);
+        }
+    }
+    return list;
+}
+
 QObject* NotesModel::getNote(int row, int column) const
 {
     QObject *obj{nullptr};
@@ -185,6 +197,18 @@ void NotesModel::setNote(int row, int column, QObject* note)
     d->entries[row] = rowList;
     QModelIndex changed = createIndex(row, column);
     dataChanged(changed, changed);
+}
+
+QVariantList NotesModel::getRowMetadata(int row) const
+{
+    QVariantList list;
+    if (row >= 0 && row < d->entries.count()) {
+        const QList<Entry> &entries = d->entries.at(row);
+        for (const Entry &entry : entries) {
+            list << entry.metaData;
+        }
+    }
+    return list;
 }
 
 QVariant NotesModel::getMetadata(int row, int column) const
