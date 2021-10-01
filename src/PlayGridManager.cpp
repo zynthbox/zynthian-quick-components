@@ -188,6 +188,7 @@ QObject* PlayGridManager::getNotesModel(const QString& name)
     NotesModel *model = d->notesModels.value(name);
     if (!model) {
         model = new NotesModel(this);
+        model->setObjectName(name);
         QQmlEngine::setObjectOwnership(model, QQmlEngine::CppOwnership);
         d->notesModels[name] = model;
     }
@@ -259,6 +260,7 @@ QObject* PlayGridManager::getSettingsStore(const QString& name)
     SettingsContainer *settings = d->settingsContainers.value(name);
     if (!settings) {
         settings = new SettingsContainer(name, this);
+        settings->setObjectName(name);
         QQmlEngine::setObjectOwnership(settings, QQmlEngine::CppOwnership);
         d->settingsContainers[name] = settings;
     }
