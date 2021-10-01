@@ -53,6 +53,9 @@ public:
         });
     }
     NotesModel *q;
+    NotesModel *parentModel{nullptr};
+    int parentRow{-1};
+    QList<NotesModel*> childModels;
     QList< QList<Entry> > entries;
 
     void ensurePositionExists(int row, int column) {
@@ -94,6 +97,37 @@ NotesModel::NotesModel(QObject* parent)
 {
 }
 
+NotesModel::NotesModel(NotesModel* parent, int row)
+    : QAbstractListModel(parent)
+    , d(new Private(this))
+{
+    d->parentModel = parent;
+    d->parentRow = row;
+    connect(d->parentModel, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex& parent, int first, int last){
+        // If we are being moved out of the way, update our position with the amount we've been moved
+        if (!parent.isValid() && d->parentRow >= first) {
+            d->parentRow += 1 + (last - first);
+        }
+    });
+    connect(d->parentModel, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex& parent, int first, int last){
+        if (!parent.isValid()) {
+            if (d->parentRow > last) {
+                d->parentRow -= 1 + (last - first);
+            } else if (d->parentRow >= first && d->parentRow <= last) {
+                deleteLater();
+            }
+        }
+    });
+    connect(d->parentModel, &QAbstractItemModel::modelReset, this, [this](){ deleteLater(); });
+    connect(d->parentModel, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight, const QVector< int >& roles = QVector<int>()){
+        Q_UNUSED(roles);
+        if (topLeft.row() >= d->parentRow && bottomRight.row() <= d->parentRow) {
+            beginResetModel();
+            endResetModel();
+        }
+    });
+}
+
 NotesModel::~NotesModel()
 {
     delete d;
@@ -103,7 +137,8 @@ QVariantMap NotesModel::roles() const
 {
     static const QVariantMap roles{
         {"note", NoteRole},
-        {"metadata", MetadataRole}
+        {"metadata", MetadataRole},
+        {"rowModel", RowModelRole}
     };
     return roles;
 }
@@ -112,23 +147,35 @@ QHash<int, QByteArray> NotesModel::roleNames() const
 {
     static const QHash<int, QByteArray> roles{
         {NoteRole, "note"},
-        {MetadataRole, "metadata"}
+        {MetadataRole, "metadata"},
+        {RowModelRole, "rowModel"}
     };
     return roles;
 }
 
 int NotesModel::rowCount(const QModelIndex& parent) const
 {
-    if (parent.isValid()) {
-        return 0;
+    int count{0};
+    if (d->parentModel) {
+        if (!parent.isValid()) {
+            count = d->parentModel->columnCount(d->parentModel->index(d->parentRow));
+        }
+    } else {
+        if (!parent.isValid()) {
+            count = d->entries.count();
+        }
     }
-    return d->entries.count();
+    return count;
 }
 
 int NotesModel::columnCount(const QModelIndex& parent) const
 {
     int count = 0;
-    if (parent.isValid() && parent.row() >= 0 && parent.row() < d->entries.count()) {
+    if (d->parentModel) {
+        if (parent.isValid()) {
+            count = 1;
+        }
+    } else if (parent.isValid() && parent.row() >= 0 && parent.row() < d->entries.count()) {
         count = d->entries.at(parent.row()).count();
     }
     return count;
@@ -137,7 +184,9 @@ int NotesModel::columnCount(const QModelIndex& parent) const
 QVariant NotesModel::data(const QModelIndex& index, int role) const
 {
     QVariant result;
-    if (index.row() >= 0 && index.row() < d->entries.count()) {
+    if (d->parentModel) {
+        result = d->parentModel->data(d->parentModel->index(d->parentRow, index.row()), role);
+    } else if (index.row() >= 0 && index.row() < d->entries.count()) {
         QList<Entry> rowEntries = d->entries.at(index.row());
         if (index.column() >= 0 && index.column() < rowEntries.count()) {
             const Entry &entry = rowEntries.at(index.column());
@@ -148,6 +197,21 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
             case MetadataRole:
                 result = entry.metaData;
                 break;
+            case RowModelRole:
+            {
+                QObject *childModel{nullptr};
+                for (NotesModel *aModel : d->childModels) {
+                    if (aModel->parentRow() == index.row()) {
+                        childModel = aModel;
+                        break;
+                    }
+                }
+                if (!childModel) {
+                    childModel = new NotesModel(const_cast<NotesModel*>(this), index.row());
+                }
+                result.setValue<QObject*>(childModel);
+                break;
+            }
             default:
                 break;
             }
@@ -167,13 +231,25 @@ QModelIndex NotesModel::index(int row, int column, const QModelIndex& /*parent*/
     return idx;
 }
 
+QObject* NotesModel::parentModel() const
+{
+    return d->parentModel;
+}
+
+int NotesModel::parentRow() const
+{
+    return d->parentRow;
+}
+
 QVariantList NotesModel::getRow(int row) const
 {
     QVariantList list;
-    if (row >= 0 && row < d->entries.count()) {
-        const QList<Entry> &entries = d->entries.at(row);
-        for (const Entry &entry : entries) {
-            list << QVariant::fromValue<QObject*>(entry.note);
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            const QList<Entry> &entries = d->entries.at(row);
+            for (const Entry &entry : entries) {
+                list << QVariant::fromValue<QObject*>(entry.note);
+            }
         }
     }
     return list;
@@ -182,10 +258,12 @@ QVariantList NotesModel::getRow(int row) const
 QObject* NotesModel::getNote(int row, int column) const
 {
     QObject *obj{nullptr};
-    if (row >= 0 && row < d->entries.count()) {
-        QList<Entry> rowEntries = d->entries.at(row);
-        if (column >= 0 && column < rowEntries.count()) {
-            obj = rowEntries.at(column).note;
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            QList<Entry> rowEntries = d->entries.at(row);
+            if (column >= 0 && column < rowEntries.count()) {
+                obj = rowEntries.at(column).note;
+            }
         }
     }
     return obj;
@@ -193,21 +271,25 @@ QObject* NotesModel::getNote(int row, int column) const
 
 void NotesModel::setNote(int row, int column, QObject* note)
 {
-    d->ensurePositionExists(row, column);
-    QList<Entry> rowList = d->entries[row];
-    rowList[column].note = qobject_cast<Note*>(note);
-    d->entries[row] = rowList;
-    QModelIndex changed = createIndex(row, column);
-    dataChanged(changed, changed);
+    if (!d->parentModel) {
+        d->ensurePositionExists(row, column);
+        QList<Entry> rowList = d->entries[row];
+        rowList[column].note = qobject_cast<Note*>(note);
+        d->entries[row] = rowList;
+        QModelIndex changed = createIndex(row, column);
+        dataChanged(changed, changed);
+    }
 }
 
 QVariantList NotesModel::getRowMetadata(int row) const
 {
     QVariantList list;
-    if (row >= 0 && row < d->entries.count()) {
-        const QList<Entry> &entries = d->entries.at(row);
-        for (const Entry &entry : entries) {
-            list << entry.metaData;
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            const QList<Entry> &entries = d->entries.at(row);
+            for (const Entry &entry : entries) {
+                list << entry.metaData;
+            }
         }
     }
     return list;
@@ -216,10 +298,12 @@ QVariantList NotesModel::getRowMetadata(int row) const
 QVariant NotesModel::getMetadata(int row, int column) const
 {
     QVariant data;
-    if (row >= 0 && row < d->entries.count()) {
-        QList<Entry> rowEntries = d->entries.at(row);
-        if (column >= 0 && column < rowEntries.count()) {
-            data = rowEntries.at(column).metaData;
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            QList<Entry> rowEntries = d->entries.at(row);
+            if (column >= 0 && column < rowEntries.count()) {
+                data = rowEntries.at(column).metaData;
+            }
         }
     }
     return data;
@@ -227,67 +311,75 @@ QVariant NotesModel::getMetadata(int row, int column) const
 
 void NotesModel::setMetadata(int row, int column, QVariant metadata)
 {
-    d->ensurePositionExists(row, column);
-    QList<Entry> rowList = d->entries[row];
-    rowList[column].metaData = metadata;
-    d->entries[row] = rowList;
-    QModelIndex changed = createIndex(row, column);
-    dataChanged(changed, changed);
+    if (!d->parentModel) {
+        d->ensurePositionExists(row, column);
+        QList<Entry> rowList = d->entries[row];
+        rowList[column].metaData = metadata;
+        d->entries[row] = rowList;
+        QModelIndex changed = createIndex(row, column);
+        dataChanged(changed, changed);
+    }
 }
 
 void NotesModel::trim()
 {
-    QList< QList<Entry> > newList;
-    for (const QList<Entry> &rowList : d->entries) {
-        QList<Entry> newRow;
-        QList<Entry> trailing;
-        for (const Entry& entry : rowList) {
-            if (entry.note) {
-                newRow << trailing;
-                trailing.clear();
-                newRow << entry;
-            } else {
-                trailing << entry;
+    if (!d->parentModel) {
+        QList< QList<Entry> > newList;
+        for (const QList<Entry> &rowList : d->entries) {
+            QList<Entry> newRow;
+            QList<Entry> trailing;
+            for (const Entry& entry : rowList) {
+                if (entry.note) {
+                    newRow << trailing;
+                    trailing.clear();
+                    newRow << entry;
+                } else {
+                    trailing << entry;
+                }
+            }
+            if (newRow.count() > 0) {
+                newList << newRow;
             }
         }
-        if (newRow.count() > 0) {
-            newList << newRow;
-        }
+        beginResetModel();
+        d->entries = newList;
+        endResetModel();
     }
-    beginResetModel();
-    d->entries = newList;
-    endResetModel();
 }
 
 void NotesModel::clear()
 {
-    beginResetModel();
-    for (QList<Entry> &list : d->entries) {
-        for (const Entry &entry : list) {
-            if (entry.note) {
-                entry.note->disconnect(this);
+    if (!d->parentModel) {
+        beginResetModel();
+        for (QList<Entry> &list : d->entries) {
+            for (const Entry &entry : list) {
+                if (entry.note) {
+                    entry.note->disconnect(this);
+                }
             }
         }
+        d->entries.clear();
+        endResetModel();
+        Q_EMIT rowsChanged();
     }
-    d->entries.clear();
-    endResetModel();
-    Q_EMIT rowsChanged();
 }
 
 void NotesModel::addRow(const QVariantList &notes)
 {
-    QList<Entry> actualNotes;
-    for (const QVariant &var : notes) {
-        Note *note = qobject_cast<Note*>(var.value<QObject*>());
-        Entry entry;
-        entry.note = note;
-        actualNotes << entry;
-    }
-    if (actualNotes.count() > 0) {
-        beginInsertRows(QModelIndex(), 0, 0);
-        d->entries.insert(0, actualNotes);
-        d->noteDataChangedUpdater.start();
-        endInsertRows();
-        Q_EMIT rowsChanged();
+    if (!d->parentModel) {
+        QList<Entry> actualNotes;
+        for (const QVariant &var : notes) {
+            Note *note = qobject_cast<Note*>(var.value<QObject*>());
+            Entry entry;
+            entry.note = note;
+            actualNotes << entry;
+        }
+        if (actualNotes.count() > 0) {
+            beginInsertRows(QModelIndex(), 0, 0);
+            d->entries.insert(0, actualNotes);
+            d->noteDataChangedUpdater.start();
+            endInsertRows();
+            Q_EMIT rowsChanged();
+        }
     }
 }

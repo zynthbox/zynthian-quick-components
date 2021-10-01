@@ -29,13 +29,17 @@ class NotesModel : public QAbstractListModel
     Q_OBJECT
     Q_PROPERTY(int rows READ rowCount NOTIFY rowsChanged)
     Q_PROPERTY(QVariantMap roles READ roles CONSTANT)
+    Q_PROPERTY(QObject* parentModel READ parentModel CONSTANT)
+    Q_PROPERTY(int parentRow READ parentRow NOTIFY parentRowChanged)
 public:
     explicit NotesModel(QObject *parent = nullptr);
+    explicit NotesModel(NotesModel *parent, int row);
     ~NotesModel() override;
 
     enum Roles {
         NoteRole = Qt::UserRole + 1,
         MetadataRole,
+        RowModelRole,
     };
     QVariantMap roles() const;
     QHash<int, QByteArray> roleNames() const override;
@@ -45,13 +49,32 @@ public:
     Q_INVOKABLE QModelIndex index(int row, int column = 0, const QModelIndex &parent = QModelIndex()) const override;
 
     /**
+     * \brief Get the parent model for this model
+     * For ease of use, you can use the rowModel role to fetch a child model of a specific row,
+     * and from that row you can then use parentModel to interact with that parent.
+     * @see parentRow()
+     * @return A NotesModel instance, or null if it is a root model
+     */
+    Q_INVOKABLE QObject *parentModel() const;
+    /**
+     * \brief The row this model exists within in the parent model
+     * For ease of use, you can use the rowModel role to fetch a child model of a specific row,
+     * and the parentRow call on that child model will return the row it represents in the parent.
+     * @return The row of this model (-1 if it is a root model)
+     */
+    Q_INVOKABLE int parentRow() const;
+    Q_SIGNAL void parentRowChanged();
+
+    /**
      * \brief Get a list with all the notes in the specified row
+     * @note Not valid on child models (see parentModel())
      * @param row The row you wish to get a list of notes from
      * @return A list containing all the notes for a specific row
      */
     Q_INVOKABLE QVariantList getRow(int row) const;
     /**
      * \brief Get the note object stored at the specified location
+     * @note Not valid on child models (see parentModel())
      * @param row The row to look in
      * @param column The column of that row to look in
      * @return Either a Note object, or null if there was no Note stored in that position
@@ -62,6 +85,7 @@ public:
      * This sets a specified location to contain the Note object passed to the function. If the location does
      * not yet exist, rows will be appended to the model until there are that many rows, and column added to
      * the row until the position exists. Clearing the position will not remove the position from the model.
+     * @note Not valid on child models (see parentModel())
      * @param row The row of the position to set to the given note
      * @param column The column of the position to set to the given note
      * @param note The new note to be set in the specified location (this may be null, to clear the position)
@@ -69,12 +93,14 @@ public:
     Q_INVOKABLE void setNote(int row, int column, QObject *note);
     /**
      * \brief Get the metadata instances for an entire row (matching the positions in the row)
+     * @note Not valid on child models (see parentModel())
      * @param row The row you wish to get a list of metadata from
      * @return The list of metadata
      */
     Q_INVOKABLE QVariantList getRowMetadata(int row) const;
     /**
      * \brief Retrieve the metadata set for the given position
+     * @note Not valid on child models (see parentModel())
      * @param row The row of the position to fetch metadata for
      * @param column The column of the position to fetch metadata for
      * @return A QVariant which contains the metadata (this may be invalid if there was none set for the position)
@@ -82,6 +108,7 @@ public:
     Q_INVOKABLE QVariant getMetadata(int row, int column) const;
     /**
      * \brief Set an abstract piece of metadata for the given position
+     * @note Not valid on child models (see parentModel())
      * @param row The row of the position to set metadata for
      * @param column The column of the position to set the metadata for
      * @param metadata The piece of metadata you wish to set
@@ -89,16 +116,19 @@ public:
     Q_INVOKABLE void setMetadata(int row, int column, QVariant metadata);
     /**
      * \brief Trims the rows in the model of all trailing empty columns, and removes any empty rows
-     * \note This will disregard metadata set on any trailing fields (only notes are counted as the model being filled)
+     * @note Not valid on child models (see parentModel())
+     * @note This will disregard metadata set on any trailing fields (only notes are counted as the model being filled)
      */
     Q_INVOKABLE void trim();
 
     /**
      * \brief Remove all rows from the model
+     * @note Not valid on child models (see parentModel())
      */
     Q_INVOKABLE void clear();
     /**
      * \brief Add a new row of notes to the model
+     * @note Not valid on child models (see parentModel())
      * @param notes A list of notes to be added to the model as a new row (they will be inserted at the top of the model)
      */
     Q_INVOKABLE void addRow(const QVariantList &notes);
