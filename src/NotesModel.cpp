@@ -22,6 +22,7 @@
 #include "NotesModel.h"
 #include "Note.h"
 
+#include <QDebug>
 #include <QTimer>
 
 struct Entry {
@@ -103,29 +104,32 @@ NotesModel::NotesModel(NotesModel* parent, int row)
 {
     d->parentModel = parent;
     d->parentRow = row;
-    connect(d->parentModel, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex& parent, int first, int last){
-        // If we are being moved out of the way, update our position with the amount we've been moved
-        if (!parent.isValid() && d->parentRow >= first) {
-            d->parentRow += 1 + (last - first);
-        }
-    });
-    connect(d->parentModel, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex& parent, int first, int last){
-        if (!parent.isValid()) {
-            if (d->parentRow > last) {
-                d->parentRow -= 1 + (last - first);
-            } else if (d->parentRow >= first && d->parentRow <= last) {
-                deleteLater();
-            }
-        }
-    });
-    connect(d->parentModel, &QAbstractItemModel::modelReset, this, [this](){ deleteLater(); });
-    connect(d->parentModel, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight, const QVector< int >& roles = QVector<int>()){
-        Q_UNUSED(roles);
-        if (topLeft.row() >= d->parentRow && bottomRight.row() <= d->parentRow) {
-            beginResetModel();
-            endResetModel();
-        }
-    });
+    qDebug() << Q_FUNC_INFO << parent << row << d->parentModel << d->parentRow;
+//     connect(d->parentModel, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex& parent, int first, int last){
+//         // If we are being moved out of the way, update our position with the amount we've been moved
+//         if (!parent.isValid() && d->parentRow >= first) {
+//             d->parentRow += 1 + (last - first);
+//             Q_EMIT parentRowChanged();
+//         }
+//     });
+//     connect(d->parentModel, &QAbstractItemModel::rowsRemoved, this, [this](const QModelIndex& parent, int first, int last){
+//         if (!parent.isValid()) {
+//             if (d->parentRow > last) {
+//                 d->parentRow -= 1 + (last - first);
+//                 Q_EMIT parentRowChanged();
+//             } else if (d->parentRow >= first && d->parentRow <= last) {
+//                 deleteLater();
+//             }
+//         }
+//     });
+//     connect(d->parentModel, &QAbstractItemModel::modelReset, this, [this](){ deleteLater(); });
+//     connect(d->parentModel, &QAbstractItemModel::dataChanged, this, [this](const QModelIndex& topLeft, const QModelIndex& bottomRight, const QVector< int >& roles = QVector<int>()){
+//         Q_UNUSED(roles);
+//         if (topLeft.row() >= d->parentRow && bottomRight.row() <= d->parentRow) {
+//             beginResetModel();
+//             endResetModel();
+//         }
+//     });
 }
 
 NotesModel::~NotesModel()
@@ -150,6 +154,7 @@ QHash<int, QByteArray> NotesModel::roleNames() const
         {MetadataRole, "metadata"},
         {RowModelRole, "rowModel"}
     };
+    qDebug() << roles;
     return roles;
 }
 
@@ -184,6 +189,7 @@ int NotesModel::columnCount(const QModelIndex& parent) const
 QVariant NotesModel::data(const QModelIndex& index, int role) const
 {
     QVariant result;
+    qDebug() << Q_FUNC_INFO << this << objectName() << d->parentModel << d->parentRow << index.row();
     if (d->parentModel) {
         result = d->parentModel->data(d->parentModel->index(d->parentRow, index.row()), role);
     } else if (index.row() >= 0 && index.row() < d->entries.count()) {
@@ -191,6 +197,7 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
         if (index.column() >= 0 && index.column() < rowEntries.count()) {
             const Entry &entry = rowEntries.at(index.column());
             switch(role) {
+            case Qt::DisplayRole:
             case NoteRole:
                 result.setValue<QObject*>(entry.note);
                 break;
@@ -199,7 +206,7 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
                 break;
             case RowModelRole:
             {
-                QObject *childModel{nullptr};
+                NotesModel *childModel{nullptr};
                 for (NotesModel *aModel : d->childModels) {
                     if (aModel->parentRow() == index.row()) {
                         childModel = aModel;
@@ -208,6 +215,8 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
                 }
                 if (!childModel) {
                     childModel = new NotesModel(const_cast<NotesModel*>(this), index.row());
+                    childModel->setObjectName(QString("%1 child model").arg(objectName()));
+                    d->childModels << childModel;
                 }
                 result.setValue<QObject*>(childModel);
                 break;
