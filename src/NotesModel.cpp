@@ -40,12 +40,14 @@ public:
             for (const QList<Entry> &list : entries) {
                 for (const Entry &obj : list) {
                     Note *note = obj.note;
-                    note->disconnect(q);
-                    connect(note, &Note::nameChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                    connect(note, &Note::midiNoteChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                    connect(note, &Note::midiChannelChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                    connect(note, &Note::isPlayingChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                    connect(note, &Note::subnotesChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                    if (note) {
+                        note->disconnect(q);
+                        connect(note, &Note::nameChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                        connect(note, &Note::midiNoteChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                        connect(note, &Note::midiChannelChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                        connect(note, &Note::isPlayingChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                        connect(note, &Note::subnotesChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                    }
                 }
             }
         });
