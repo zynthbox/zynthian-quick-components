@@ -119,7 +119,7 @@ QObject* PlayGrid::getModel(const QString& modelName)
 {
     QObject *result{nullptr};
     if (d->playGridManager) {
-        result = d->playGridManager->getNotesModel(d->name + modelName);
+        result = d->playGridManager->getNotesModel(QString("%1 - %2").arg(d->name).arg(modelName));
     }
     return result;
 }
