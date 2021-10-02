@@ -34,6 +34,7 @@ class PlayGrid::Private
 public:
     Private() {}
     QString name;
+    bool metronomeOn{false};
     PlayGridManager *playGridManager{nullptr};
     QString getDataDir()
     {
@@ -135,7 +136,7 @@ QString PlayGrid::modelToJson(QObject* model) const
             for (int column = 0; column < actualModel->columnCount(actualModel->index(row)); ++column) {
                 rowArray.append(d->noteToJsonObject(qobject_cast<Note*>(actualModel->getNote(row, column))));
             }
-            modelArray << rowArray;
+            modelArray << QJsonValue(rowArray);
         }
         json.setArray(modelArray);
     }
@@ -149,16 +150,16 @@ void PlayGrid::setModelFromJson(QObject* model, const QString& json)
     actualModel->clear();
     if (jsonDoc.isArray()) {
         QJsonArray notesArray = jsonDoc.array();
-        QVariantList rowList;
         for (const QJsonValue &row : notesArray) {
             if (row.isArray()) {
+                QVariantList rowList;
                 QJsonArray rowArray = row.toArray();
                 for (const QJsonValue &note : rowArray) {
                     rowList << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note.toObject()));
                 }
+                actualModel->addRow(rowList);
             }
         }
-        actualModel->addRow(rowList);
     }
 }
 
@@ -262,12 +263,6 @@ void PlayGrid::setPlayGridManager(QObject* playGridManager)
         d->playGridManager = qobject_cast<PlayGridManager*>(playGridManager);
         connect(d->playGridManager, &PlayGridManager::pitchChanged, this, &PlayGrid::pitchChanged);
         connect(d->playGridManager, &PlayGridManager::modulationChanged, this, &PlayGrid::modulationChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeBeat4thChanged, this, &PlayGrid::metronomeBeat4thChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeBeat8thChanged, this, &PlayGrid::metronomeBeat8thChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeBeat16thChanged, this, &PlayGrid::metronomeBeat16thChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeBeat32ndChanged, this, &PlayGrid::metronomeBeat32ndChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeBeat64thChanged, this, &PlayGrid::metronomeBeat64thChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, &PlayGrid::metronomeBeat128thChanged);
         Q_EMIT playGridManagerChanged();
     }
 }
@@ -322,15 +317,31 @@ int PlayGrid::modulation() const
 
 void PlayGrid::startMetronome()
 {
-    if (d->playGridManager) {
+    if (d->playGridManager && !d->metronomeOn) {
+        d->metronomeOn = true;
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat4thChanged, this, &PlayGrid::metronomeBeat4thChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat8thChanged, this, &PlayGrid::metronomeBeat8thChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat16thChanged, this, &PlayGrid::metronomeBeat16thChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat32ndChanged, this, &PlayGrid::metronomeBeat32ndChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat64thChanged, this, &PlayGrid::metronomeBeat64thChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, &PlayGrid::metronomeBeat128thChanged);
         d->playGridManager->startMetronome();
     }
 }
 
 void PlayGrid::stopMetronome()
 {
-    if (d->playGridManager) {
-        d->playGridManager->stopMetronome();
+    if (d->metronomeOn) {
+        d->metronomeOn = false;
+        if (d->playGridManager) {
+            disconnect(d->playGridManager, &PlayGridManager::metronomeBeat4thChanged, this, &PlayGrid::metronomeBeat4thChanged);
+            disconnect(d->playGridManager, &PlayGridManager::metronomeBeat8thChanged, this, &PlayGrid::metronomeBeat8thChanged);
+            disconnect(d->playGridManager, &PlayGridManager::metronomeBeat16thChanged, this, &PlayGrid::metronomeBeat16thChanged);
+            disconnect(d->playGridManager, &PlayGridManager::metronomeBeat32ndChanged, this, &PlayGrid::metronomeBeat32ndChanged);
+            disconnect(d->playGridManager, &PlayGridManager::metronomeBeat64thChanged, this, &PlayGrid::metronomeBeat64thChanged);
+            disconnect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, &PlayGrid::metronomeBeat128thChanged);
+            d->playGridManager->stopMetronome();
+        }
     }
 }
 
