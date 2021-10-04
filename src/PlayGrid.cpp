@@ -80,7 +80,7 @@ public:
                 subnotesList.append(QVariant::fromValue<QObject*>(subnote));
             }
             note = qobject_cast<Note*>(playGridManager->getCompoundNote(subnotesList));
-        } else {
+        } else if (jsonObject.contains("midiNote")) {
             note = qobject_cast<Note*>(playGridManager->getNote(jsonObject.value("midiNote").toInt(), jsonObject.value("midiChannel").toInt()));
         }
         return note;
