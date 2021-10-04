@@ -14,7 +14,14 @@ sudo make install
 ```
 
 That should pick up your Qt and ECM installations, and use them to build and install into the expected
-locations. You should now be able to use the components simply by adding something like the following to
+locations. If those are missing, you will likely need to install those packages. On zynthian, you can do
+this by running:
+
+```
+apt install extra-cmake-modules qtbase5-dev kirigami2-dev qtdeclarative5-dev
+```
+
+Once installed, you should be able to use the components simply by adding something like the following to
 your qml files:
 
 ```
