@@ -104,7 +104,7 @@ NotesModel::NotesModel(NotesModel* parent, int row)
 {
     d->parentModel = parent;
     d->parentRow = row;
-    qDebug() << Q_FUNC_INFO << parent << row << d->parentModel << d->parentRow;
+//     qDebug() << Q_FUNC_INFO << parent << row << d->parentModel << d->parentRow;
 //     connect(d->parentModel, &QAbstractItemModel::rowsInserted, this, [this](const QModelIndex& parent, int first, int last){
 //         // If we are being moved out of the way, update our position with the amount we've been moved
 //         if (!parent.isValid() && d->parentRow >= first) {
@@ -154,7 +154,6 @@ QHash<int, QByteArray> NotesModel::roleNames() const
         {MetadataRole, "metadata"},
         {RowModelRole, "rowModel"}
     };
-    qDebug() << roles;
     return roles;
 }
 
@@ -189,7 +188,7 @@ int NotesModel::columnCount(const QModelIndex& parent) const
 QVariant NotesModel::data(const QModelIndex& index, int role) const
 {
     QVariant result;
-    qDebug() << Q_FUNC_INFO << this << objectName() << d->parentModel << d->parentRow << index.row();
+//     qDebug() << Q_FUNC_INFO << this << objectName() << d->parentModel << d->parentRow << index.row();
     if (d->parentModel) {
         result = d->parentModel->data(d->parentModel->index(d->parentRow, index.row()), role);
     } else if (index.row() >= 0 && index.row() < d->entries.count()) {
@@ -377,11 +376,14 @@ void NotesModel::addRow(const QVariantList &notes, const QVariantList &metadata)
 {
     if (!d->parentModel) {
         QList<Entry> actualNotes;
+        int metadataCount = metadata.count();
         for (int i = 0; i < notes.count(); ++i) {
             Entry entry;
             Note *note = qobject_cast<Note*>(notes[i].value<QObject*>());
             entry.note = note;
-            entry.metaData = metadata[i];
+            if (i < metadataCount) {
+                entry.metaData = metadata[i];
+            }
             actualNotes << entry;
         }
         if (actualNotes.count() > 0) {
@@ -398,11 +400,14 @@ void NotesModel::appendRow(const QVariantList& notes, const QVariantList& metada
 {
     if (!d->parentModel) {
         QList<Entry> actualNotes;
+        int metadataCount = metadata.count();
         for (int i = 0; i < notes.count(); ++i) {
             Entry entry;
             Note *note = qobject_cast<Note*>(notes[i].value<QObject*>());
             entry.note = note;
-            entry.metaData = metadata[i];
+            if (i < metadataCount) {
+                entry.metaData = metadata[i];
+            }
             actualNotes << entry;
         }
         if (actualNotes.count() > 0) {
