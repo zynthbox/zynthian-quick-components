@@ -24,6 +24,7 @@
 
 #include <QDebug>
 #include <QTimer>
+#include <QJSValue>
 
 struct Entry {
     Note* note{nullptr};
@@ -319,10 +320,16 @@ QVariant NotesModel::getMetadata(int row, int column) const
 
 void NotesModel::setMetadata(int row, int column, QVariant metadata)
 {
+    static const QLatin1String jsvalueType{"QJSValue"};
     if (!d->parentModel) {
         d->ensurePositionExists(row, column);
         QList<Entry> rowList = d->entries[row];
-        rowList[column].metaData = metadata;
+        QVariant actualMeta{metadata};
+        if (QString(metadata.typeName()) == jsvalueType) {
+            const QJSValue tempMeta{metadata.value<QJSValue>()};
+            actualMeta = tempMeta.toVariant();
+        }
+        rowList[column].metaData = actualMeta;
         d->entries[row] = rowList;
         QModelIndex changed = createIndex(row, column);
         dataChanged(changed, changed);
