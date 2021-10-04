@@ -162,10 +162,7 @@ void PlayGrid::setModelFromJson(QObject* model, const QString& json)
                     rowList << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note["note"].toObject()));
                     rowMetadata << note["metadata"].toVariant();
                 }
-                actualModel->addRow(rowList);
-                for (int i = 0; i < actualModel->columnCount(actualModel->index(0, 0)); ++i) {
-                    actualModel->setMetadata(0, i, rowMetadata[i]);
-                }
+                actualModel->appendRow(rowList, rowMetadata);
             }
         }
     }

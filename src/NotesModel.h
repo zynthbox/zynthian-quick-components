@@ -127,11 +127,21 @@ public:
      */
     Q_INVOKABLE void clear();
     /**
-     * \brief Add a new row of notes to the model
+     * \brief Add a new row of notes to the top of the model
      * @note Not valid on child models (see parentModel())
+     * @see appendRow for adding to the end
      * @param notes A list of notes to be added to the model as a new row (they will be inserted at the top of the model)
+     * @param metadata An optional list of metadata associated with the notes
      */
-    Q_INVOKABLE void addRow(const QVariantList &notes);
+    Q_INVOKABLE void addRow(const QVariantList &notes, const QVariantList &metadata = QVariantList());
+    /**
+     * \brief Add a new row of notes to the end of the model
+     * @note Not valid on child models (see parentModel())
+     * @see addRow() for adding at the top
+     * @param notes A list of notes to be added to the model as a new row (they will be inserted at the top of the model)
+     * @param metadata An optional list of metadata associated with the notes
+     */
+    Q_INVOKABLE void appendRow(const QVariantList &notes, const QVariantList &metadata = QVariantList());
 
     Q_SIGNAL void rowsChanged();
 private:

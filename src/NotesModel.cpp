@@ -373,19 +373,41 @@ void NotesModel::clear()
     }
 }
 
-void NotesModel::addRow(const QVariantList &notes)
+void NotesModel::addRow(const QVariantList &notes, const QVariantList &metadata)
 {
     if (!d->parentModel) {
         QList<Entry> actualNotes;
-        for (const QVariant &var : notes) {
-            Note *note = qobject_cast<Note*>(var.value<QObject*>());
+        for (int i = 0; i < notes.count(); ++i) {
             Entry entry;
+            Note *note = qobject_cast<Note*>(notes[i].value<QObject*>());
             entry.note = note;
+            entry.metaData = metadata[i];
             actualNotes << entry;
         }
         if (actualNotes.count() > 0) {
             beginInsertRows(QModelIndex(), 0, 0);
             d->entries.insert(0, actualNotes);
+            d->noteDataChangedUpdater.start();
+            endInsertRows();
+            Q_EMIT rowsChanged();
+        }
+    }
+}
+
+void NotesModel::appendRow(const QVariantList& notes, const QVariantList& metadata)
+{
+    if (!d->parentModel) {
+        QList<Entry> actualNotes;
+        for (int i = 0; i < notes.count(); ++i) {
+            Entry entry;
+            Note *note = qobject_cast<Note*>(notes[i].value<QObject*>());
+            entry.note = note;
+            entry.metaData = metadata[i];
+            actualNotes << entry;
+        }
+        if (actualNotes.count() > 0) {
+            beginInsertRows(QModelIndex(), d->entries.count(), d->entries.count());
+            d->entries.append(actualNotes);
             d->noteDataChangedUpdater.start();
             endInsertRows();
             Q_EMIT rowsChanged();
