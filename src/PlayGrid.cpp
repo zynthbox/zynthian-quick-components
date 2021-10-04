@@ -134,7 +134,10 @@ QString PlayGrid::modelToJson(QObject* model) const
         for (int row = 0; row < actualModel->rowCount(); ++row) {
             QJsonArray rowArray;
             for (int column = 0; column < actualModel->columnCount(actualModel->index(row)); ++column) {
-                rowArray.append(d->noteToJsonObject(qobject_cast<Note*>(actualModel->getNote(row, column))));
+                QJsonObject obj;
+                obj.insert("note", d->noteToJsonObject(qobject_cast<Note*>(actualModel->getNote(row, column))));
+                obj.insert("metadata", QJsonValue::fromVariant(actualModel->getMetadata(row, column)));
+                rowArray.append(obj);
             }
             modelArray << QJsonValue(rowArray);
         }
@@ -153,11 +156,16 @@ void PlayGrid::setModelFromJson(QObject* model, const QString& json)
         for (const QJsonValue &row : notesArray) {
             if (row.isArray()) {
                 QVariantList rowList;
+                QVariantList rowMetadata;
                 QJsonArray rowArray = row.toArray();
                 for (const QJsonValue &note : rowArray) {
-                    rowList << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note.toObject()));
+                    rowList << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note["note"].toObject()));
+                    rowMetadata << note["metadata"].toVariant();
                 }
                 actualModel->addRow(rowList);
+                for (int i = 0; i < actualModel->columnCount(actualModel->index(0, 0)); ++i) {
+                    actualModel->setMetadata(0, i, rowMetadata[i]);
+                }
             }
         }
     }
