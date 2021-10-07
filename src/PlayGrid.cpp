@@ -129,7 +129,7 @@ QObject* PlayGrid::getNamedInstance(const QString& name, const QString& qmlTypeN
 {
     QObject *result{nullptr};
     if (d->playGridManager) {
-        result = d->playGridManager->getNamedInstance(name, qmlTypeName);
+        result = d->playGridManager->getNamedInstance(QString("%1 - %2").arg(d->name).arg(name), qmlTypeName);
     }
     return result;
 }
