@@ -21,6 +21,8 @@
 
 #include "Note.h"
 
+#include <QTimer>
+
 class Note::Private {
 public:
     Private() {}
@@ -93,7 +95,9 @@ void Note::setIsPlaying(bool isPlaying)
 {
     if (isPlaying != d->isPlaying) {
         d->isPlaying = isPlaying;
-        Q_EMIT isPlayingChanged();
+        // This will tend to cause the UI to update while things are trying to happen that
+        // are timing-critical, so let's postpone it for a quick tick
+        QTimer::singleShot(0, this, &Note::isPlayingChanged);
     }
 }
 
