@@ -86,7 +86,7 @@ public:
     void noteChanged(Note* note) {
         if (!updateNotes.contains(note)) {
             updateNotes << note;
-            QTimer::singleShot(0, q, [this](){ noteDataChangedEmitter.start(); });
+            noteDataChangedEmitter.start();
         }
     }
     QTimer noteDataChangedEmitter;
