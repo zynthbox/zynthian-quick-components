@@ -44,15 +44,17 @@ public:
                     Note *note = obj.note;
                     if (note) {
                         note->disconnect(q);
-                        connect(note, &Note::nameChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                        connect(note, &Note::midiNoteChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                        connect(note, &Note::midiChannelChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                        connect(note, &Note::isPlayingChanged, q, [this,note](){ emitNoteDataChanged(note); });
-                        connect(note, &Note::subnotesChanged, q, [this,note](){ emitNoteDataChanged(note); });
+                        connect(note, &Note::nameChanged, q, [this,note](){ noteChanged(note); });
+                        connect(note, &Note::midiNoteChanged, q, [this,note](){ noteChanged(note); });
+                        connect(note, &Note::midiChannelChanged, q, [this,note](){ noteChanged(note); });
+                        connect(note, &Note::isPlayingChanged, q, [this,note](){ noteChanged(note); });
+                        connect(note, &Note::subnotesChanged, q, [this,note](){ noteChanged(note); });
                     }
                 }
             }
         });
+        noteDataChangedEmitter.setInterval(0);
+        noteDataChangedEmitter.setSingleShot(true);
     }
     NotesModel *q;
     NotesModel *parentModel{nullptr};
@@ -79,17 +81,26 @@ public:
         entries[row] = rowList;
     }
     QTimer noteDataChangedUpdater;
-    void emitNoteDataChanged(Note* note) {
+    QList<Note*> updateNotes;
+    void noteChanged(Note* note) {
+        if (!updateNotes.contains(note)) {
+            updateNotes << note;
+            QTimer::singleShot(0, q, [this](){ noteDataChangedEmitter.start(); });
+        }
+    }
+    QTimer noteDataChangedEmitter;
+    void emitNoteDataChanged() {
         for (int row = 0; row < entries.count(); ++row) {
             QList<Entry> rowEntries = entries[row];
             for (int column = 0; column < rowEntries.count(); ++column) {
                 const Entry &entry = rowEntries.at(column);
-                if (entry.note == note) {
+                if (updateNotes.contains(entry.note)) {
                     QModelIndex idx = q->index(row, column);
                     q->dataChanged(idx, idx);
                 }
             }
         }
+        updateNotes.clear();
     }
 };
 
