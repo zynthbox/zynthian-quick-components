@@ -55,6 +55,7 @@ public:
         });
         noteDataChangedEmitter.setInterval(0);
         noteDataChangedEmitter.setSingleShot(true);
+        QObject::connect(&noteDataChangedEmitter, &QTimer::timeout, q, [this](){ emitNoteDataChanged(); });
     }
     NotesModel *q;
     NotesModel *parentModel{nullptr};
