@@ -25,19 +25,27 @@
 
 class Note::Private {
 public:
-    Private() {}
-    PlayGridManager* playGridManager;
+    Private(Note* q)
+        : q(q)
+    {
+        isPlayingTimer.setInterval(0);
+        isPlayingTimer.setSingleShot(true);
+        connect(&isPlayingTimer, &QTimer::timeout, q, [q](){ q->isPlayingChanged(); });
+    }
+    Note* q;
+    PlayGridManager* playGridManager{nullptr};
     QString name;
     int midiNote{0};
     int midiChannel{0};
     bool isPlaying{false};
     QVariantList subnotes;
     int scaleIndex{0};
+    QTimer isPlayingTimer;
 };
 
 Note::Note(PlayGridManager* parent)
     : QObject(parent)
-    , d(new Private)
+    , d(new Private(this))
 {
     d->playGridManager = parent;
 }
@@ -97,7 +105,7 @@ void Note::setIsPlaying(bool isPlaying)
         d->isPlaying = isPlaying;
         // This will tend to cause the UI to update while things are trying to happen that
         // are timing-critical, so let's postpone it for a quick tick
-        QTimer::singleShot(0, this, &Note::isPlayingChanged);
+        d->isPlayingTimer->start();
     }
 }
 
