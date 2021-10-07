@@ -105,7 +105,7 @@ void Note::setIsPlaying(bool isPlaying)
         d->isPlaying = isPlaying;
         // This will tend to cause the UI to update while things are trying to happen that
         // are timing-critical, so let's postpone it for a quick tick
-        d->isPlayingTimer->start();
+        d->isPlayingTimer.start();
     }
 }
 
