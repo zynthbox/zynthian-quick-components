@@ -21,18 +21,9 @@
 
 #include "Note.h"
 
-#include <QTimer>
-
 class Note::Private {
 public:
-    Private(Note* q)
-        : q(q)
-    {
-        isPlayingTimer.setInterval(0);
-        isPlayingTimer.setSingleShot(true);
-        connect(&isPlayingTimer, &QTimer::timeout, q, [q](){ q->isPlayingChanged(); });
-    }
-    Note* q;
+    Private() { }
     PlayGridManager* playGridManager{nullptr};
     QString name;
     int midiNote{0};
@@ -40,12 +31,11 @@ public:
     bool isPlaying{false};
     QVariantList subnotes;
     int scaleIndex{0};
-    QTimer isPlayingTimer;
 };
 
 Note::Note(PlayGridManager* parent)
     : QObject(parent)
-    , d(new Private(this))
+    , d(new Private)
 {
     d->playGridManager = parent;
 }
@@ -105,7 +95,9 @@ void Note::setIsPlaying(bool isPlaying)
         d->isPlaying = isPlaying;
         // This will tend to cause the UI to update while things are trying to happen that
         // are timing-critical, so let's postpone it for a quick tick
-        d->isPlayingTimer.start();
+        // Also, timers don't work cross-threads, and this gets called from a thread,
+        // so... queued metaobject invocation it is
+       QMetaObject::invokeMethod(this, "isPlayingChanged", Qt::QueuedConnection);
     }
 }
 
