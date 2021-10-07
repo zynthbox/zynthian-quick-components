@@ -53,6 +53,7 @@ public:
         });
     }
     PlayGridManager *q;
+    QQmlEngine *engine;
     QStringList playgrids;
     QVariantMap currentPlaygrids;
     int pitch{0};
@@ -123,10 +124,11 @@ public:
     }
 };
 
-PlayGridManager::PlayGridManager(QObject* parent)
+PlayGridManager::PlayGridManager(QQmlEngine* parent)
     : QObject(parent)
     , d(new Private(this))
 {
+    d->engine = parent;
 }
 
 PlayGridManager::~PlayGridManager()
@@ -275,7 +277,7 @@ QObject* PlayGridManager::getNamedInstance(const QString& name, const QString& q
     if (d->namedInstances.contains(name)) {
         instance = d->namedInstances[name];
     } else {
-        QQmlComponent component;
+        QQmlComponent component(d->engine);
         component.setData(QString("import QtQuick 2.4\n%1 { objectName: \"%2\" }").arg(qmlTypeName).arg(name).toUtf8(), QUrl());
         instance = component.create();
         QQmlEngine::setObjectOwnership(instance, QQmlEngine::CppOwnership);

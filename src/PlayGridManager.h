@@ -25,6 +25,7 @@
 #include <QObject>
 #include <QVariantMap>
 
+class QQmlEngine;
 class Note;
 class PlayGridManager : public QObject
 {
@@ -43,7 +44,7 @@ class PlayGridManager : public QObject
     Q_PROPERTY(int metronomeBeat64th READ metronomeBeat64th NOTIFY metronomeBeat64thChanged)
     Q_PROPERTY(int metronomeBeat128th READ metronomeBeat128th NOTIFY metronomeBeat128thChanged)
 public:
-    explicit PlayGridManager(QObject *parent = nullptr);
+    explicit PlayGridManager(QQmlEngine *parent = nullptr);
     ~PlayGridManager() override;
 
     QStringList playgrids() const;
