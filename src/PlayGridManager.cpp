@@ -33,6 +33,7 @@
 #include <QDirIterator>
 #include <QFileSystemWatcher>
 #include <QList>
+#include <QQmlComponent>
 #include <QStandardPaths>
 
 Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
@@ -59,6 +60,7 @@ public:
     QMap<QString, NotesModel*> notesModels;
     QList<Note*> notes;
     QMap<QString, SettingsContainer*> settingsContainers;
+    QMap<QString, QObject*> namedInstances;
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
 
@@ -265,6 +267,21 @@ QObject* PlayGridManager::getSettingsStore(const QString& name)
         d->settingsContainers[name] = settings;
     }
     return settings;
+}
+
+QObject* PlayGridManager::getNamedInstance(const QString& name, const QString& qmlTypeName)
+{
+    QObject *instance{nullptr};
+    if (d->namedInstances.contains(name)) {
+        instance = d->namedInstances[name];
+    } else {
+        QQmlComponent component;
+        component.setData(QString("import QtQuick 2.4\n%1 { objectName: \"%2\" }").arg(qmlTypeName).arg(name).toUtf8(), QUrl());
+        instance = component.create();
+        QQmlEngine::setObjectOwnership(instance, QQmlEngine::CppOwnership);
+        d->namedInstances.insert(name, instance);
+    }
+    return instance;
 }
 
 void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)

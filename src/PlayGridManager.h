@@ -66,6 +66,21 @@ public:
     Q_INVOKABLE QObject* getNote(int midiNote, int midiChannel = 0);
     Q_INVOKABLE QObject* getCompoundNote(const QVariantList &notes);
     Q_INVOKABLE QObject* getSettingsStore(const QString &name);
+    /**
+     * \brief Get a named instance of some QML type (newly created, or the same instance)
+     * This will return the same instance for any named object you attempt to fetch. If an
+     * object with that name was created by this function in the past, that instance will
+     * be returned. If none exists already, a new instance will be created.
+     * @note If the function was called with one type and later with another, it will
+     * return an object of the type of the original call, rather than a new one of the new
+     * type.
+     * @note Unlike the similarly named function on PlayGrid, this one interprets the name
+     * verbatim (that is, it does not add any namespacing stuff to the name)
+     * @param name The name of the object you want to retrieve
+     * @param qmlTypeName The name of the QML object type you want an instance of
+     * @return The instance with the given name
+     */
+    Q_INVOKABLE QObject* getNamedInstance(const QString &name, const QString& qmlTypeName);
 
     Q_INVOKABLE void setNotesOn(QVariantList notes, QVariantList velocities);
     Q_INVOKABLE void setNotesOff(QVariantList notes);

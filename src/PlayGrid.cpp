@@ -125,6 +125,15 @@ QObject* PlayGrid::getModel(const QString& modelName)
     return result;
 }
 
+QObject* PlayGrid::getNamedInstance(const QString& name, const QString& qmlTypeName)
+{
+    QObject *result{nullptr};
+    if (d->playGridManager) {
+        result = d->playGridManager->getNamedInstance(name, qmlTypeName);
+    }
+    return result;
+}
+
 QString PlayGrid::modelToJson(QObject* model) const
 {
     QJsonDocument json;

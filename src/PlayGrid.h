@@ -122,6 +122,23 @@ public:
     Q_INVOKABLE QObject* getModel(const QString &modelName);
 
     /**
+     * \brief Get a named instance of some QML type (newly created, or the same instance)
+     * This will return the same instance for any named object you attempt to fetch. If an
+     * object with that name was created by this function in the past, that instance will
+     * be returned. If none exists already, a new instance will be created.
+     * @note If the function was called with one type and later with another, it will
+     * return an object of the type of the original call, rather than a new one of the new
+     * type.
+     * @note Unlike the similarly named function on PlayGridManager, this function will
+     * namespace the object's name, by prepending it with the name of this playgrid. This
+     * will be relevant if you introspect using objectName, which will then be
+     * "Playgrid Name NameParameter" (note the space)
+     * @param name The name of the object you want to retrieve
+     * @param qmlTypeName The name of the QML object type you want an instance of
+     * @return The instance with the given name
+     */
+    Q_INVOKABLE QObject* getNamedInstance(const QString &name, const QString& qmlTypeName);
+    /**
      * \brief Get a JSON representation of the given model
      *
      * @param model A NotesModel object
