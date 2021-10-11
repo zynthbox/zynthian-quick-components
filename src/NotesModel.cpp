@@ -64,9 +64,9 @@ public:
     QList< QList<Entry> > entries;
 
     void ensurePositionExists(int row, int column) {
-        if (entries.count() < row - 1) {
+        if (entries.count() < row + 1) {
             q->beginInsertRows(QModelIndex(), entries.count(), row);
-            for (int i = entries.count() - 1; i < row + 1; ++i) {
+            for (int i = entries.count(); i < row + 1; ++i) {
                 entries << QList<Entry>();
             }
             q->endInsertRows();
@@ -74,12 +74,12 @@ public:
         QList<Entry> rowList = entries[row];
         if (rowList.count() < column + 1) {
             q->beginInsertColumns(QModelIndex(), rowList.count(), column + 1);
-            for (int i = rowList.count() - 1; i < column + 1; ++i) {
+            for (int i = rowList.count(); i < column + 1; ++i) {
                 rowList << Entry();
             }
+            entries[row] = rowList;
             q->endInsertColumns();
         }
-        entries[row] = rowList;
     }
     QTimer noteDataChangedUpdater;
     QList<Note*> updateNotes;
