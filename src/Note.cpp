@@ -143,6 +143,20 @@ int Note::scaleIndex() const
     return d->scaleIndex;
 }
 
+void Note::setSubnotesOn(QVariantList velocities)
+{
+    int i = -1;
+    for (const QVariant &note : d->subnotes) {
+        if (++i >= d->subnotes.count()) {
+            break;
+        }
+        Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
+        if (subnote) {
+            subnote->setOn(velocities[i].toInt());
+        }
+    }
+}
+
 void Note::setOn(int velocity)
 {
     Q_EMIT d->playGridManager->sendAMidiNoteMessage(d->midiNote, velocity, d->midiChannel, true);
@@ -150,5 +164,14 @@ void Note::setOn(int velocity)
 
 void Note::setOff()
 {
-    Q_EMIT d->playGridManager->sendAMidiNoteMessage(d->midiNote, 0, d->midiChannel, false);
+    if (d->subnotes.count() > 0) {
+        for (const QVariant &note : d->subnotes) {
+            Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
+            if (subnote) {
+                subnote->setOff();
+            }
+        }
+    } else {
+        Q_EMIT d->playGridManager->sendAMidiNoteMessage(d->midiNote, 0, d->midiChannel, false);
+    }
 }
