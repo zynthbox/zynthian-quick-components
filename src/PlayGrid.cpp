@@ -33,6 +33,7 @@ class PlayGrid::Private
 {
 public:
     Private() {}
+    QString id;
     QString name;
     QObject *dashboardModel{nullptr};
     bool metronomeOn{false};
@@ -287,6 +288,19 @@ QObject* PlayGrid::playGridManager() const
     return d->playGridManager;
 }
 
+void PlayGrid::setId(const QString& id)
+{
+    if (d->id != id) {
+        d->id = id;
+        Q_EMIT idChanged();
+    }
+}
+
+QString PlayGrid::id() const
+{
+    return d->id;
+}
+
 void PlayGrid::setName(const QString& name)
 {
     if (d->name != name) {
@@ -304,7 +318,7 @@ void PlayGrid::setDashboardModel(QObject* model)
 {
     if (d->dashboardModel != model) {
         d->dashboardModel = model;
-        d->playGridManager->registerDashboardModel(d->name, model);
+        d->playGridManager->registerDashboardModel(d->id, model);
         Q_EMIT dashboardModelChanged();
     }
 }

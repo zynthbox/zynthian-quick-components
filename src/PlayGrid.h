@@ -30,6 +30,10 @@ class PlayGrid : public QQuickItem
     Q_PROPERTY(QObject* playGridManager READ playGridManager WRITE setPlayGridManager NOTIFY playGridManagerChanged)
 
     /**
+     * \brief The internal ID of this playgrid, used to uniquely identify it within the PlayGridManager
+     */
+    Q_PROPERTY(QString id READ id NOTIFY idChanged)
+    /**
      * \brief The human-facing name of your playgrid (shown anywhere the grid is referred to in the UI)
      *
      * You should not make this overly long or awkward, as it is used as the visual identifier by your user.
@@ -252,6 +256,11 @@ public:
     QObject *playGridManager() const;
     void setPlayGridManager(QObject *playGridManager);
     Q_SIGNAL void playGridManagerChanged();
+
+    QString id() const;
+    Q_SIGNAL void idChanged();
+    // Eventually this should be not exposed to QML, but for now...
+    Q_INVOKABLE void setId(const QString &id);
 
     QString name() const;
     void setName(const QString &name);
