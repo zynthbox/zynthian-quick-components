@@ -32,6 +32,7 @@ class PlayGridManager : public QObject
     Q_OBJECT
     Q_PROPERTY(QStringList playgrids READ playgrids NOTIFY playgridsChanged)
     Q_PROPERTY(QVariantMap currentPlaygrids READ currentPlaygrids NOTIFY currentPlaygridsChanged)
+    Q_PROPERTY(QVariantMap dashboardModels READ dashboardModels NOTIFY dashboardModelsChanged)
     Q_PROPERTY(int pitch READ pitch WRITE setPitch NOTIFY pitchChanged)
     Q_PROPERTY(int modulation READ modulation WRITE setModulation NOTIFY modulationChanged)
     Q_PROPERTY(QVariantList mostRecentlyChangedNotes READ mostRecentlyChangedNotes NOTIFY mostRecentlyChangedNotesChanged)
@@ -54,6 +55,12 @@ public:
     QVariantMap currentPlaygrids() const;
     Q_SIGNAL void currentPlaygridsChanged();
     Q_INVOKABLE void setCurrentPlaygrid(const QString &section, int index);
+
+    QVariantMap dashboardModels() const;
+    Q_SIGNAL void dashboardModelsChanged();
+    Q_INVOKABLE void pickDashboardModelItem(QObject* model, int index);
+    Q_SIGNAL void dashboardItemPicked(QObject* model, int index);
+    void registerDashboardModel(const QString &playgrid, QObject* model);
 
     int pitch() const;
     void setPitch(int pitch);

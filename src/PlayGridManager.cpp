@@ -56,6 +56,7 @@ public:
     QQmlEngine *engine;
     QStringList playgrids;
     QVariantMap currentPlaygrids;
+    QVariantMap dashboardModels;
     int pitch{0};
     int modulation{0};
     QMap<QString, NotesModel*> notesModels;
@@ -156,6 +157,28 @@ void PlayGridManager::setCurrentPlaygrid(const QString& section, int index)
     if (!d->currentPlaygrids.contains(section) || d->currentPlaygrids[section] != index) {
         d->currentPlaygrids[section] = index;
         Q_EMIT currentPlaygridsChanged();
+    }
+}
+
+QVariantMap PlayGridManager::dashboardModels() const
+{
+    return d->dashboardModels;
+}
+
+void PlayGridManager::pickDashboardModelItem(QObject* model, int index)
+{
+    Q_EMIT dashboardItemPicked(model, index);
+}
+
+void PlayGridManager::registerDashboardModel(const QString &playgrid, QObject* model)
+{
+    if (!d->dashboardModels.contains(playgrid)) {
+        d->dashboardModels[playgrid] = QVariant::fromValue<QObject*>(model);
+        connect(model, &QObject::destroyed, this, [this, playgrid](){
+            d->dashboardModels.remove(playgrid);
+            Q_EMIT dashboardModelsChanged();
+        });
+        Q_EMIT dashboardModelsChanged();
     }
 }
 
