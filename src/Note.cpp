@@ -164,14 +164,13 @@ void Note::setOn(int velocity)
 
 void Note::setOff()
 {
-    if (d->subnotes.count() > 0) {
-        for (const QVariant &note : d->subnotes) {
-            Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
-            if (subnote) {
-                subnote->setOff();
-            }
-        }
-    } else {
+    if (d->midiNote < 128) {
         Q_EMIT d->playGridManager->sendAMidiNoteMessage(d->midiNote, 0, d->midiChannel, false);
+    }
+    for (const QVariant &note : d->subnotes) {
+        Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
+        if (subnote) {
+            subnote->setOff();
+        }
     }
 }
