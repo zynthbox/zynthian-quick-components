@@ -63,6 +63,13 @@ class PlayGrid : public QQuickItem
      * \brief A way to set the modulation value (between -127 and 127, with 0 being no modulation)
      */
     Q_PROPERTY(int modulation READ modulation WRITE setModulation NOTIFY modulationChanged)
+
+    /**
+     * \brief Whether or not the metronome is running
+     * @see startMetronome()
+     * @see stopMetronome()
+     */
+    Q_PROPERTY(bool metronomeRunning READ metronomeActive NOTIFY metronomeActiveChanged)
     /**
      * \brief A number which changes from 1 through 4 every 4th beat when the metronome is running
      * @see startMetronome()
@@ -295,6 +302,8 @@ public:
      */
     Q_INVOKABLE void stopMetronome();
 
+    bool metronomeActive() const;
+    Q_SIGNAL void metronomeActiveChanged();
     int metronomeBeat4th() const;
     Q_SIGNAL void metronomeBeat4thChanged();
     int metronomeBeat8th() const;

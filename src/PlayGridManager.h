@@ -118,6 +118,8 @@ public:
     Q_SIGNAL void requestMetronomeStop();
 
     Q_INVOKABLE void metronomeTick(int beat);
+    bool metronomeActive() const;
+    Q_SIGNAL void metronomeActiveChanged();
     int metronomeBeat4th() const;
     Q_SIGNAL void metronomeBeat4thChanged();
     int metronomeBeat8th() const;

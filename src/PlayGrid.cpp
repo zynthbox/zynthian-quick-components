@@ -279,6 +279,7 @@ void PlayGrid::setPlayGridManager(QObject* playGridManager)
         d->playGridManager = qobject_cast<PlayGridManager*>(playGridManager);
         connect(d->playGridManager, &PlayGridManager::pitchChanged, this, &PlayGrid::pitchChanged);
         connect(d->playGridManager, &PlayGridManager::modulationChanged, this, &PlayGrid::modulationChanged);
+        connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, &PlayGrid::metronomeActiveChanged);
         Q_EMIT playGridManagerChanged();
     }
 }
@@ -386,6 +387,14 @@ void PlayGrid::stopMetronome()
             d->playGridManager->stopMetronome();
         }
     }
+}
+
+bool PlayGrid::metronomeActive() const
+{
+    if (d->playGridManager) {
+        return d->playGridManager->metronomeActive();
+    }
+    return false;
 }
 
 int PlayGrid::metronomeBeat4th() const

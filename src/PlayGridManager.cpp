@@ -457,10 +457,12 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
     if (d->syncTimer != syncTimer) {
         if (d->syncTimer) {
             d->syncTimer->removeCallback(&timer_callback);
+            d->syncTimer->disconnect(this);
         }
         d->syncTimer = qobject_cast<SyncTimer*>(syncTimer);
         if (d->syncTimer) {
             d->syncTimer->addCallback(&timer_callback);
+            connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, &PlayGridManager::metronomeActiveChanged);
         }
         Q_EMIT syncTimerChanged();
     }
@@ -508,4 +510,12 @@ void PlayGridManager::stopMetronome()
     Q_EMIT metronomeBeat32ndChanged();
     Q_EMIT metronomeBeat64thChanged();
     Q_EMIT metronomeBeat128thChanged();
+}
+
+bool PlayGridManager::metronomeActive() const
+{
+    if (d->syncTimer) {
+        return d->syncTimer->timerRunning();
+    }
+    return false;
 }
