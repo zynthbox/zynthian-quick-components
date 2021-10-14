@@ -257,7 +257,7 @@ QObject* PlayGridManager::getCompoundNote(const QVariantList& notes)
     for (QObject *subnote : actualNotes) {
         Note *actualSubnote = qobject_cast<Note*>(subnote);
         if (actualSubnote) {
-            fake_midi_note = fake_midi_note + (127 * actualSubnote->midiNote());
+            fake_midi_note = fake_midi_note + (127 * actualSubnote->midiNote() + (actualSubnote->midiChannel() + 1));
         } else {
             // BAD CODER! THIS IS NOT A NOTE!
             fake_midi_note = -1;
