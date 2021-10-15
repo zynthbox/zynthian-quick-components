@@ -23,6 +23,7 @@
 #define NOTESMODEL_H
 
 #include <QAbstractListModel>
+#include "PlayGridManager.h"
 
 class NotesModel : public QAbstractListModel
 {
@@ -32,7 +33,7 @@ class NotesModel : public QAbstractListModel
     Q_PROPERTY(QObject* parentModel READ parentModel CONSTANT)
     Q_PROPERTY(int parentRow READ parentRow NOTIFY parentRowChanged)
 public:
-    explicit NotesModel(QObject *parent = nullptr);
+    explicit NotesModel(PlayGridManager *parent = nullptr);
     explicit NotesModel(NotesModel *parent, int row);
     ~NotesModel() override;
 
@@ -114,6 +115,16 @@ public:
      * @param metadata The piece of metadata you wish to set
      */
     Q_INVOKABLE void setMetadata(int row, int column, QVariant metadata);
+
+    /**
+     * \brief Set the list of notes and metadata for the given row to be the given list
+     * @note This will reset the size of this row
+     * @param row The row you wish to replace the notes for
+     * @param notes The list of notes you wish to set for the given row
+     * @param metadata The list of metadata you wish to set for the given row
+     */
+    Q_INVOKABLE void setRowData(int row, QVariantList notes, QVariantList metadata = QVariantList());
+
     /**
      * \brief Trims the rows in the model of all trailing empty columns, and removes any empty rows
      * @note Not valid on child models (see parentModel())
@@ -142,6 +153,19 @@ public:
      * @param metadata An optional list of metadata associated with the notes
      */
     Q_INVOKABLE void appendRow(const QVariantList &notes, const QVariantList &metadata = QVariantList());
+
+    /**
+     * \brief Remove a row of notes from the model
+     * @note Not valid on child models (see parentModel())
+     * @param row The row that you wish to remove
+     */
+    Q_INVOKABLE void removeRow(int row);
+
+    /**
+     * \brief Get the PlayGridManager instance associated with this model
+     * @return The PlayGridManager associated with this model (either the immediate parent, or the one from the parent model)
+     */
+    PlayGridManager *playGridManager() const;
 
     Q_SIGNAL void rowsChanged();
 private:

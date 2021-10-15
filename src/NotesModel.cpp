@@ -105,7 +105,7 @@ public:
     }
 };
 
-NotesModel::NotesModel(QObject* parent)
+NotesModel::NotesModel(PlayGridManager* parent)
     : QAbstractListModel(parent)
     , d(new Private(this))
 {
@@ -348,6 +348,30 @@ void NotesModel::setMetadata(int row, int column, QVariant metadata)
     }
 }
 
+void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata)
+{
+    static const QLatin1String jsvalueType{"QJSValue"};
+    if (!d->parentModel) {
+        if (row > -1 && row < rowCount()) {
+            QList<Entry> rowList;
+            for (int i = 0; i < notes.count(); ++i) {
+                Note* actualNote = qobject_cast<Note*>(notes.at(i).value<QObject*>());
+                QVariant actualMeta{metadata.at(i)};
+                if (QString(actualMeta.typeName()) == jsvalueType) {
+                    const QJSValue tempMeta{actualMeta.value<QJSValue>()};
+                    actualMeta = tempMeta.toVariant();
+                }
+                Entry entry;
+                entry.note = actualNote;
+                entry.metaData = actualMeta;
+                rowList.append(entry);
+            }
+            d->entries[row] = rowList;
+            dataChanged(createIndex(row, 0), createIndex(row, rowList.count() - 1));
+        }
+    }
+}
+
 void NotesModel::trim()
 {
     if (!d->parentModel) {
@@ -437,4 +461,21 @@ void NotesModel::appendRow(const QVariantList& notes, const QVariantList& metada
             Q_EMIT rowsChanged();
         }
     }
+}
+
+void NotesModel::removeRow(int row)
+{
+    if (!d->parentModel && row > -1 && row < d->entries.count()) {
+        beginRemoveRows(QModelIndex(), row, row);
+        d->entries.removeAt(row);
+        endRemoveRows();
+    }
+}
+
+PlayGridManager* NotesModel::playGridManager() const
+{
+    if (d->parentModel) {
+        return d->parentModel->playGridManager();
+    }
+    return qobject_cast<PlayGridManager*>(parent());
 }
