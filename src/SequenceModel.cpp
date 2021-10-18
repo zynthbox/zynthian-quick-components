@@ -163,7 +163,7 @@ void SequenceModel::load()
         int patternNumber{0};
         for (const QJsonValue &patternValue : obj.value("patterns").toArray()) {
             ++patternNumber;
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QLatin1String("Pattern ").arg(QString::number(patternNumber)), objectName()));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern ").arg(QString::number(patternNumber)), objectName()));
             playGridManager()->setModelFromJson(model, patternValue.toString());
         }
         setActivePattern(obj.value("activePattern").toInt());
