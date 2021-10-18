@@ -28,10 +28,13 @@ class PatternModel::Private {
 public:
     Private() {}
     int width{0};
+    int midiChannel{0};
+    int noteLength{4};
+    int activeBar{0};
 };
 
-PatternModel::PatternModel(PlayGridManager* parent)
-    : NotesModel(parent)
+PatternModel::PatternModel(SequenceModel* parent)
+    : NotesModel(parent->playGridManager())
     , d(new Private)
 {
 }
@@ -39,29 +42,6 @@ PatternModel::PatternModel(PlayGridManager* parent)
 PatternModel::~PatternModel()
 {
     delete d;
-}
-
-void PatternModel::setMidiChannel(int midiChannel)
-{
-    for (int row = 0; row < rowCount(); ++row) {
-        for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
-            Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
-            QVariantList newSubnotes;
-            if (oldCompound) {
-                for (const QVariant &subnote :oldCompound->subnotes()) {
-                    Note *oldNote = qobject_cast<Note*>(subnote.value<QObject*>());
-                    if (oldNote) {
-                        newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), midiChannel));
-                    } else {
-                        // This really shouldn't happen - spit out a warning and slap in something unknown so we keep the order intact
-                        newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(0, midiChannel));
-                        qWarning() << "Failed to convert a subnote value which must be a Note object to a Note object - something clearly isn't right.";
-                    }
-                }
-            }
-            setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
-        }
-    }
 }
 
 int PatternModel::addSubnote(int row, int column, QObject* note)
@@ -76,7 +56,14 @@ int PatternModel::addSubnote(int row, int column, QObject* note)
             metadata = getMetadata(row, column).toList();
         }
         newPosition = subnotes.count();
-        subnotes.append(QVariant::fromValue<QObject*>(note));
+
+        // Ensure the note is correct according to our midi channel settings
+        Note *newNote = qobject_cast<Note*>(note);
+        if (newNote->midiChannel() != d->midiChannel) {
+            newNote = qobject_cast<Note*>(playGridManager()->getNote(newNote->midiNote(), d->midiChannel));
+        }
+        subnotes.append(QVariant::fromValue<QObject*>(newNote));
+
         metadata.append(QVariantHash());
         setNote(row, column, playGridManager()->getCompoundNote(subnotes));
         setMetadata(row, column, metadata);
@@ -187,4 +174,63 @@ void PatternModel::setHeight(int height)
 int PatternModel::height() const
 {
     return rowCount();
+}
+
+void PatternModel::setMidiChannel(int midiChannel)
+{
+    int actualChannel = qMin(0, qMax(15, midiChannel));
+    if (d->midiChannel != actualChannel) {
+        d->midiChannel = actualChannel;
+        for (int row = 0; row < rowCount(); ++row) {
+            for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
+                Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+                QVariantList newSubnotes;
+                if (oldCompound) {
+                    for (const QVariant &subnote :oldCompound->subnotes()) {
+                        Note *oldNote = qobject_cast<Note*>(subnote.value<QObject*>());
+                        if (oldNote) {
+                            newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), actualChannel));
+                        } else {
+                            // This really shouldn't happen - spit out a warning and slap in something unknown so we keep the order intact
+                            newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(0, actualChannel));
+                            qWarning() << "Failed to convert a subnote value which must be a Note object to a Note object - something clearly isn't right.";
+                        }
+                    }
+                }
+                setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
+            }
+        }
+        Q_EMIT midiChannelChanged();
+    }
+}
+
+int PatternModel::midiChannel() const
+{
+    return d->midiChannel;
+}
+
+void PatternModel::setNoteLength(int noteLength)
+{
+    if (d->noteLength != noteLength) {
+        d->noteLength = noteLength;
+        Q_EMIT noteLengthChanged();
+    }
+}
+
+int PatternModel::noteLength() const
+{
+    return d->noteLength;
+}
+
+void PatternModel::setActiveBar(int activeBar)
+{
+    if (d->activeBar != activeBar) {
+        d->activeBar = activeBar;
+        Q_EMIT activeBarChanged();
+    }
+}
+
+int PatternModel::activeBar() const
+{
+    return d->activeBar;
 }

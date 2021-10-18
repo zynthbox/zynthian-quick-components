@@ -23,6 +23,7 @@
 #define PATTERNMODEL_H
 
 #include "NotesModel.h"
+#include "SequenceModel.h"
 
 /**
  * \brief A way to keep track of the notes which make up a conceptual song pattern
@@ -50,15 +51,39 @@ class PatternModel : public NotesModel
      * @default 1
      */
     Q_PROPERTY(int height READ height WRITE setHeight NOTIFY heightChanged)
-public:
-    explicit PatternModel(PlayGridManager* parent = nullptr);
-    ~PatternModel() override;
-
     /**
-     * \brief Replace all notes in the model with ones with the same note value, but the given midiChannel instead
-     * @param midiChannel The new midi channel to be set for all notes in the model
+     * \brief The number of bars (rows) available in the pattern
+     * @note This is an alias of the height property
      */
-    Q_INVOKABLE void setMidiChannel(int midiChannel);
+    Q_PROPERTY(int availableBars READ height WRITE setHeight NOTIFY heightChanged)
+    /**
+     * \brief The midi channel used by all notes in this pattern
+     * This is potentially an expensive operation, as it will replace all notes in the model with ones matching the newly set channel
+     * @note When adding and removing notes to the model, they will be checked (and changed to fit)
+     * The range for this property is 0-15 (and any attempt to set it outside of that value will be clamped)
+     * @default 0
+     */
+    Q_PROPERTY(int midiChannel READ midiChannel WRITE setMidiChannel NOTIFY midiChannelChanged)
+    /**
+     * \brief The layer associated with this pattern
+     * @note This is currently an alias of the midiChannel property, but this will likely change (so that midiChannel becomes
+     *       more like a convenience alias for the layer's midiChannel property, but for now...)
+     */
+    Q_PROPERTY(int layer READ midiChannel WRITE setMidiChannel NOTIFY midiChannelChanged)
+    /**
+     * \brief The length if a note (that is, how many steps in the pattern make up one full note)
+     * @default 4
+     */
+    Q_PROPERTY(int noteLength READ noteLength WRITE setNoteLength NOTIFY noteLengthChanged)
+    /**
+     * \brief Which bar (row) should be considered current
+     * This will be clamped to the available range (the lowest value is 0, maximum is height-1)
+     * @default 0
+     */
+    Q_PROPERTY(int activeBar READ activeBar WRITE setActiveBar NOTIFY activeBarChanged)
+public:
+    explicit PatternModel(SequenceModel* parent = nullptr);
+    ~PatternModel() override;
 
     /**
      * \brief Add a new entry to the position
@@ -104,6 +129,18 @@ public:
     int height() const;
     void setHeight(int height);
     Q_SIGNAL void heightChanged();
+
+    void setMidiChannel(int midiChannel);
+    int midiChannel() const;
+    Q_SIGNAL void midiChannelChanged();
+
+    void setNoteLength(int noteLength);
+    int noteLength() const;
+    Q_SIGNAL void noteLengthChanged();
+
+    void setActiveBar(int activeBar);
+    int activeBar() const;
+    Q_SIGNAL void activeBarChanged();
 private:
     class Private;
     Private *d;
