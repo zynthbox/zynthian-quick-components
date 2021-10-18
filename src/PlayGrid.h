@@ -147,6 +147,21 @@ public:
     Q_INVOKABLE QObject* getModel(const QString &modelName);
 
     /**
+     * \brief Returns a model suitable for use as a pattern
+     *
+     * Use this model to fetch a named model, which will persist for the duration of the application
+     * session. What this means is that you can use this function to get a specific model that you have
+     * previously created, and avoid having to refill it every time you need to show your playgrid. You
+     * can thus fetch this model, and before attempting to fill it up, you can check whether it contains
+     * any notes, by using the "isEmpty" function, and only then load data into it.
+     *
+     * @note This is a playgrid-local pattern. If you need to get a globally available pattern, use PlayGridManager::getPatternModel
+     * @param patternName The name of the pattern
+     * @return The pattern with the given name
+     */
+    Q_INVOKABLE QObject* getPattern(const QString &patternName);
+
+    /**
      * \brief Get a named instance of some QML type (newly created, or the same instance)
      * This will return the same instance for any named object you attempt to fetch. If an
      * object with that name was created by this function in the past, that instance will
@@ -163,6 +178,7 @@ public:
      * @return The instance with the given name
      */
     Q_INVOKABLE QObject* getNamedInstance(const QString &name, const QString& qmlTypeName);
+
     /**
      * \brief Get a JSON representation of the given model
      *

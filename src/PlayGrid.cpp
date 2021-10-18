@@ -25,9 +25,6 @@
 #include "NotesModel.h"
 
 #include <QDir>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 
 class PlayGrid::Private
 {
@@ -38,6 +35,7 @@ public:
     QObject *dashboardModel{nullptr};
     bool metronomeOn{false};
     PlayGridManager *playGridManager{nullptr};
+
     QString getDataDir()
     {
         // test and make sure that this env var contains something, or spit out .local/zynthian or something
@@ -54,38 +52,6 @@ public:
             }
         }
         return getDataDir() + "/" + safe;
-    }
-
-    QJsonObject noteToJsonObject(Note *note) {
-        QJsonObject jsonObject;
-        if (note) {
-            jsonObject.insert("midiNote", note->midiNote());
-            jsonObject.insert("midiChannel", note->midiChannel());
-            if (note->subnotes().count() > 0) {
-                QJsonArray subnoteArray;
-                for (const QVariant &subnote : note->subnotes()) {
-                    subnoteArray << noteToJsonObject(qobject_cast<Note*>(subnote.value<QObject*>()));
-                }
-                jsonObject.insert("subnotes", subnoteArray);
-            }
-        }
-        return jsonObject;
-    }
-
-    Note *jsonObjectToNote(const QJsonObject &jsonObject) {
-        Note *note{nullptr};
-        if (jsonObject.contains("subnotes")) {
-            QJsonArray subnotes = jsonObject["subnotes"].toArray();
-            QVariantList subnotesList;
-            for (const QJsonValue &val : subnotes) {
-                Note *subnote = jsonObjectToNote(val.toObject());
-                subnotesList.append(QVariant::fromValue<QObject*>(subnote));
-            }
-            note = qobject_cast<Note*>(playGridManager->getCompoundNote(subnotesList));
-        } else if (jsonObject.contains("midiNote")) {
-            note = qobject_cast<Note*>(playGridManager->getNote(jsonObject.value("midiNote").toInt(), jsonObject.value("midiChannel").toInt()));
-        }
-        return note;
     }
 };
 
@@ -127,6 +93,15 @@ QObject* PlayGrid::getModel(const QString& modelName)
     return result;
 }
 
+QObject* PlayGrid::getPattern(const QString& patternName)
+{
+    QObject *result{nullptr};
+    if (d->playGridManager) {
+        result = d->playGridManager->getPatternModel(QString("%1 - %2").arg(d->name).arg(patternName), "Global");
+    }
+    return result;
+}
+
 QObject* PlayGrid::getNamedInstance(const QString& name, const QString& qmlTypeName)
 {
     QObject *result{nullptr};
@@ -138,82 +113,49 @@ QObject* PlayGrid::getNamedInstance(const QString& name, const QString& qmlTypeN
 
 QString PlayGrid::modelToJson(QObject* model) const
 {
-    QJsonDocument json;
-    NotesModel* actualModel = qobject_cast<NotesModel*>(model);
-    if (actualModel) {
-        QJsonArray modelArray;
-        for (int row = 0; row < actualModel->rowCount(); ++row) {
-            QJsonArray rowArray;
-            for (int column = 0; column < actualModel->columnCount(actualModel->index(row)); ++column) {
-                QJsonObject obj;
-                obj.insert("note", d->noteToJsonObject(qobject_cast<Note*>(actualModel->getNote(row, column))));
-                obj.insert("metadata", QJsonValue::fromVariant(actualModel->getMetadata(row, column)));
-                rowArray.append(obj);
-            }
-            modelArray << QJsonValue(rowArray);
-        }
-        json.setArray(modelArray);
+    if (d->playGridManager) {
+        return d->playGridManager->modelToJson(model);
     }
-    return json.toJson();
+    return QString{};
 }
 
 void PlayGrid::setModelFromJson(QObject* model, const QString& json)
 {
-    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
-    NotesModel* actualModel = qobject_cast<NotesModel*>(model);
-    actualModel->clear();
-    if (jsonDoc.isArray()) {
-        QJsonArray notesArray = jsonDoc.array();
-        for (const QJsonValue &row : notesArray) {
-            if (row.isArray()) {
-                QVariantList rowList;
-                QVariantList rowMetadata;
-                QJsonArray rowArray = row.toArray();
-                for (const QJsonValue &note : rowArray) {
-                    rowList << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note["note"].toObject()));
-                    rowMetadata << note["metadata"].toVariant();
-                }
-                actualModel->appendRow(rowList, rowMetadata);
-            }
-        }
+    if (d->playGridManager) {
+        d->playGridManager->setModelFromJson(model, json);
     }
 }
 
 QString PlayGrid::notesListToJson(const QVariantList& notes) const
 {
-    QJsonDocument json;
-    QJsonArray notesArray;
-    for (const QVariant &element : notes) {
-        notesArray << d->noteToJsonObject(qobject_cast<Note*>(element.value<QObject*>()));
+    if (d->playGridManager) {
+        return d->playGridManager->notesListToJson(notes);
     }
-    json.setArray(notesArray);
-    return json.toJson();
+    return QString{};
 }
 
 QVariantList PlayGrid::jsonToNotesList(const QString& json)
 {
-    QVariantList notes;
-    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
-    if (jsonDoc.isArray()) {
-        QJsonArray notesArray = jsonDoc.array();
-        for (const QJsonValue &note : notesArray) {
-            notes << QVariant::fromValue<QObject*>(d->jsonObjectToNote(note.toObject()));
-        }
+    if (d->playGridManager) {
+        return d->playGridManager->jsonToNotesList(json);
     }
-    return notes;
+    return QVariantList{};
 }
 
 QString PlayGrid::noteToJson(QObject* note) const
 {
-    QJsonDocument doc;
-    doc.setObject(d->noteToJsonObject(qobject_cast<Note*>(note)));
-    return doc.toJson();
+    if (d->playGridManager) {
+        return d->playGridManager->noteToJson(note);
+    }
+    return QString{};
 }
 
 QObject* PlayGrid::jsonToNote(const QString& json)
 {
-    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
-    return d->jsonObjectToNote(jsonDoc.object());
+    if (d->playGridManager) {
+        return d->playGridManager->jsonToNote(json);
+    }
+    return nullptr;
 }
 
 void PlayGrid::setNoteOn(QObject* note, int velocity)
