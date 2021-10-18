@@ -24,6 +24,7 @@
 
 #include <QObject>
 #include <QVariantMap>
+#include <QJsonObject>
 
 class QQmlEngine;
 class Note;
@@ -70,6 +71,31 @@ public:
     void setModulation(int modulation);
     Q_SIGNAL void modulationChanged();
 
+    /**
+     * \brief Returns a sequence model suitable for holding a series of PatternModel instances
+     *
+     * Use this function to fetch a named model, which will persist for the duration of the application
+     * session.
+     * @note If passed an empty string, this will return the global sequence model
+     * @param name The name of the sequence (pass an empty string, or "Global", to fetch the global sequence)
+     * @return A Sequence with the given name (or the global sequence if passed an empty name)
+     */
+    Q_INVOKABLE QObject* getSequenceModel(const QString &name);
+    /**
+     * \brief Returns a model suitable for use as a pattern
+     *
+     * Use this function to fetch a named model, which will persist for the duration of the application
+     * session. What this means is that you can use this function to get a specific model that you have
+     * previously created, and avoid having to refill it every time you need to show your playgrid. You
+     * can thus fetch this model, and before attempting to fill it up, you can check whether it contains
+     * any notes, by using the "isEmpty" function, and only then load data into it.
+     *
+     * @note This will return the global pattern with the given name. If you need a playgrid-local one, see PlayGrid::getPattern
+     * @param patternName The name of the pattern
+     * @param sequenceName The name of the sequence the pattern is associated with (pass an empty string or "Global" for the global sequence, see getSequenceModel)
+     * @return The pattern with the given name
+     */
+    Q_INVOKABLE QObject* getPatternModel(const QString &name, const QString& sequenceName);
     Q_INVOKABLE QObject* getNotesModel(const QString &name);
     Q_INVOKABLE QObject* getNote(int midiNote, int midiChannel = 0);
     Q_INVOKABLE QObject* getCompoundNote(const QVariantList &notes);
@@ -89,6 +115,65 @@ public:
      * @return The instance with the given name
      */
     Q_INVOKABLE QObject* getNamedInstance(const QString &name, const QString& qmlTypeName);
+
+    /**
+     * \brief Get a JSON representation of a Note object
+     * @param note The note you want a JSON representation of
+     * @return The JSON object representing the note passed to the function
+     */
+    QJsonObject noteToJsonObject(Note *note) const;
+    /**
+     * \brief Get a Note object equivalent to the one stored in the passed-in JSON object
+     * @param jsonObject The JSON object which should be converted to a Note instance
+     * @return A Note object (if the json contained a valid representation of a Note), or null
+     */
+    Note *jsonObjectToNote(const QJsonObject &jsonObject);
+
+    /**
+     * \brief Get a JSON representation of the given model
+     *
+     * @param model A NotesModel object
+     * @return A string containing a representation of the model's notes in JSON form
+     */
+    Q_INVOKABLE QString modelToJson(QObject *model) const;
+    /**
+     * \brief Set the contents of the given model based on the given JSON representation
+     *
+     * @param model A NotesModel object to set to match the json structure
+     * @param json A string containing a JSON formatted representation of a model's contents (or a list, see notesListToJson())
+     */
+    Q_INVOKABLE void setModelFromJson(QObject *model, const QString &json);
+    /**
+     * \brief Get a JSON representation of a list of Note objects
+     *
+     * Given a list of Note objects (empty entries are allowed in this list), you can use this function
+     * to get a JSON representation which you can save using for example saveData()
+     *
+     * @param notes A list of Note objects to get a JSON representation of
+     * @return A JSON formatted string representing the list of notes
+     */
+    Q_INVOKABLE QString notesListToJson(const QVariantList &notes) const;
+    /**
+     * \brief Get a list of notes based on a JSON representation (may contain null notes)
+     *
+     * @param json A JSON formatted representation of notes (empty fields allowed)
+     * @return A list of Note objects (or empty positions), or an empty list if invalid
+     */
+    Q_INVOKABLE QVariantList jsonToNotesList(const QString &json);
+    /**
+     * \brief Get a JSON representation of a single Note object
+     *
+     * @param note The Note object you wish to get a JSON representation of
+     * @return A JSON string representation of the Note object
+     */
+    Q_INVOKABLE QString noteToJson(QObject *note) const;
+    /**
+     * \brief Get the Note object represented by the given JSON string (may return null)
+     *
+     * @param json A JSON representation of a Note
+     * @return The Note object represented by the JSON passed to the function (or null if invalid)
+     */
+    Q_INVOKABLE QObject* jsonToNote(const QString &json);
 
     Q_INVOKABLE void setNotesOn(QVariantList notes, QVariantList velocities);
     Q_INVOKABLE void setNotesOff(QVariantList notes);

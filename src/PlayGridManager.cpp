@@ -22,6 +22,7 @@
 #include "PlayGridManager.h"
 #include "Note.h"
 #include "NotesModel.h"
+#include "PatternModel.h"
 #include "SettingsContainer.h"
 
 // ZynthiLoops library
@@ -31,6 +32,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QFileSystemWatcher>
 #include <QList>
 #include <QQmlComponent>
@@ -59,6 +62,8 @@ public:
     QVariantMap dashboardModels;
     int pitch{0};
     int modulation{0};
+    QMap<QString, SequenceModel*> sequenceModels;
+    QMap<QString, PatternModel*> patternModels;
     QMap<QString, NotesModel*> notesModels;
     QList<Note*> notes;
     QMap<QString, SettingsContainer*> settingsContainers;
@@ -122,6 +127,21 @@ public:
             }
         }
         return note;
+    }
+
+    QJsonArray generateModelNotesSection(NotesModel* model) {
+        QJsonArray modelArray;
+        for (int row = 0; row < model->rowCount(); ++row) {
+            QJsonArray rowArray;
+            for (int column = 0; column < model->columnCount(model->index(row)); ++column) {
+                QJsonObject obj;
+                obj.insert("note", q->noteToJsonObject(qobject_cast<Note*>(model->getNote(row, column))));
+                obj.insert("metadata", QJsonValue::fromVariant(model->getMetadata(row, column)));
+                rowArray.append(obj);
+            }
+            modelArray << QJsonValue(rowArray);
+        }
+        return modelArray;
     }
 };
 
@@ -208,6 +228,42 @@ void PlayGridManager::setModulation(int modulation)
         d->modulation = modulation;
         Q_EMIT modulationChanged();
     }
+}
+
+QObject* PlayGridManager::getSequenceModel(const QString& name)
+{
+    SequenceModel *model = d->sequenceModels.value(name.isEmpty() ? QLatin1String("Global") : name);
+    if (!model) {
+        model = new SequenceModel(this);
+        model->setObjectName(name);
+        QQmlEngine::setObjectOwnership(model, QQmlEngine::CppOwnership);
+        d->sequenceModels[name] = model;
+        // CAUTION:
+        // This causes a fair bit of IO stuff, and will also create models using getPatternModel
+        // below, so make sure this happens _after_ adding it to the map above.
+        model->load();
+    }
+    return model;
+}
+
+QObject* PlayGridManager::getPatternModel(const QString& name, const QString& sequenceName)
+{
+    // CAUTION:
+    // This will potentially cause the creation of models using this same function, and so it must
+    // happen here, rather than later, as otherwise it will potentially cause infinite recursion
+    // in silly ways.
+    SequenceModel *sequence = qobject_cast<SequenceModel*>(getSequenceModel(sequenceName));
+    PatternModel *model = d->patternModels.value(name);
+    if (!model) {
+        model = new PatternModel(sequence);
+        if (!sequence->contains(model)) {
+            sequence->insertPattern(model);
+        }
+        model->setObjectName(name);
+        QQmlEngine::setObjectOwnership(model, QQmlEngine::CppOwnership);
+        d->patternModels[name] = model;
+    }
+    return model;
 }
 
 QObject* PlayGridManager::getNotesModel(const QString& name)
@@ -307,6 +363,132 @@ QObject* PlayGridManager::getNamedInstance(const QString& name, const QString& q
         d->namedInstances.insert(name, instance);
     }
     return instance;
+}
+
+QJsonObject PlayGridManager::noteToJsonObject(Note *note) const
+{
+    QJsonObject jsonObject;
+    if (note) {
+        jsonObject.insert("midiNote", note->midiNote());
+        jsonObject.insert("midiChannel", note->midiChannel());
+        if (note->subnotes().count() > 0) {
+            QJsonArray subnoteArray;
+            for (const QVariant &subnote : note->subnotes()) {
+                subnoteArray << noteToJsonObject(qobject_cast<Note*>(subnote.value<QObject*>()));
+            }
+            jsonObject.insert("subnotes", subnoteArray);
+        }
+    }
+    return jsonObject;
+}
+
+Note *PlayGridManager::jsonObjectToNote(const QJsonObject &jsonObject)
+{
+    Note *note{nullptr};
+    if (jsonObject.contains("subnotes")) {
+        QJsonArray subnotes = jsonObject["subnotes"].toArray();
+        QVariantList subnotesList;
+        for (const QJsonValue &val : subnotes) {
+            Note *subnote = jsonObjectToNote(val.toObject());
+            subnotesList.append(QVariant::fromValue<QObject*>(subnote));
+        }
+        note = qobject_cast<Note*>(getCompoundNote(subnotesList));
+    } else if (jsonObject.contains("midiNote")) {
+        note = qobject_cast<Note*>(getNote(jsonObject.value("midiNote").toInt(), jsonObject.value("midiChannel").toInt()));
+    }
+    return note;
+}
+
+QString PlayGridManager::modelToJson(QObject* model) const
+{
+    QJsonDocument json;
+    NotesModel* actualModel = qobject_cast<NotesModel*>(model);
+    PatternModel* patternModel = qobject_cast<PatternModel*>(model);
+    if (patternModel) {
+        QJsonObject modelObject;
+        // Don't set the height - this is equal to the row count, and expensive, no need to do that here
+        // modelObject["height"] = patternModel->height();
+        modelObject["width"] = patternModel->width();
+        modelObject["midiChannel"] = patternModel->midiChannel();
+        modelObject["noteLength"] = patternModel->noteLength();
+        modelObject["activeBar"] = patternModel->activeBar();
+        modelObject["notes"] = d->generateModelNotesSection(patternModel);
+        json.setObject(modelObject);
+    } else if (actualModel) {
+        json.setArray(d->generateModelNotesSection(actualModel));
+    }
+    return json.toJson();
+}
+
+void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
+{
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+    if (jsonDoc.isArray()) {
+        NotesModel* actualModel = qobject_cast<NotesModel*>(model);
+        actualModel->clear();
+        QJsonArray notesArray = jsonDoc.array();
+        for (const QJsonValue &row : notesArray) {
+            if (row.isArray()) {
+                QVariantList rowList;
+                QVariantList rowMetadata;
+                QJsonArray rowArray = row.toArray();
+                for (const QJsonValue &note : rowArray) {
+                    rowList << QVariant::fromValue<QObject*>(jsonObjectToNote(note["note"].toObject()));
+                    rowMetadata << note["metadata"].toVariant();
+                }
+                actualModel->appendRow(rowList, rowMetadata);
+            }
+        }
+    } else if (jsonDoc.isObject()) {
+        PatternModel *pattern = qobject_cast<PatternModel*>(model);
+        QJsonObject patternObject = jsonDoc.object();
+        if (pattern) {
+            // We don't read the height in either - it's equal to the row count anyway, so superfluous
+            // pattern->setHeight(patternObject.value("height").toInt());
+            pattern->setWidth(patternObject.value("width").toInt());
+            pattern->setMidiChannel(patternObject.value("midiChannel").toInt());
+            pattern->setNoteLength(patternObject.value("noteLength").toInt());
+            pattern->setActiveBar(patternObject.value("activeBar").toInt());
+            setModelFromJson(model, patternObject.value("notes").toString());
+        }
+    }
+}
+
+QString PlayGridManager::notesListToJson(const QVariantList& notes) const
+{
+    QJsonDocument json;
+    QJsonArray notesArray;
+    for (const QVariant &element : notes) {
+        notesArray << noteToJsonObject(qobject_cast<Note*>(element.value<QObject*>()));
+    }
+    json.setArray(notesArray);
+    return json.toJson();
+}
+
+QVariantList PlayGridManager::jsonToNotesList(const QString& json)
+{
+    QVariantList notes;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+    if (jsonDoc.isArray()) {
+        QJsonArray notesArray = jsonDoc.array();
+        for (const QJsonValue &note : notesArray) {
+            notes << QVariant::fromValue<QObject*>(jsonObjectToNote(note.toObject()));
+        }
+    }
+    return notes;
+}
+
+QString PlayGridManager::noteToJson(QObject* note) const
+{
+    QJsonDocument doc;
+    doc.setObject(noteToJsonObject(qobject_cast<Note*>(note)));
+    return doc.toJson();
+}
+
+QObject* PlayGridManager::jsonToNote(const QString& json)
+{
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
+    return jsonObjectToNote(jsonDoc.object());
 }
 
 void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)
