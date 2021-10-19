@@ -48,7 +48,7 @@ class PatternModel : public NotesModel
      * \brief The amount of rows in the model (similar to rows, but actively enforced)
      * Active enforcement means that any change outside the given size will cause that change to be aborted
      * @note Setting this to a value smaller than the current state will remove any notes set in the overflow rows)
-     * @default 1
+     * @default 16
      */
     Q_PROPERTY(int height READ height WRITE setHeight NOTIFY heightChanged)
     /**

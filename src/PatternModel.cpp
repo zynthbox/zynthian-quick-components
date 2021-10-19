@@ -27,7 +27,7 @@
 class PatternModel::Private {
 public:
     Private() {}
-    int width{0};
+    int width{16};
     int midiChannel{0};
     int noteLength{4};
     int activeBar{0};
@@ -39,6 +39,8 @@ PatternModel::PatternModel(SequenceModel* parent)
     : NotesModel(parent->playGridManager())
     , d(new Private)
 {
+    // This will force the creation of a whole bunch of rows with the desired width and whatnot...
+    setHeight(16);
 }
 
 PatternModel::~PatternModel()
