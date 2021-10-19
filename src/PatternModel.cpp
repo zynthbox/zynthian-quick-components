@@ -30,6 +30,7 @@ public:
     int width{16};
     int midiChannel{0};
     int noteLength{4};
+    int availableBars{1};
     int activeBar{0};
     int bankOffset{0};
     int bankLength{8};
@@ -241,6 +242,20 @@ void PatternModel::setNoteLength(int noteLength)
 int PatternModel::noteLength() const
 {
     return d->noteLength;
+}
+
+void PatternModel::setAvailableBars(int availableBars)
+{
+    int adjusted = qMin(qMax(0, availableBars), height());
+    if (d->availableBars != adjusted) {
+        d->availableBars = adjusted;
+        Q_EMIT availableBarsChanged();
+    }
+}
+
+int PatternModel::availableBars() const
+{
+    return d->availableBars;
 }
 
 void PatternModel::setActiveBar(int activeBar)

@@ -52,11 +52,6 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(int height READ height WRITE setHeight NOTIFY heightChanged)
     /**
-     * \brief The number of bars (rows) available in the pattern
-     * @note This is an alias of the height property
-     */
-    Q_PROPERTY(int availableBars READ height WRITE setHeight NOTIFY heightChanged)
-    /**
      * \brief The midi channel used by all notes in this pattern
      * This is potentially an expensive operation, as it will replace all notes in the model with ones matching the newly set channel
      * @note When adding and removing notes to the model, they will be checked (and changed to fit)
@@ -75,6 +70,11 @@ class PatternModel : public NotesModel
      * @default 4
      */
     Q_PROPERTY(int noteLength READ noteLength WRITE setNoteLength NOTIFY noteLengthChanged)
+    /**
+     * \brief The number of bars in the pattern which should be considered for playback
+     * @default 1
+     */
+    Q_PROPERTY(int availableBars READ availableBars WRITE setAvailableBars NOTIFY availableBarsChanged)
     /**
      * \brief Which bar (row) should be considered current
      * This will be clamped to the available range (the lowest value is 0, maximum is height-1)
@@ -159,6 +159,10 @@ public:
     void setNoteLength(int noteLength);
     int noteLength() const;
     Q_SIGNAL void noteLengthChanged();
+
+    void setAvailableBars(int availableBars);
+    int availableBars() const;
+    Q_SIGNAL void availableBarsChanged();
 
     void setActiveBar(int activeBar);
     int activeBar() const;
