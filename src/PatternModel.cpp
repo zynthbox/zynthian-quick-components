@@ -174,7 +174,7 @@ void PatternModel::setWidth(int width)
 
 int PatternModel::width() const
 {
-    return columnCount(createIndex(0, 0));
+    return d->width;
 }
 
 void PatternModel::setHeight(int height)
@@ -182,7 +182,7 @@ void PatternModel::setHeight(int height)
     if (this->height() < height) {
         // Force these to exist if taller than current
         for (int i = this->height(); i < height; ++i) {
-            setNote(i, width(), nullptr);
+            setNote(i, width() - 1, nullptr);
         }
     } else {
         // Remove any that are superfluous if shorter
