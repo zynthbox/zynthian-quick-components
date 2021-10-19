@@ -164,8 +164,8 @@ void PatternModel::setWidth(int width)
             QVariantList rowNotes(getRow(row));
             QVariantList rowMetadata(getRowMetadata(row));
             while (rowNotes.count() > width) {
-                rowNotes.removeAt(width);
-                rowMetadata.removeAt(width);
+                rowNotes.removeAt(rowNotes.count() - 1);
+                rowMetadata.removeAt(rowNotes.count() - 1);
             }
             setRowData(row, rowNotes, rowMetadata);
         }
@@ -187,7 +187,7 @@ void PatternModel::setHeight(int height)
     } else {
         // Remove any that are superfluous if shorter
         while (this->height() > height) {
-            removeRow(this->height());
+            removeRow(this->height() - 1);
         }
     }
 }
