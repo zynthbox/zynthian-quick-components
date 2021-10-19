@@ -109,7 +109,7 @@ QModelIndex SequenceModel::index(int row, int column, const QModelIndex& parent)
 QObject* SequenceModel::get(int patternIndex) const
 {
     QObject *pattern{nullptr};
-    if (patternIndex > 0 && patternIndex < d->patternModels.count()) {
+    if (patternIndex > -1 && patternIndex < d->patternModels.count()) {
         pattern = d->patternModels.at(patternIndex);
     }
     return pattern;
