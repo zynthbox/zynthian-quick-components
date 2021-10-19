@@ -432,6 +432,7 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
         NotesModel* actualModel = qobject_cast<NotesModel*>(model);
         actualModel->clear();
         QJsonArray notesArray = jsonDoc.array();
+        int rowPosition{0};
         for (const QJsonValue &row : notesArray) {
             if (row.isArray()) {
                 QVariantList rowList;
@@ -441,14 +442,14 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
                     rowList << QVariant::fromValue<QObject*>(jsonObjectToNote(note["note"].toObject()));
                     rowMetadata << note["metadata"].toVariant();
                 }
-                actualModel->appendRow(rowList, rowMetadata);
+                actualModel->insertRow(rowPosition, rowList, rowMetadata);
             }
+            ++rowPosition;
         }
     } else if (jsonDoc.isObject()) {
         PatternModel *pattern = qobject_cast<PatternModel*>(model);
         QJsonObject patternObject = jsonDoc.object();
         if (pattern) {
-            setModelFromJson(model, patternObject.value("notes").toString());
             // We don't read the height in either - it's equal to the row count anyway, so superfluous
             // pattern->setHeight(patternObject.value("height").toInt());
             pattern->setWidth(patternObject.value("width").toInt());
@@ -458,6 +459,7 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             pattern->setActiveBar(patternObject.value("activeBar").toInt());
             pattern->setBankOffset(patternObject.value("bankOffset").toInt());
             pattern->setBankLength(patternObject.value("bankLength").toInt());
+            setModelFromJson(model, patternObject.value("notes").toString());
         }
     }
 }

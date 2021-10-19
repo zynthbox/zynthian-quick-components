@@ -441,7 +441,12 @@ void NotesModel::addRow(const QVariantList &notes, const QVariantList &metadata)
 
 void NotesModel::appendRow(const QVariantList& notes, const QVariantList& metadata)
 {
-    if (!d->parentModel) {
+    insertRow(d->entries.count(), notes, metadata);
+}
+
+void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantList& metadata)
+{
+    if (!d->parentModel && index > -1 && index <= d->entries.count()) {
         QList<Entry> actualNotes;
         int metadataCount = metadata.count();
         for (int i = 0; i < notes.count(); ++i) {
@@ -454,8 +459,8 @@ void NotesModel::appendRow(const QVariantList& notes, const QVariantList& metada
             actualNotes << entry;
         }
         if (actualNotes.count() > 0) {
-            beginInsertRows(QModelIndex(), d->entries.count(), d->entries.count());
-            d->entries.append(actualNotes);
+            beginInsertRows(QModelIndex(), index, index);
+            d->entries.insert(index, actualNotes);
             d->noteDataChangedUpdater.start();
             endInsertRows();
             Q_EMIT rowsChanged();

@@ -153,6 +153,15 @@ public:
      * @param metadata An optional list of metadata associated with the notes
      */
     Q_INVOKABLE void appendRow(const QVariantList &notes, const QVariantList &metadata = QVariantList());
+    /**
+     * \brief Insert a row of notes at the specified position in the model
+     * @note Not valid on child models (see parentModel())
+     * @see addRow() for adding at the top
+     * @param index The location at which you wish to insert the row
+     * @param notes A list of notes to be added to the model as a new row (they will be inserted at the top of the model)
+     * @param metadata An optional list of metadata associated with the notes
+     */
+    Q_INVOKABLE void insertRow(int index, const QVariantList &notes, const QVariantList &metadata = QVariantList());
 
     /**
      * \brief Remove a row of notes from the model
