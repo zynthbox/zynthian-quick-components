@@ -31,6 +31,8 @@ public:
     int midiChannel{0};
     int noteLength{4};
     int activeBar{0};
+    int bankOffset{0};
+    int bankLength{8};
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -128,6 +130,23 @@ QVariant PatternModel::subnoteMetadata(int row, int column, int subnote, const Q
         }
     }
     return result;
+}
+
+void PatternModel::clear()
+{
+    beginResetModel();
+    for (int row = 0; row < rowCount(); ++row) {
+        clearRow(row);
+    }
+    endResetModel();
+}
+
+void PatternModel::clearRow(int row)
+{
+    for (int column = 0; column < d->width; ++column) {
+        setNote(row, column, nullptr);
+        setMetadata(row, column, QVariantList());
+    }
 }
 
 void PatternModel::setWidth(int width)
@@ -233,4 +252,30 @@ void PatternModel::setActiveBar(int activeBar)
 int PatternModel::activeBar() const
 {
     return d->activeBar;
+}
+
+void PatternModel::setBankOffset(int bankOffset)
+{
+    if (d->bankOffset != bankOffset) {
+        d->bankOffset = bankOffset;
+        Q_EMIT bankOffsetChanged();
+    }
+}
+
+int PatternModel::bankOffset() const
+{
+    return d->bankOffset;
+}
+
+void PatternModel::setBankLength(int bankLength)
+{
+    if (d->bankLength != bankLength) {
+        d->bankLength = bankLength;
+        Q_EMIT bankLengthChanged();
+    }
+}
+
+int PatternModel::bankLength() const
+{
+    return d->bankLength;
 }

@@ -81,6 +81,17 @@ class PatternModel : public NotesModel
      * @default 0
      */
     Q_PROPERTY(int activeBar READ activeBar WRITE setActiveBar NOTIFY activeBarChanged)
+    /**
+     * \brief An offset used to display a subsection of rows (a bank)
+     * Default value is 0
+     * @see bankLength
+     */
+    Q_PROPERTY(int bankOffset READ bankOffset WRITE setBankOffset NOTIFY bankOffsetChanged)
+    /**
+     * \brief The length of a bank (a subset of rows)
+     * Default value is 8
+     */
+    Q_PROPERTY(int bankLength READ bankLength WRITE setBankLength NOTIFY bankLengthChanged)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -122,6 +133,17 @@ public:
      */
     QVariant subnoteMetadata(int row, int column, int subnote, const QString &key);
 
+    /**
+     * \brief Removes all notes and metadata from the model
+     */
+    Q_INVOKABLE void clear() override;
+
+    /**
+     * \brief Removes all notes and metadata from the given row (if it exists)
+     * @param row The row that you wish to clear of all data
+     */
+    Q_INVOKABLE void clearRow(int row);
+
     int width() const;
     void setWidth(int width);
     Q_SIGNAL void widthChanged();
@@ -141,6 +163,14 @@ public:
     void setActiveBar(int activeBar);
     int activeBar() const;
     Q_SIGNAL void activeBarChanged();
+
+    void setBankOffset(int bankOffset);
+    int bankOffset() const;
+    Q_SIGNAL void bankOffsetChanged();
+
+    void setBankLength(int bankLength);
+    int bankLength() const;
+    Q_SIGNAL void bankLengthChanged();
 private:
     class Private;
     Private *d;

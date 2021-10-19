@@ -136,7 +136,7 @@ public:
      * \brief Remove all rows from the model
      * @note Not valid on child models (see parentModel())
      */
-    Q_INVOKABLE void clear();
+    Q_INVOKABLE virtual void clear();
     /**
      * \brief Add a new row of notes to the top of the model
      * @note Not valid on child models (see parentModel())
