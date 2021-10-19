@@ -213,7 +213,6 @@ bool SequenceModel::save()
 {
     bool success = false;
 
-    QJsonDocument jsonDoc;
     QJsonObject sequenceObject;
     sequenceObject["activePattern"] = activePattern();
     QJsonArray patternArray;
@@ -221,6 +220,9 @@ bool SequenceModel::save()
         patternArray.append(playGridManager()->modelToJson(pattern));
     }
     sequenceObject["patterns"] = patternArray;
+
+    QJsonDocument jsonDoc;
+    jsonDoc.setObject(sequenceObject);
     QString data = jsonDoc.toJson();
 
     QDir confLocation(d->getDataLocation());
