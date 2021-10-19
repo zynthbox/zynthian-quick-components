@@ -104,11 +104,21 @@ QModelIndex SequenceModel::index(int row, int column, const QModelIndex& parent)
     return createIndex(row, column);
 }
 
+QObject* SequenceModel::get(int patternIndex) const
+{
+    QObject *pattern{nullptr};
+    if (patternIndex > 0 && patternIndex < d->patternModels.count()) {
+        pattern = d->patternModels.at(patternIndex);
+    }
+    return pattern;
+}
+
 void SequenceModel::insertPattern(PatternModel* pattern, int row)
 {
     int insertionRow = qMax(0, qMin(d->patternModels.count(), row));
     beginInsertRows(QModelIndex(), insertionRow, insertionRow);
     d->patternModels.insert(insertionRow, pattern);
+    setActivePattern(d->activePattern);
     endInsertRows();
 }
 
@@ -118,6 +128,7 @@ void SequenceModel::removePattern(PatternModel* pattern)
     if (removalPosition > -1) {
         beginRemoveRows(QModelIndex(), removalPosition, removalPosition);
         d->patternModels.removeAt(removalPosition);
+        setActivePattern(d->activePattern);
         endRemoveRows();
     }
 }
@@ -134,8 +145,9 @@ PlayGridManager* SequenceModel::playGridManager() const
 
 void SequenceModel::setActivePattern(int activePattern)
 {
-    if (d->activePattern != activePattern) {
-        d->activePattern = activePattern;
+    int adjusted = qMin(0, qMax(d->patternModels.count(), activePattern));
+    if (d->activePattern != adjusted) {
+        d->activePattern = adjusted;
         Q_EMIT activePatternChanged();
     }
 }
@@ -143,6 +155,11 @@ void SequenceModel::setActivePattern(int activePattern)
 int SequenceModel::activePattern() const
 {
     return d->activePattern;
+}
+
+QObject* SequenceModel::activePatternObject() const
+{
+    return d->patternModels.at(d->activePattern);
 }
 
 void SequenceModel::load()
@@ -185,4 +202,18 @@ bool SequenceModel::save()
         }
     }
     return success;
+}
+
+void SequenceModel::clear()
+{
+    for (PatternModel *model : d->patternModels) {
+        model->clear();
+    }
+}
+
+void SequenceModel::setPatternProperty(int patternIndex, const QString& property, const QVariant& value)
+{
+    if (patternIndex > -1 && patternIndex < d->patternModels.count()) {
+        d->patternModels.at(patternIndex)->setProperty(property.toUtf8(), value);
+    }
 }

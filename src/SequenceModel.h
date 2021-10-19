@@ -30,6 +30,7 @@ class SequenceModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int activePattern READ activePattern WRITE setActivePattern NOTIFY activePatternChanged)
+    Q_PROPERTY(QObject* activePatternObject READ activePatternObject NOTIFY activePatternChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -44,6 +45,12 @@ public:
     Q_INVOKABLE QVariant data(const QModelIndex &index, int role) const override;
     Q_INVOKABLE QModelIndex index(int row, int column = 0, const QModelIndex &parent = QModelIndex()) const override;
 
+    /**
+     * \brief Get the pattern object for the given position (or null if none exists)
+     * @param patternIndex The index of the pattern to fetch from the model
+     * @return The PatternModel at the given index, or null
+     */
+    Q_INVOKABLE QObject *get(int patternIndex) const;
     /**
      * \brief Insert a pattern into the sequence at the desired location (or at the end if undefined)
      * @param pattern The pattern to insert into the model
@@ -65,6 +72,7 @@ public:
 
     void setActivePattern(int activePattern);
     int activePattern() const;
+    QObject *activePatternObject() const;
     Q_SIGNAL void activePatternChanged();
 
     /**
@@ -76,6 +84,18 @@ public:
      * @return True if successful, false if not
      */
     Q_INVOKABLE bool save();
+    /**
+     * \brief Clear all patterns of all notes
+     */
+    Q_INVOKABLE void clear();
+
+    /**
+     * \brief Set the named property on the pattern with the specified index the given value
+     * @param patternIndex The index in the list of the pattern to set a property on
+     * @param property The name of the property you wish to change the value of
+     * @param value The value you wish to set that property to
+     */
+    Q_INVOKABLE void setPatternProperty(int patternIndex, const QString &property, const QVariant &value);
 private:
     class Private;
     Private *d;
