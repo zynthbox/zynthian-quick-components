@@ -406,8 +406,7 @@ QString PlayGridManager::modelToJson(QObject* model) const
     PatternModel* patternModel = qobject_cast<PatternModel*>(model);
     if (patternModel) {
         QJsonObject modelObject;
-        // Don't set the height - this is equal to the row count, and expensive, no need to do that here
-        // modelObject["height"] = patternModel->height();
+        modelObject["height"] = patternModel->height();
         modelObject["width"] = patternModel->width();
         modelObject["midiChannel"] = patternModel->midiChannel();
         modelObject["noteLength"] = patternModel->noteLength();
@@ -450,8 +449,8 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
         PatternModel *pattern = qobject_cast<PatternModel*>(model);
         QJsonObject patternObject = jsonDoc.object();
         if (pattern) {
-            // We don't read the height in either - it's equal to the row count anyway, so superfluous
-            // pattern->setHeight(patternObject.value("height").toInt());
+            setModelFromJson(model, patternObject.value("notes").toString());
+            pattern->setHeight(patternObject.value("height").toInt());
             pattern->setWidth(patternObject.value("width").toInt());
             pattern->setMidiChannel(patternObject.value("midiChannel").toInt());
             pattern->setNoteLength(patternObject.value("noteLength").toInt());
@@ -459,7 +458,6 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             pattern->setActiveBar(patternObject.value("activeBar").toInt());
             pattern->setBankOffset(patternObject.value("bankOffset").toInt());
             pattern->setBankLength(patternObject.value("bankLength").toInt());
-            setModelFromJson(model, patternObject.value("notes").toString());
         }
     }
 }
