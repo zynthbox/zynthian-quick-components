@@ -34,6 +34,7 @@ public:
     int activeBar{0};
     int bankOffset{0};
     int bankLength{8};
+    bool enabled{true};
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -315,6 +316,19 @@ int PatternModel::bankLength() const
     return d->bankLength;
 }
 
+void PatternModel::setEnabled(bool enabled)
+{
+    if (d->enabled != enabled) {
+        d->enabled = enabled;
+        Q_EMIT enabledChanged();
+    }
+}
+
+bool PatternModel::enabled() const
+{
+    return d->enabled;
+}
+
 void PatternModel::setPositionOff(int row, int column) const
 {
     if (row > -1 && row < height() && column > -1 && column < width()) {
@@ -330,9 +344,10 @@ void PatternModel::setPositionOff(int row, int column) const
     }
 }
 
-void PatternModel::setPositionOn(int row, int column) const
+QObjectList PatternModel::setPositionOn(int row, int column) const
 {
     static const QLatin1String velocityString{"velocity"};
+    QObjectList onifiedNotes;
     if (row > -1 && row < height() && column > -1 && column < width()) {
         const Note *note = qobject_cast<Note*>(getNote(row, column));
         if (note) {
@@ -344,12 +359,14 @@ void PatternModel::setPositionOn(int row, int column) const
                     const QVariantHash &metaHash = meta[i].toHash();
                     if (metaHash.isEmpty() && subnote) {
                         subnote->setOn();
+                        onifiedNotes << subnote;
                     } else if (subnote) {
                         int velocity{64};
                         if (metaHash.contains(velocityString)) {
                             velocity = metaHash.value(velocityString).toInt();
                         }
                         subnote->setOn(velocity);
+                        onifiedNotes << subnote;
                     }
                 }
             } else {
@@ -357,9 +374,11 @@ void PatternModel::setPositionOn(int row, int column) const
                     Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                     if (subnote) {
                         subnote->setOn();
+                        onifiedNotes << subnote;
                     }
                 }
             }
         }
     }
+    return onifiedNotes;
 }

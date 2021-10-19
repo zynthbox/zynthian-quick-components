@@ -99,6 +99,11 @@ class PatternModel : public NotesModel
      * Default value is 8
      */
     Q_PROPERTY(int bankLength READ bankLength WRITE setBankLength NOTIFY bankLengthChanged)
+    /**
+     * \brief A toggle for setting the pattern to an enabled state (primarily used for playback purposes)
+     * @default true
+     */
+    Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -191,8 +196,12 @@ public:
     int bankLength() const;
     Q_SIGNAL void bankLengthChanged();
 
+    void setEnabled(bool enabled);
+    bool enabled() const;
+    Q_SIGNAL void enabledChanged();
+
     Q_INVOKABLE void setPositionOff(int row, int column) const;
-    Q_INVOKABLE void setPositionOn(int row, int column) const;
+    Q_INVOKABLE QObjectList setPositionOn(int row, int column) const;
 private:
     class Private;
     Private *d;
