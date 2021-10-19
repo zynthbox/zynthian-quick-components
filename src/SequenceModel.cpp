@@ -117,7 +117,11 @@ QObject* SequenceModel::get(int patternIndex) const
 
 void SequenceModel::insertPattern(PatternModel* pattern, int row)
 {
-    int insertionRow = qMax(0, qMin(d->patternModels.count(), row));
+    int insertionRow = d->patternModels.count();
+    if (row > -1) {
+        // If we've been requested to add in a specific location, do so
+        insertionRow = qMax(0, qMin(d->patternModels.count(), row));
+    }
     beginInsertRows(QModelIndex(), insertionRow, insertionRow);
     d->patternModels.insert(insertionRow, pattern);
     setActivePattern(d->activePattern);
