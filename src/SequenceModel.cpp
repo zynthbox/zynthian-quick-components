@@ -20,6 +20,7 @@
  */
 
 #include "SequenceModel.h"
+#include "Note.h"
 #include "PatternModel.h"
 
 #include <QFile>
@@ -39,6 +40,7 @@ public:
     QList<PatternModel*> patternModels;
     int activePattern{0};
     int version{0};
+    QObjectList onifiedNotes;
 
     QString getDataLocation()
     {
@@ -249,5 +251,28 @@ void SequenceModel::setPatternProperty(int patternIndex, const QString& property
 {
     if (patternIndex > -1 && patternIndex < d->patternModels.count()) {
         d->patternModels.at(patternIndex)->setProperty(property.toUtf8(), value);
+    }
+}
+
+void SequenceModel::setPreviousOff() const
+{
+    for (QObject *obj : d->onifiedNotes) {
+        Note *note = qobject_cast<Note*>(obj);
+        if (note) {
+            note->setOff();
+        }
+    }
+    d->onifiedNotes.clear();
+}
+
+void SequenceModel::setPositionOn(int row, int column, bool stopPrevious) const
+{
+    if (stopPrevious) {
+        setPreviousOff();
+    }
+    for (PatternModel *model : d->patternModels) {
+        if (model->enabled()) {
+            d->onifiedNotes.append(model->setPositionOn(row + model->bankOffset(), column));
+        }
     }
 }

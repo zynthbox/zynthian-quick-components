@@ -98,6 +98,18 @@ public:
      * @param value The value you wish to set that property to
      */
     Q_INVOKABLE void setPatternProperty(int patternIndex, const QString &property, const QVariant &value);
+
+    /**
+     * \brief Set any note previously turned on using setPositionOn off
+     */
+    Q_INVOKABLE void setPreviousOff() const;
+    /**
+     * \brief Set the given position on in all enabled patterns which have the position, and turn all previous off (optionally leave them on)
+     * @param row The row you wish to set to on in all enabled patterns (bankOffset will be interpreted by this function per-pattern)
+     * @param column The column in the given row you wish to turn on in all enabled patterns
+     * @param stopPrevious If true, the function will stop any previous notes set on on the same sequence (default is to do so, pass false to disable this automagic)
+     */
+    Q_INVOKABLE void setPositionOn(int row, int column, bool stopPrevious = true) const;
 private:
     class Private;
     Private *d;
