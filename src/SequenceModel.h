@@ -37,6 +37,7 @@ public:
 
     enum Roles {
         PatternRole = Qt::UserRole + 1,
+        TextRole,
         NameRole,
         LayerRole,
     };

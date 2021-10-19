@@ -70,6 +70,7 @@ QHash<int, QByteArray> SequenceModel::roleNames() const
 {
     static const QHash<int, QByteArray> roles{
         {PatternRole, "pattern"},
+        {TextRole, "text"},
         {NameRole, "name"},
         {LayerRole, "layer"},
     };
@@ -85,6 +86,8 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
         case PatternRole:
             result.setValue<QObject*>(model);
             break;
+        // We might well want to do something more clever with the text later on, so...
+        case TextRole:
         case NameRole:
             result.setValue(model->objectName());
             break;
