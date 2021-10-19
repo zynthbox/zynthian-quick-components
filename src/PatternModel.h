@@ -190,6 +190,9 @@ public:
     void setBankLength(int bankLength);
     int bankLength() const;
     Q_SIGNAL void bankLengthChanged();
+
+    Q_INVOKABLE void setPositionOff(int row, int column) const;
+    Q_INVOKABLE void setPositionOn(int row, int column) const;
 private:
     class Private;
     Private *d;

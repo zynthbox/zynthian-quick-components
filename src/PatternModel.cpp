@@ -70,7 +70,7 @@ int PatternModel::subnoteIndex(int row, int column, int midiNote) const
 int PatternModel::addSubnote(int row, int column, QObject* note)
 {
     int newPosition{-1};
-    if (row > -1 && row < height() && column > -1 && column < width()) {
+    if (row > -1 && row < height() && column > -1 && column < width() && note) {
         Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
         QVariantList subnotes;
         QVariantList metadata;
@@ -313,4 +313,53 @@ void PatternModel::setBankLength(int bankLength)
 int PatternModel::bankLength() const
 {
     return d->bankLength;
+}
+
+void PatternModel::setPositionOff(int row, int column) const
+{
+    if (row > -1 && row < height() && column > -1 && column < width()) {
+        const Note *note = qobject_cast<Note*>(getNote(row, column));
+        if (note) {
+            for (const QVariant &subnoteVar : note->subnotes()) {
+                Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                if (subnote) {
+                    subnote->setOff();
+                }
+            }
+        }
+    }
+}
+
+void PatternModel::setPositionOn(int row, int column) const
+{
+    static const QLatin1String velocityString{"velocity"};
+    if (row > -1 && row < height() && column > -1 && column < width()) {
+        const Note *note = qobject_cast<Note*>(getNote(row, column));
+        if (note) {
+            const QVariantList &subnotes = note->subnotes();
+            const QVariantList &meta = getMetadata(row, column).toList();
+            if (meta.count() == subnotes.count()) {
+                for (int i = 0; i < subnotes.count(); ++i) {
+                    Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                    const QVariantHash &metaHash = meta[i].toHash();
+                    if (metaHash.isEmpty() && subnote) {
+                        subnote->setOn();
+                    } else if (subnote) {
+                        int velocity{64};
+                        if (metaHash.contains(velocityString)) {
+                            velocity = metaHash.value(velocityString).toInt();
+                        }
+                        subnote->setOn(velocity);
+                    }
+                }
+            } else {
+                for (const QVariant &subnoteVar : subnotes) {
+                    Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                    if (subnote) {
+                        subnote->setOn();
+                    }
+                }
+            }
+        }
+    }
 }
