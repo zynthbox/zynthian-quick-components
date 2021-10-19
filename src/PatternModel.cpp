@@ -54,11 +54,13 @@ int PatternModel::subnoteIndex(int row, int column, int midiNote) const
     int result{-1};
     if (row > -1 && row < height() && column > -1 && column < width()) {
         const Note* note = qobject_cast<Note*>(getNote(row, column));
-        for (int i = 0; i < note->subnotes().count(); ++i) {
-            const Note* subnote = qobject_cast<Note*>(note->subnotes().at(i).value<QObject*>());
-            if (subnote->midiNote() == midiNote) {
-                result = i;
-                break;
+        if (note) {
+            for (int i = 0; i < note->subnotes().count(); ++i) {
+                const Note* subnote = qobject_cast<Note*>(note->subnotes().at(i).value<QObject*>());
+                if (subnote && subnote->midiNote() == midiNote) {
+                    result = i;
+                    break;
+                }
             }
         }
     }
