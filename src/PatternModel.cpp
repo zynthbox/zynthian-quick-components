@@ -29,7 +29,7 @@ public:
     Private() {}
     int width{16};
     int midiChannel{0};
-    int noteLength{4};
+    int noteLength{3};
     int availableBars{1};
     int activeBar{0};
     int bankOffset{0};

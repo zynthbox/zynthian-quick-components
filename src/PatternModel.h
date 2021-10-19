@@ -66,8 +66,15 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(int layer READ midiChannel WRITE setMidiChannel NOTIFY midiChannelChanged)
     /**
-     * \brief The length if a note (that is, how many steps in the pattern make up one full note)
-     * @default 4
+     * \brief The duration of a note in the pattern (the subdivision used to determine the speed of playback)
+     * Values from 1 through 6, which each translate to the following:
+     * 1: quarter
+     * 2: half
+     * 3: normal
+     * 4: double
+     * 5: quadruple
+     * 6: octuple
+     * @default 3
      */
     Q_PROPERTY(int noteLength READ noteLength WRITE setNoteLength NOTIFY noteLengthChanged)
     /**
