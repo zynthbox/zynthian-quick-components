@@ -27,6 +27,8 @@
 #include <QJsonDocument>
 #include <QDir>
 
+#define PATTERN_COUNT 5
+
 class SequenceModel::Private {
 public:
     Private(SequenceModel *q)
@@ -185,6 +187,12 @@ void SequenceModel::load()
             ++patternNumber;
             PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern ").arg(QString::number(patternNumber)), objectName()));
             playGridManager()->setModelFromJson(model, patternValue.toString());
+        }
+        // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
+        if (d->patternModels.count() < PATTERN_COUNT) {
+            for (int i = patternNumber; i < PATTERN_COUNT; ++i) {
+                playGridManager()->getPatternModel(QString("Pattern ").arg(QString::number(i + 1)), objectName());
+            }
         }
         setActivePattern(obj.value("activePattern").toInt());
         endResetModel();
