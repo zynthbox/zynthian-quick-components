@@ -169,6 +169,7 @@ QObject* SequenceModel::activePatternObject() const
 
 void SequenceModel::load()
 {
+    beginResetModel();
     QString data;
     QFile file(d->getDataLocation() + "/" + QString::number(d->version));
     if (file.exists()) {
@@ -180,7 +181,6 @@ void SequenceModel::load()
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data.toUtf8());
     if (jsonDoc.isObject()) {
         QJsonObject obj = jsonDoc.object();
-        beginResetModel();
         d->patternModels.clear();
         int patternNumber{0};
         for (const QJsonValue &patternValue : obj.value("patterns").toArray()) {
@@ -188,15 +188,15 @@ void SequenceModel::load()
             PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern ").arg(QString::number(patternNumber)), objectName()));
             playGridManager()->setModelFromJson(model, patternValue.toString());
         }
-        // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
-        if (d->patternModels.count() < PATTERN_COUNT) {
-            for (int i = patternNumber; i < PATTERN_COUNT; ++i) {
-                playGridManager()->getPatternModel(QString("Pattern ").arg(QString::number(i + 1)), objectName());
-            }
-        }
         setActivePattern(obj.value("activePattern").toInt());
-        endResetModel();
     }
+    // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
+    if (d->patternModels.count() < PATTERN_COUNT) {
+        for (int i = d->patternModels.count(); i < PATTERN_COUNT + 1; ++i) {
+            playGridManager()->getPatternModel(QString("Pattern ").arg(QString::number(i + 1)), objectName());
+        }
+    }
+    endResetModel();
 }
 
 bool SequenceModel::save()
