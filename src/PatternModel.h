@@ -104,6 +104,14 @@ public:
     ~PatternModel() override;
 
     /**
+     * \brief The subnote position of the note with the given midi note value in the requested position in the model
+     * @param row The row you wish to check in
+     * @param column The column in the row you wish to check in
+     * @param midiNote The note value you wish to check
+     * @return The index of the subnote, or -1 if not found
+     */
+    int subnoteIndex(int row, int column, int midiNote) const;
+    /**
      * \brief Add a new entry to the position
      * @param row The row you wish to add a new entry in
      * @param column The column in that row you wish to add a new entry into

@@ -49,6 +49,22 @@ PatternModel::~PatternModel()
     delete d;
 }
 
+int PatternModel::subnoteIndex(int row, int column, int midiNote) const
+{
+    int result{-1};
+    if (row > -1 && row < height() && column > -1 && column < width()) {
+        const Note* note = qobject_cast<Note*>(getNote(row, column));
+        for (int i = 0; i < note->subnotes().count(); ++i) {
+            const Note* subnote = qobject_cast<Note*>(note->subnotes().at(i).value<QObject*>());
+            if (subnote->midiNote() == midiNote) {
+                result = i;
+                break;
+            }
+        }
+    }
+    return result;
+}
+
 int PatternModel::addSubnote(int row, int column, QObject* note)
 {
     int newPosition{-1};
