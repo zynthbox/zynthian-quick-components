@@ -159,7 +159,10 @@ int SequenceModel::activePattern() const
 
 QObject* SequenceModel::activePatternObject() const
 {
-    return d->patternModels.at(d->activePattern);
+    if (d->activePattern > -1 && d->activePattern < d->patternModels.count()) {
+        return d->patternModels.at(d->activePattern);
+    }
+    return nullptr;
 }
 
 void SequenceModel::load()
