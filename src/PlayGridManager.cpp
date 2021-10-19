@@ -412,6 +412,8 @@ QString PlayGridManager::modelToJson(QObject* model) const
         modelObject["midiChannel"] = patternModel->midiChannel();
         modelObject["noteLength"] = patternModel->noteLength();
         modelObject["activeBar"] = patternModel->activeBar();
+        modelObject["bankOffset"] = patternModel->bankOffset();
+        modelObject["bankLength"] = patternModel->bankLength();
         modelObject["notes"] = d->generateModelNotesSection(patternModel);
         json.setObject(modelObject);
     } else if (actualModel) {
@@ -449,6 +451,8 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             pattern->setMidiChannel(patternObject.value("midiChannel").toInt());
             pattern->setNoteLength(patternObject.value("noteLength").toInt());
             pattern->setActiveBar(patternObject.value("activeBar").toInt());
+            pattern->setBankOffset(patternObject.value("bankOffset").toInt());
+            pattern->setBankLength(patternObject.value("bankLength").toInt());
             setModelFromJson(model, patternObject.value("notes").toString());
         }
     }
