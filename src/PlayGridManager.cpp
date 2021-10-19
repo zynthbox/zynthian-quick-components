@@ -415,7 +415,9 @@ QString PlayGridManager::modelToJson(QObject* model) const
         modelObject["activeBar"] = patternModel->activeBar();
         modelObject["bankOffset"] = patternModel->bankOffset();
         modelObject["bankLength"] = patternModel->bankLength();
-        modelObject["notes"] = d->generateModelNotesSection(patternModel);
+        QJsonDocument notesDoc;
+        notesDoc.setArray(d->generateModelNotesSection(patternModel));
+        modelObject["notes"] = QString::fromUtf8(notesDoc.toJson());
         json.setObject(modelObject);
     } else if (actualModel) {
         json.setArray(d->generateModelNotesSection(actualModel));
