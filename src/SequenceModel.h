@@ -38,6 +38,7 @@ public:
     enum Roles {
         PatternRole = Qt::UserRole + 1,
         NameRole,
+        LayerRole,
     };
 
     QHash<int, QByteArray> roleNames() const override;

@@ -71,6 +71,7 @@ QHash<int, QByteArray> SequenceModel::roleNames() const
     static const QHash<int, QByteArray> roles{
         {PatternRole, "pattern"},
         {NameRole, "name"},
+        {LayerRole, "layer"},
     };
     return roles;
 }
@@ -86,6 +87,11 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
             break;
         case NameRole:
             result.setValue(model->objectName());
+            break;
+        case LayerRole:
+            result.setValue(model->midiChannel());
+            break;
+        default:
             break;
         }
     }
@@ -120,7 +126,7 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     int insertionRow = d->patternModels.count();
     if (row > -1) {
         // If we've been requested to add in a specific location, do so
-        insertionRow = qMax(0, qMin(d->patternModels.count(), row));
+        insertionRow = qMin(qMax(0, row), d->patternModels.count());
     }
     beginInsertRows(QModelIndex(), insertionRow, insertionRow);
     d->patternModels.insert(insertionRow, pattern);
@@ -151,7 +157,7 @@ PlayGridManager* SequenceModel::playGridManager() const
 
 void SequenceModel::setActivePattern(int activePattern)
 {
-    int adjusted = qMin(0, qMax(d->patternModels.count(), activePattern));
+    int adjusted = qMin(qMax(0, activePattern), d->patternModels.count());
     if (d->activePattern != adjusted) {
         d->activePattern = adjusted;
         Q_EMIT activePatternChanged();
@@ -206,14 +212,22 @@ void SequenceModel::load()
 bool SequenceModel::save()
 {
     bool success = false;
-    QString data;
-    if (data.isEmpty()) {
-        QDir confLocation(d->getDataLocation());
-        if (confLocation.exists() || confLocation.mkpath(confLocation.path())) {
-            QFile dataFile(confLocation.path() + "/" + QString::number(d->version));
-            if (dataFile.open(QIODevice::WriteOnly) && dataFile.write(data.toUtf8())) {
-                success = true;
-            }
+
+    QJsonDocument jsonDoc;
+    QJsonObject sequenceObject;
+    sequenceObject["activePattern"] = activePattern();
+    QJsonArray patternArray;
+    for (PatternModel *pattern : d->patternModels) {
+        patternArray.append(playGridManager()->modelToJson(pattern));
+    }
+    sequenceObject["patterns"] = patternArray;
+    QString data = jsonDoc.toJson();
+
+    QDir confLocation(d->getDataLocation());
+    if (confLocation.exists() || confLocation.mkpath(confLocation.path())) {
+        QFile dataFile(confLocation.path() + "/" + QString::number(d->version));
+        if (dataFile.open(QIODevice::WriteOnly) && dataFile.write(data.toUtf8())) {
+            success = true;
         }
     }
     return success;
