@@ -110,7 +110,7 @@ public:
      * @param midiNote The note value you wish to check
      * @return The index of the subnote, or -1 if not found
      */
-    int subnoteIndex(int row, int column, int midiNote) const;
+    Q_INVOKABLE int subnoteIndex(int row, int column, int midiNote) const;
     /**
      * \brief Add a new entry to the position
      * @param row The row you wish to add a new entry in
@@ -118,7 +118,7 @@ public:
      * @param note The note you wish to add to this position
      * @return The subnote position of the newly added note (for convenience with e.g. setEntryMetadata)
      */
-    int addSubnote(int row, int column, QObject* note);
+    Q_INVOKABLE int addSubnote(int row, int column, QObject* note);
 
     /**
      * \brief Remove the entry at the given position in the model
@@ -126,7 +126,7 @@ public:
      * @param column The column you wish to look at in that row
      * @param subnote The specific entry in that location's list of values that you wish to remove
      */
-    void removeSubnote(int row, int column, int subnote);
+    Q_INVOKABLE void removeSubnote(int row, int column, int subnote);
 
     /**
      * \brief Set the specified metadata key to the given value for the given position
@@ -136,7 +136,7 @@ public:
      * @param key The name of the specific metadata you wish to set the value for
      * @param value The new value you wish to set for the given key (pass an invalid variant to remove the key from the list)
      */
-    void setSubnoteMetadata(int row, int column, int subnote, const QString &key, const QVariant &value);
+    Q_INVOKABLE void setSubnoteMetadata(int row, int column, int subnote, const QString &key, const QVariant &value);
 
     /**
      * \brief Get the metadata value for the specified key at the given position in the model
@@ -146,7 +146,7 @@ public:
      * @param key The key of the metadata you wish to fetch the value for. Pass an empty string to be given the entire hash
      * @return The requested metadata (or an invalid variant if none was found)
      */
-    QVariant subnoteMetadata(int row, int column, int subnote, const QString &key);
+    Q_INVOKABLE QVariant subnoteMetadata(int row, int column, int subnote, const QString &key);
 
     /**
      * \brief Removes all notes and metadata from the model
