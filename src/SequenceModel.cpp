@@ -311,7 +311,7 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    for (const PatternModel *pattern : d->patternModels) {
+    for (PatternModel *pattern : d->patternModels) {
         pattern->handleSequenceAdvancement(d->sequencePosition);
     }
     d->sequencePosition++;

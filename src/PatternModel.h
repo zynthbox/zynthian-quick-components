@@ -104,6 +104,16 @@ class PatternModel : public NotesModel
      * @default true
      */
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
+    /**
+     * \brief The row which most recently had a note scheduled to be played
+     * @default 0
+     */
+    Q_PROPERTY(int playingRow READ playingRow NOTIFY playingRowChanged)
+    /**
+     * \brief The column which most recently had a note scheduled to be played
+     * @default 0
+     */
+    Q_PROPERTY(int playingColumn READ playingColumn NOTIFY playingColumnChanged)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -200,6 +210,11 @@ public:
     bool enabled() const;
     Q_SIGNAL void enabledChanged();
 
+    int playingRow() const;
+    Q_SIGNAL void playingRowChanged();
+    int playingColumn() const;
+    Q_SIGNAL void playingColumnChanged();
+
     Q_INVOKABLE void setPositionOff(int row, int column) const;
     Q_INVOKABLE QObjectList setPositionOn(int row, int column) const;
 
@@ -211,7 +226,7 @@ public:
      * the Pattern, to ensure the lowest possible latency)
      * @param sequencePosition The position in the sequence that should be considered (literally a count of ticks)
      */
-    void handleSequenceAdvancement(quint64 sequencePosition) const;
+    void handleSequenceAdvancement(quint64 sequencePosition);
 private:
     class Private;
     Private *d;

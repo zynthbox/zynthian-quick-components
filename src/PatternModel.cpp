@@ -35,6 +35,8 @@ public:
     int bankOffset{0};
     int bankLength{8};
     bool enabled{true};
+    int playingRow{0};
+    int playingColumn{0};
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -329,6 +331,16 @@ bool PatternModel::enabled() const
     return d->enabled;
 }
 
+int PatternModel::playingRow() const
+{
+    return d->playingRow;
+}
+
+int PatternModel::playingColumn() const
+{
+    return d->playingColumn;
+}
+
 void PatternModel::setPositionOff(int row, int column) const
 {
     if (row > -1 && row < height() && column > -1 && column < width()) {
@@ -383,7 +395,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     return onifiedNotes;
 }
 
-void PatternModel::handleSequenceAdvancement(quint64 sequencePosition) const
+void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
 {
     static const QLatin1String velocityString{"velocity"};
     if (d->enabled) {
@@ -489,7 +501,10 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition) const
                     }
                 }
             }
-            // playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
+            d->playingRow = row;
+            d->playingColumn = column;
+            QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
         }
     }
 }
