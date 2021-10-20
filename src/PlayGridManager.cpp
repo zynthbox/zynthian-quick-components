@@ -793,12 +793,12 @@ void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char
         std::vector<unsigned char> message;
         message.reserve(3);
         if (setOn) {
-            message[0] = 0x90;
+            message.push_back(0x90);
         } else {
-            message[0] = 0x80;
+            message.push_back(0x80);
         }
-        message[1] = midiNote;
-        message[2] = velocity;
+        message.push_back(midiNote);
+        message.push_back(velocity);
         // add channel to message[0] (second hex position...)
         d->midiout->sendMessage(&message);
     }
