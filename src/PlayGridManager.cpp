@@ -621,10 +621,14 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
     const QString messageType = metadata.value("type").toString();
     if (messageType == note_on) {
         Note *note = d->findExistingNote(midiNote, midiChannel);
-        note->setIsPlaying(true);
+        if (note) {
+            note->setIsPlaying(true);
+        }
     } else if (messageType == note_off) {
         Note *note = d->findExistingNote(midiNote, midiChannel);
-        note->setIsPlaying(false);
+        if (note) {
+            note->setIsPlaying(false);
+        }
     }
     d->mostRecentlyChangedNotes << metadata;
     Q_EMIT mostRecentlyChangedNotesChanged();
