@@ -621,29 +621,28 @@ void PlayGridManager::metronomeTick(int beat)
     d->offNotes.clear();
     d->onNotes.clear();
 
-    if (beat % 32 == 0) {
-        d->metronomeBeat4th = beat / 32;
-        Q_EMIT metronomeBeat4thChanged();
-    }
-    if (beat % 16 == 0) {
-        d->metronomeBeat8th = beat / 16;
-        Q_EMIT metronomeBeat8thChanged();
-    }
-    if (beat % 8 == 0) {
-        d->metronomeBeat16th = beat / 8;
-        Q_EMIT metronomeBeat16thChanged();
+    d->metronomeBeat128th = beat;
+    Q_EMIT metronomeBeat128thChanged();
+    if (beat % 2 == 0) {
+        d->metronomeBeat64th = beat / 2;
+        Q_EMIT metronomeBeat64thChanged();
     }
     if (beat % 4 == 0) {
         d->metronomeBeat32nd = beat / 4;
         Q_EMIT metronomeBeat32ndChanged();
     }
-    if (beat % 2 == 0) {
-        d->metronomeBeat64th = beat / 2;
-        Q_EMIT metronomeBeat64thChanged();
+    if (beat % 8 == 0) {
+        d->metronomeBeat16th = beat / 8;
+        Q_EMIT metronomeBeat16thChanged();
     }
-
-    d->metronomeBeat128th = beat;
-    Q_EMIT metronomeBeat128thChanged();
+    if (beat % 16 == 0) {
+        d->metronomeBeat8th = beat / 16;
+        Q_EMIT metronomeBeat8thChanged();
+    }
+    if (beat % 32 == 0) {
+        d->metronomeBeat4th = beat / 32;
+        Q_EMIT metronomeBeat4thChanged();
+    }
 }
 
 int PlayGridManager::metronomeBeat4th() const
