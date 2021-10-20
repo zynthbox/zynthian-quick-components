@@ -39,6 +39,8 @@
 #include <QQmlComponent>
 #include <QStandardPaths>
 
+#include <RtMidi.h>
+
 Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
 void timer_callback(int beat) {
     for (PlayGridManager* pgm : *timer_callback_tickers) {
@@ -60,6 +62,34 @@ public:
         connect(&watcher, &QFileSystemWatcher::directoryChanged, q, [this](){
             updatePlaygrids();
         });
+        // RtMidiOut constructor
+        try {
+            midiout = new RtMidiOut();
+        }
+        catch ( RtMidiError &error ) {
+            error.printMessage();
+            midiout = nullptr;
+        }
+        if (midiout) {
+            // Check outputs.
+            unsigned int nPorts = midiout->getPortCount();
+            std::string portName;
+            std::cout << "\nThere are " << nPorts << " MIDI output ports available.\n";
+            try {
+                portName = midiout->getPortName(3);
+            }
+            catch (RtMidiError &error) {
+                error.printMessage();
+                delete midiout;
+            }
+            if (midiout) {
+                std::cout << "  Output Port #3: " << portName << '\n';
+                std::cout << '\n';
+
+                // Open Through Port
+                midiout->openPort(3);
+            }
+        }
     }
     PlayGridManager *q;
     QQmlEngine *engine;
@@ -79,6 +109,7 @@ public:
 
     QList<NoteDetails> offNotes;
     QList<NoteDetails> onNotes;
+    RtMidiOut *midiout = 0;
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -613,10 +644,10 @@ void PlayGridManager::scheduleNote(int midiNote, int midiChannel, bool setOn, in
 void PlayGridManager::metronomeTick(int beat)
 {
     for (const NoteDetails &offNote : d->offNotes) {
-        Q_EMIT sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
+        sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
     }
     for (const NoteDetails &onNote : d->onNotes) {
-        Q_EMIT sendAMidiNoteMessage(onNote.midiNote, onNote.velocity, onNote.midiChannel, true);
+        sendAMidiNoteMessage(onNote.midiNote, onNote.velocity, onNote.midiChannel, true);
     }
     d->offNotes.clear();
     d->onNotes.clear();
@@ -688,7 +719,7 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
             connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, &PlayGridManager::metronomeActiveChanged);
             connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
                 for (const NoteDetails &offNote : d->offNotes) {
-                    Q_EMIT sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
+                    sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
                 }
                 d->offNotes.clear();
                 d->onNotes.clear();
@@ -749,4 +780,20 @@ bool PlayGridManager::metronomeActive() const
         return d->syncTimer->timerRunning();
     }
     return false;
+}
+
+void PlayGridManager::sendAMidiNoteMessage(int midiNote, int velocity, int channel, bool setOn)
+{
+    if (d->midiout) {
+        std::vector<unsigned char> message;
+        message[1] = midiNote;
+        message[2] = velocity;
+        if (setOn) {
+            message[0] = 0x90;
+        } else {
+            message[0] = 0x80;
+        }
+        // add channel to message[0] (second hex position...)
+        d->midiout->sendMessage(&message);
+    }
 }
