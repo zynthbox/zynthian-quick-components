@@ -225,8 +225,9 @@ public:
      * of this Pattern (notes will be scheduled for on/off on the beat preceding their location in
      * the Pattern, to ensure the lowest possible latency)
      * @param sequencePosition The position in the sequence that should be considered (literally a count of ticks)
+     * @return A list of notes turned on during this run of the function
      */
-    void handleSequenceAdvancement(quint64 sequencePosition);
+    QObjectList handleSequenceAdvancement(quint64 sequencePosition);
 private:
     class Private;
     Private *d;

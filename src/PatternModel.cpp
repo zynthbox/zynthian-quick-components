@@ -395,9 +395,10 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     return onifiedNotes;
 }
 
-void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
+QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
 {
     static const QLatin1String velocityString{"velocity"};
+    QObjectList onifiedNotes;
     if (d->enabled) {
         // check whether the sequencePosition + 1 matches our note length
         quint64 nextPosition = sequencePosition + 1;
@@ -448,7 +449,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
             nextPosition = nextPosition % (d->availableBars * d->width);
             int row = (nextPosition / d->width) % d->availableBars;
             int column = nextPosition - (row * d->availableBars);
-            const Note *note = qobject_cast<Note*>(getNote(row + d->bankOffset, column));
+            Note *note = qobject_cast<Note*>(getNote(row + d->bankOffset, column));
             if (note) {
                 const QVariantList &subnotes = note->subnotes();
                 const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
@@ -458,12 +459,14 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                         const QVariantHash &metaHash = meta[i].toHash();
                         if (metaHash.isEmpty() && subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
+                            onifiedNotes << subnote;
                         } else if (subnote) {
                             int velocity{64};
                             if (metaHash.contains(velocityString)) {
                                 velocity = metaHash.value(velocityString).toInt();
                             }
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity);
+                            onifiedNotes << subnote;
                         }
                     }
                 } else if (subnotes.count() > 0) {
@@ -471,10 +474,12 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                         Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                         if (subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
+                            onifiedNotes << subnote;
                         }
                     }
                 } else {
                     playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true);
+                    onifiedNotes << note;
                 }
             }
             int previousRow = row;
@@ -504,4 +509,5 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
             QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
         }
     }
+    return onifiedNotes;
 }
