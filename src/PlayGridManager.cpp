@@ -75,19 +75,19 @@ public:
             unsigned int nPorts = midiout->getPortCount();
             std::string portName;
             std::cout << "\nThere are " << nPorts << " MIDI output ports available.\n";
-            try {
-                portName = midiout->getPortName(3);
-            }
-            catch (RtMidiError &error) {
-                error.printMessage();
-                delete midiout;
-            }
-            if (midiout) {
-                std::cout << "  Output Port #3: " << portName << '\n';
-                std::cout << '\n';
-
-                // Open Through Port
-                midiout->openPort(3);
+            for (int i = 0; i < nPorts; ++i) {
+                try {
+                    portName = midiout->getPortName(i);
+                    if (portName.rfind("Midi Through", 0) == 0) {
+                        std::cout << "Using output port " << i << " named " << portName;
+                        midiout->openPort(i);
+                        break;
+                    }
+                }
+                catch (RtMidiError &error) {
+                    error.printMessage();
+                    delete midiout;
+                }
             }
         }
     }
