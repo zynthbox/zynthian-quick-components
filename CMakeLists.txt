@@ -19,6 +19,9 @@ find_package(Qt5 ${QT_MIN_VERSION} REQUIRED CONFIG COMPONENTS Quick)
 find_package(KF5Kirigami2 2.7.0)
 find_package(LibZL)
 
+include(FindPkgConfig)
+pkg_check_modules(RTMIDI REQUIRED rtmidi)
+
 include(KDEInstallDirs)
 include(ECMInstallIcons)
 
