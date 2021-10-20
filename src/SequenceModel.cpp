@@ -293,8 +293,10 @@ void SequenceModel::setPositionOn(int row, int column, bool stopPrevious) const
 
 void SequenceModel::startSequencePlayback()
 {
-    connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
-    playGridManager()->startMetronome();
+    if (!playGridManager()->metronomeActive()) {
+        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+        playGridManager()->startMetronome();
+    }
 }
 
 void SequenceModel::stopSequencePlayback()
