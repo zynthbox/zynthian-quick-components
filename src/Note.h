@@ -65,9 +65,9 @@ public:
     int scaleIndex() const;
     Q_SIGNAL void scaleIndexChanged();
 
-    Q_INVOKABLE void setSubnotesOn(QVariantList velocities);
-    Q_INVOKABLE void setOn(int velocity = 64);
-    Q_INVOKABLE void setOff();
+    Q_INVOKABLE void setSubnotesOn(const QVariantList &velocities) const;
+    Q_INVOKABLE void setOn(int velocity = 64) const;
+    Q_INVOKABLE void setOff() const;
 private:
     class Private;
     Private* d;
