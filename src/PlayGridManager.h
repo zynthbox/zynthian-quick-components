@@ -231,7 +231,7 @@ public:
     Q_SIGNAL void metronomeBeat128thChanged();
 
     // TODO This is a temporary thing while we get the c++ side integrated properly
-    Q_INVOKABLE void sendAMidiNoteMessage(int midiNote, int velocity, int channel, bool setOn);
+    Q_INVOKABLE void sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, int channel, bool setOn);
 private:
     class Private;
     Private *d;

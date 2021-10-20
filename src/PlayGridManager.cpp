@@ -91,6 +91,11 @@ public:
             }
         }
     }
+    ~Private() {
+        if (midiout) {
+            delete midiout;
+        }
+    }
     PlayGridManager *q;
     QQmlEngine *engine;
     QStringList playgrids;
@@ -782,17 +787,18 @@ bool PlayGridManager::metronomeActive() const
     return false;
 }
 
-void PlayGridManager::sendAMidiNoteMessage(int midiNote, int velocity, int channel, bool setOn)
+void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, int channel, bool setOn)
 {
     if (d->midiout) {
         std::vector<unsigned char> message;
-        message[1] = midiNote;
-        message[2] = velocity;
+        message.reserve(3);
         if (setOn) {
             message[0] = 0x90;
         } else {
             message[0] = 0x80;
         }
+        message[1] = midiNote;
+        message[2] = velocity;
         // add channel to message[0] (second hex position...)
         d->midiout->sendMessage(&message);
     }
