@@ -728,6 +728,7 @@ void PlayGridManager::stopMetronome()
     // TODO Send stop metronome request to libzl
     timer_callback_tickers->removeAll(this);
     Q_EMIT requestMetronomeStop();
+    QMetaObject::invokeMethod(this, "metronomeActiveChanged", Qt::QueuedConnection);
     d->metronomeBeat4th = 0;
     d->metronomeBeat8th = 0;
     d->metronomeBeat16th = 0;
