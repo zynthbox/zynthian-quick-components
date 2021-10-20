@@ -18,7 +18,7 @@ locations. If those are missing, you will likely need to install those packages.
 this by running:
 
 ```
-apt install extra-cmake-modules qtbase5-dev kirigami2-dev qtdeclarative5-dev rtmidi-devel
+apt install extra-cmake-modules qtbase5-dev kirigami2-dev qtdeclarative5-dev librtmidi-dev
 ```
 
 Once installed, you should be able to use the components simply by adding something like the following to
