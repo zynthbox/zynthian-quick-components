@@ -202,6 +202,16 @@ public:
 
     Q_INVOKABLE void setPositionOff(int row, int column) const;
     Q_INVOKABLE QObjectList setPositionOn(int row, int column) const;
+
+    /**
+     * \brief Used by SequenceModel to advance the sequence position during playback
+     *
+     * Schedules notes to be set on and off depending on the sequence position and the note length
+     * of this Pattern (notes will be scheduled for on/off on the beat preceding their location in
+     * the Pattern, to ensure the lowest possible latency)
+     * @param sequencePosition The position in the sequence that should be considered (literally a count of ticks)
+     */
+    void handleSequenceAdvancement(quint64 sequencePosition) const;
 private:
     class Private;
     Private *d;

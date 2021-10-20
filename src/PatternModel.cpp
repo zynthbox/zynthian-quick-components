@@ -382,3 +382,114 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     }
     return onifiedNotes;
 }
+
+void PatternModel::handleSequenceAdvancement(quint64 sequencePosition) const
+{
+    static const QLatin1String velocityString{"velocity"};
+    if (d->enabled) {
+        // check whether the sequencePosition + 1 matches our note length
+        quint64 nextPosition = sequencePosition + 1;
+        bool relevantToUs{false};
+        switch (d->noteLength) {
+        case 1:
+            if (nextPosition % 32 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 32;
+            }
+            break;
+        case 2:
+            if (nextPosition % 16 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 16;
+            }
+            break;
+        case 3:
+            if (nextPosition % 8 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 8;
+            }
+            break;
+        case 4:
+            if (nextPosition % 4 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 4;
+            }
+            break;
+        case 5:
+            if (nextPosition % 2 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 2;
+            }
+            break;
+        case 6:
+            relevantToUs = true;
+            break;
+        default:
+            qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
+            break;
+        }
+
+        if (relevantToUs) {
+            // Get the next row/column combination, and schedule the previous one off, and the next one on
+            // squish nextPosition down to fit inside our available range (d->availableBars * d->width)
+            // start + (numberToBeWrapped - start) % (limit - start)
+            nextPosition = nextPosition % (d->availableBars * d->width);
+            int row = (nextPosition / d->width) % d->availableBars;
+            int column = nextPosition - (row * d->availableBars);
+            const Note *note = qobject_cast<Note*>(getNote(row + d->bankOffset, column));
+            if (note) {
+                const QVariantList &subnotes = note->subnotes();
+                const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
+                if (meta.count() == subnotes.count()) {
+                    for (int i = 0; i < subnotes.count(); ++i) {
+                        Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                        const QVariantHash &metaHash = meta[i].toHash();
+                        if (metaHash.isEmpty() && subnote) {
+                            playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
+                        } else if (subnote) {
+                            int velocity{64};
+                            if (metaHash.contains(velocityString)) {
+                                velocity = metaHash.value(velocityString).toInt();
+                            }
+                            playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity);
+                        }
+                    }
+                } else {
+                    for (const QVariant &subnoteVar : subnotes) {
+                        Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                        if (subnote) {
+                            playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
+                        }
+                    }
+                }
+            }
+            int previousRow = row;
+            int previousColumn = column - 1;
+            if (previousColumn == -1) {
+                previousColumn = d->width - 1;
+                previousRow--;
+            }
+            if (previousRow == -1) {
+                previousRow = d->availableBars - 1;
+            }
+            const Note *previousNote = qobject_cast<Note*>(getNote(previousRow, previousColumn));
+            if (previousNote) {
+                const QVariantList &subnotes = previousNote->subnotes();
+                if (subnotes.count() > 0) {
+                    for (int i = 0; i < subnotes.count(); ++i) {
+                        Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                        playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
+                    }
+                } else {
+                    for (const QVariant &subnoteVar : subnotes) {
+                        Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                        if (subnote) {
+                            playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
+                        }
+                    }
+                }
+            }
+            // playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
+        }
+    }
+}
