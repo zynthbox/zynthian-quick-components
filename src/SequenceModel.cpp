@@ -267,7 +267,15 @@ void SequenceModel::setPreviousOff() const
     for (QObject *obj : d->onifiedNotes) {
         Note *note = qobject_cast<Note*>(obj);
         if (note) {
-            note->setOff();
+            const QVariantList subnotes = note->subnotes();
+            if (subnotes.count() > 0) {
+                for (const QVariant &subnoteVal : subnotes) {
+                    const Note* subnote = qobject_cast<Note*>(subnoteVal.value<QObject*>());
+                    playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
+                }
+            } else {
+                playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), false);
+            }
         }
     }
     d->onifiedNotes.clear();

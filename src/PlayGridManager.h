@@ -186,6 +186,17 @@ public:
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
     Q_INVOKABLE void updateNoteState(QVariantMap metadata);
 
+    /**
+     * \brief Schedules a note to be set on or off on the next tick of the metronome
+     * @param midiNote The note you wish to change the state of
+     * @param midiChannel The channel you wish to change the given note on
+     * @param setOn Whether or not you are turning the note on
+     * @param velocity The velocity of the note (only matters if you're turning it on)
+     * @param duration An optional duration (0 means don't schedule a release)
+     * @param delay A delay in ms counting from the beat
+     */
+    Q_INVOKABLE void scheduleNote(int midiNote, int midiChannel, bool setOn = true, int velocity = 64, int duration = 0, int delay = 0);
+
     QObject *syncTimer() const;
     void setSyncTimer(QObject *syncTimer);
     // TODO When someone works out how to pass a c_void_p through python and set it as the value

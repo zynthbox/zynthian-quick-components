@@ -358,14 +358,14 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
                     Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
                     const QVariantHash &metaHash = meta[i].toHash();
                     if (metaHash.isEmpty() && subnote) {
-                        subnote->setOn();
+                        playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
                         onifiedNotes << subnote;
                     } else if (subnote) {
                         int velocity{64};
                         if (metaHash.contains(velocityString)) {
                             velocity = metaHash.value(velocityString).toInt();
                         }
-                        subnote->setOn(velocity);
+                        playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity);
                         onifiedNotes << subnote;
                     }
                 }
@@ -373,7 +373,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
                 for (const QVariant &subnoteVar : subnotes) {
                     Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                     if (subnote) {
-                        subnote->setOn();
+                        playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
                         onifiedNotes << subnote;
                     }
                 }

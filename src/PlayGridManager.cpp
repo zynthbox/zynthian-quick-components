@@ -46,6 +46,12 @@ void timer_callback(int beat) {
     }
 }
 
+struct NoteDetails {
+    int midiNote{0};
+    int midiChannel{0};
+    int velocity{64};
+};
+
 class PlayGridManager::Private
 {
 public:
@@ -70,6 +76,9 @@ public:
     QMap<QString, QObject*> namedInstances;
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
+
+    QList<NoteDetails> offNotes;
+    QList<NoteDetails> onNotes;
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -585,8 +594,33 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
     Q_EMIT mostRecentlyChangedNotesChanged();
 }
 
+void PlayGridManager::scheduleNote(int midiNote, int midiChannel, bool setOn, int velocity, int duration, int delay)
+{
+    // Not using this one yet... but we shall!
+    Q_UNUSED(delay)
+    Q_UNUSED(duration)
+    NoteDetails note;
+    note.midiNote = midiNote;
+    note.midiChannel = midiChannel;
+    note.velocity = velocity;
+    if (setOn) {
+        d->onNotes.append(note);
+    } else {
+        d->offNotes.append(note);
+    }
+}
+
 void PlayGridManager::metronomeTick(int beat)
 {
+    for (const NoteDetails &offNote : d->offNotes) {
+        Q_EMIT sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
+    }
+    for (const NoteDetails &onNote : d->onNotes) {
+        Q_EMIT sendAMidiNoteMessage(onNote.midiNote, onNote.velocity, onNote.midiChannel, false);
+    }
+    d->offNotes.clear();
+    d->onNotes.clear();
+
     if (beat % 32 == 0) {
         d->metronomeBeat4th = beat / 32;
         Q_EMIT metronomeBeat4thChanged();
