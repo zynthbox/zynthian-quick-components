@@ -40,6 +40,7 @@ public:
     QList<PatternModel*> patternModels;
     int activePattern{0};
     int version{0};
+    int sequencePosition{0};
     QObjectList onifiedNotes;
 
     QString getDataLocation()
@@ -61,6 +62,11 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     , d(new Private(this))
 {
     d->playGridManager = parent;
+    connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, [this](){
+        if (!d->playGridManager->metronomeActive()) {
+            disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+        }
+    });
 }
 
 SequenceModel::~SequenceModel()
@@ -265,17 +271,9 @@ void SequenceModel::setPatternProperty(int patternIndex, const QString& property
 void SequenceModel::setPreviousOff() const
 {
     for (QObject *obj : d->onifiedNotes) {
-        Note *note = qobject_cast<Note*>(obj);
+        const Note *note = qobject_cast<Note*>(obj);
         if (note) {
-            const QVariantList subnotes = note->subnotes();
-            if (subnotes.count() > 0) {
-                for (const QVariant &subnoteVal : subnotes) {
-                    const Note* subnote = qobject_cast<Note*>(subnoteVal.value<QObject*>());
-                    playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
-                }
-            } else {
-                playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), false);
-            }
+            note->setOff();
         }
     }
     d->onifiedNotes.clear();
@@ -291,4 +289,28 @@ void SequenceModel::setPositionOn(int row, int column, bool stopPrevious) const
             d->onifiedNotes.append(model->setPositionOn(row + model->bankOffset(), column));
         }
     }
+}
+
+void SequenceModel::startSequencePlayback()
+{
+    connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+    playGridManager()->startMetronome();
+}
+
+void SequenceModel::stopSequencePlayback()
+{
+    playGridManager()->stopMetronome();
+}
+
+void SequenceModel::resetSequence()
+{
+    d->sequencePosition = -1;
+}
+
+void SequenceModel::advanceSequence()
+{
+    for (const PatternModel *pattern : d->patternModels) {
+        pattern->handleSequenceAdvancement(d->sequencePosition);
+    }
+    d->sequencePosition++;
 }

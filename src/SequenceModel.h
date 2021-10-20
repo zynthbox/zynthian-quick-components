@@ -110,6 +110,24 @@ public:
      * @param stopPrevious If true, the function will stop any previous notes set on on the same sequence (default is to do so, pass false to disable this automagic)
      */
     Q_INVOKABLE void setPositionOn(int row, int column, bool stopPrevious = true) const;
+
+    /**
+     * \brief Starts playback of the sequence using the global timer
+     * @see resetSequence()
+     */
+    Q_INVOKABLE void startSequencePlayback();
+    /**
+     * \brief Stops the playback of the sequence
+     */
+    Q_INVOKABLE void stopSequencePlayback();
+    /**
+     * \brief Resets the sequence position to zero (will also work during playback)
+     */
+    Q_INVOKABLE void resetSequence();
+    /**
+     * \brief Advances the sequence position during playback (usually handled by the internal sequence playback system)
+     */
+    Q_SLOT void advanceSequence();
 private:
     class Private;
     Private *d;
