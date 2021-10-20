@@ -134,6 +134,13 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
         insertionRow = qMin(qMax(0, row), d->patternModels.count());
     }
     beginInsertRows(QModelIndex(), insertionRow, insertionRow);
+    auto updatePattern = [this,pattern](){
+        int row = d->patternModels.indexOf(pattern);
+        QModelIndex index(createIndex(row, 0));
+        dataChanged(index, index);
+    };
+    connect(pattern, &PatternModel::midiChannelChanged, this, updatePattern);
+    connect(pattern, &PatternModel::objectNameChanged, this, updatePattern);
     d->patternModels.insert(insertionRow, pattern);
     setActivePattern(d->activePattern);
     endInsertRows();
@@ -145,6 +152,7 @@ void SequenceModel::removePattern(PatternModel* pattern)
     if (removalPosition > -1) {
         beginRemoveRows(QModelIndex(), removalPosition, removalPosition);
         d->patternModels.removeAt(removalPosition);
+        pattern->disconnect(this);
         setActivePattern(d->activePattern);
         endRemoveRows();
     }
