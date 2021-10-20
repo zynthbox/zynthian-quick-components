@@ -466,13 +466,15 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity);
                         }
                     }
-                } else {
+                } else if (subnotes.count() > 0) {
                     for (const QVariant &subnoteVar : subnotes) {
                         Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                         if (subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
                         }
                     }
+                } else {
+                    playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true);
                 }
             }
             int previousRow = row;
@@ -484,21 +486,16 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
             if (previousRow == -1) {
                 previousRow = d->availableBars - 1;
             }
-            const Note *previousNote = qobject_cast<Note*>(getNote(previousRow, previousColumn));
+            const Note *previousNote = qobject_cast<Note*>(getNote(previousRow + d->bankOffset, previousColumn));
             if (previousNote) {
                 const QVariantList &subnotes = previousNote->subnotes();
                 if (subnotes.count() > 0) {
                     for (int i = 0; i < subnotes.count(); ++i) {
-                        Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                        const Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
                     }
                 } else {
-                    for (const QVariant &subnoteVar : subnotes) {
-                        Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
-                        if (subnote) {
-                            playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
-                        }
-                    }
+                    playGridManager()->scheduleNote(previousNote->midiNote(), previousNote->midiChannel(), false);
                 }
             }
             d->playingRow = row;
