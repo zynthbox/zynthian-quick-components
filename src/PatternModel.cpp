@@ -219,7 +219,7 @@ int PatternModel::height() const
 
 void PatternModel::setMidiChannel(int midiChannel)
 {
-    int actualChannel = qMin(0, qMax(15, midiChannel));
+    int actualChannel = qMin(qMax(0, midiChannel), 15);
     if (d->midiChannel != actualChannel) {
         d->midiChannel = actualChannel;
         for (int row = 0; row < rowCount(); ++row) {
