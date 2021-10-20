@@ -90,6 +90,10 @@ public:
                 }
             }
         }
+        // Let's try and avoid any unnecessary things here...
+        midiMessage.push_back(0);
+        midiMessage.push_back(0);
+        midiMessage.push_back(0);
     }
     ~Private() {
         if (midiout) {
@@ -115,6 +119,7 @@ public:
     QList<NoteDetails> offNotes;
     QList<NoteDetails> onNotes;
     RtMidiOut *midiout = 0;
+    std::vector<unsigned char> midiMessage;
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -652,11 +657,18 @@ void PlayGridManager::scheduleNote(int midiNote, int midiChannel, bool setOn, in
 
 void PlayGridManager::metronomeTick(int beat)
 {
-    for (const NoteDetails &offNote : d->offNotes) {
-        sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
-    }
-    for (const NoteDetails &onNote : d->onNotes) {
-        sendAMidiNoteMessage(onNote.midiNote, onNote.velocity, onNote.midiChannel, true);
+    if (d->midiout) {
+        for (const NoteDetails &offNote : qAsConst(d->offNotes)) {
+            d->midiMessage[0] = 0x80 + offNote.midiChannel;
+            d->midiMessage[1] = offNote.midiNote;
+            d->midiout->sendMessage(&d->midiMessage);
+        }
+        for (const NoteDetails &onNote : qAsConst(d->onNotes)) {
+            d->midiMessage[0] = 0x90 + onNote.midiChannel;
+            d->midiMessage[1] = onNote.midiNote;
+            d->midiMessage[2] = onNote.velocity;
+            d->midiout->sendMessage(&d->midiMessage);
+        }
     }
     d->offNotes.clear();
     d->onNotes.clear();
@@ -794,16 +806,13 @@ bool PlayGridManager::metronomeActive() const
 void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, int channel, bool setOn)
 {
     if (d->midiout) {
-        std::vector<unsigned char> message;
-        message.reserve(3);
         if (setOn) {
-            message.push_back(0x90);
+            d->midiMessage[0] = 0x90 + channel;
         } else {
-            message.push_back(0x80);
+            d->midiMessage[0] = 0x80 + channel;
         }
-        message.push_back(midiNote);
-        message.push_back(velocity);
-        // add channel to message[0] (second hex position...)
-        d->midiout->sendMessage(&message);
+        d->midiMessage[1] = midiNote;
+        d->midiMessage[2] = velocity;
+        d->midiout->sendMessage(&d->midiMessage);
     }
 }
