@@ -79,7 +79,7 @@ public:
                 try {
                     portName = midiout->getPortName(i);
                     if (portName.rfind("Midi Through", 0) == 0) {
-                        std::cout << "Using output port " << i << " named " << portName;
+                        std::cout << "Using output port " << i << " named " << portName << endl;
                         midiout->openPort(i);
                         break;
                     }
