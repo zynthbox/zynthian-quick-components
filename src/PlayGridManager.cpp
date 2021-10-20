@@ -616,7 +616,7 @@ void PlayGridManager::metronomeTick(int beat)
         Q_EMIT sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
     }
     for (const NoteDetails &onNote : d->onNotes) {
-        Q_EMIT sendAMidiNoteMessage(onNote.midiNote, onNote.velocity, onNote.midiChannel, false);
+        Q_EMIT sendAMidiNoteMessage(onNote.midiNote, onNote.velocity, onNote.midiChannel, true);
     }
     d->offNotes.clear();
     d->onNotes.clear();
@@ -687,6 +687,13 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
         if (d->syncTimer) {
             d->syncTimer->addCallback(&timer_callback);
             connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, &PlayGridManager::metronomeActiveChanged);
+            connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
+                for (const NoteDetails &offNote : d->offNotes) {
+                    Q_EMIT sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
+                }
+                d->offNotes.clear();
+                d->onNotes.clear();
+            });
         }
         Q_EMIT syncTimerChanged();
     }
