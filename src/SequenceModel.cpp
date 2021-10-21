@@ -307,6 +307,10 @@ void SequenceModel::startSequencePlayback()
 void SequenceModel::stopSequencePlayback()
 {
     playGridManager()->stopMetronome();
+    for (QObject *noteObject : d->queuedForOffNotes) {
+        Note *note = qobject_cast<Note*>(noteObject);
+        note->setOff();
+    }
 }
 
 void SequenceModel::resetSequence()
