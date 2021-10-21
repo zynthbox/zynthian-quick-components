@@ -40,7 +40,7 @@ public:
     QList<PatternModel*> patternModels;
     int activePattern{0};
     int version{0};
-    int sequencePosition{0};
+    int sequencePosition{-1};
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
     bool listeningToMetronome{false};
