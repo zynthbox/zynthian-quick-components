@@ -738,8 +738,8 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
             d->syncTimer->addCallback(&timer_callback);
             connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, &PlayGridManager::metronomeActiveChanged);
             connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
-                for (const NoteDetails &offNote : d->offNotes) {
-                    sendAMidiNoteMessage(offNote.midiNote, 0, offNote.midiChannel, false);
+                for (const std::vector<unsigned char> &offNote : qAsConst(d->offNotes)) {
+                    d->midiout->sendMessage(&offNote);
                 }
                 d->offNotes.clear();
                 d->onNotes.clear();
