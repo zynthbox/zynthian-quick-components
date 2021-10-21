@@ -308,6 +308,7 @@ void SequenceModel::startSequencePlayback()
 
 void SequenceModel::stopSequencePlayback()
 {
+    disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
     playGridManager()->stopMetronome();
     for (QObject *noteObject : d->onifiedNotes) {
         Note *note = qobject_cast<Note*>(noteObject);
