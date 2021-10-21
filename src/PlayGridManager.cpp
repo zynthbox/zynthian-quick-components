@@ -48,12 +48,6 @@ void timer_callback(int beat) {
     }
 }
 
-struct NoteDetails {
-    int midiNote{0};
-    int midiChannel{0};
-    int velocity{64};
-};
-
 class PlayGridManager::Private
 {
 public:
@@ -75,7 +69,7 @@ public:
             unsigned int nPorts = midiout->getPortCount();
             std::string portName;
             std::cout << "\nThere are " << nPorts << " MIDI output ports available.\n";
-            for (int i = 0; i < nPorts; ++i) {
+            for (unsigned int i = 0; i < nPorts; ++i) {
                 try {
                     portName = midiout->getPortName(i);
                     if (portName.rfind("Midi Through", 0) == 0) {
@@ -118,7 +112,7 @@ public:
 
     QList<std::vector<unsigned char> > offNotes;
     QList<std::vector<unsigned char> > onNotes;
-    RtMidiOut *midiout = 0;
+    RtMidiOut *midiout{nullptr};
     std::vector<unsigned char> midiMessage;
 
     SyncTimer *syncTimer{nullptr};
@@ -641,21 +635,26 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
 
 void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn, unsigned char velocity, int duration, int delay)
 {
-    // Not using this one yet... but we shall!
-    Q_UNUSED(delay)
-    Q_UNUSED(duration)
-    std::vector<unsigned char> note;
-    if (setOn) {
-        note.push_back(0x90 + midiChannel);
+    if (d->syncTimer) {
+        d->syncTimer->scheduleNote(midiNote, midiChannel, setOn, velocity, duration, delay);
     } else {
-        note.push_back(0x80 + midiChannel);
-    }
-    note.push_back(midiNote);
-    note.push_back(velocity);
-    if (setOn) {
-        d->onNotes.append(note);
-    } else {
-        d->offNotes.append(note);
+        // so, like, this should not be possible or useful anyway, but also... keep it around for now?
+        // Not using this one yet... but we shall!
+        Q_UNUSED(delay)
+        Q_UNUSED(duration)
+        std::vector<unsigned char> note;
+        if (setOn) {
+            note.push_back(0x90 + midiChannel);
+        } else {
+            note.push_back(0x80 + midiChannel);
+        }
+        note.push_back(midiNote);
+        note.push_back(velocity);
+        if (setOn) {
+            d->onNotes.append(note);
+        } else {
+            d->offNotes.append(note);
+        }
     }
 }
 
