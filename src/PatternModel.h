@@ -89,6 +89,13 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(int activeBar READ activeBar WRITE setActiveBar NOTIFY activeBarChanged)
     /**
+     * \brief The alphabetical name of the current bank (an upper case A or B, for example)
+     * @default A
+     * @see bankOffset
+     * @see bankLength
+     */
+    Q_PROPERTY(QString bank READ bank WRITE setBank NOTIFY bankOffsetChanged)
+    /**
      * \brief An offset used to display a subsection of rows (a bank)
      * Default value is 0
      * @see bankLength
@@ -197,6 +204,9 @@ public:
     void setActiveBar(int activeBar);
     int activeBar() const;
     Q_SIGNAL void activeBarChanged();
+
+    void setBank(const QString& bank);
+    QString bank() const;
 
     void setBankOffset(int bankOffset);
     int bankOffset() const;

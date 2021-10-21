@@ -85,6 +85,7 @@ QHash<int, QByteArray> SequenceModel::roleNames() const
         {TextRole, "text"},
         {NameRole, "name"},
         {LayerRole, "layer"},
+        {BankRole, "bank"},
     };
     return roles;
 }
@@ -106,6 +107,8 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
         case LayerRole:
             result.setValue(model->midiChannel());
             break;
+        case BankRole:
+            result.setValue(model->bank());
         default:
             break;
         }
@@ -151,6 +154,7 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     };
     connect(pattern, &PatternModel::midiChannelChanged, this, updatePattern);
     connect(pattern, &PatternModel::objectNameChanged, this, updatePattern);
+    connect(pattern, &PatternModel::bankOffsetChanged, this, updatePattern);
     d->patternModels.insert(insertionRow, pattern);
     setActivePattern(d->activePattern);
     endInsertRows();

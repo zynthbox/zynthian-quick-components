@@ -292,6 +292,30 @@ int PatternModel::activeBar() const
     return d->activeBar;
 }
 
+void PatternModel::setBank(const QString& bank)
+{
+    int newOffset{d->bankOffset};
+    if (bank.toUpper() == "A") {
+        newOffset = 0;
+    } else if (bank.toUpper() == "B") {
+        newOffset = d->bankLength;
+    } else if (bank.toUpper() == "C") {
+        newOffset = d->bankLength * 2;
+    }
+    setBankOffset(newOffset);
+}
+
+QString PatternModel::bank() const
+{
+    static const QStringList names{QLatin1String{"A"}, QLatin1String{"B"}, QLatin1String{"C"}};
+    int bankNumber{d->bankOffset / d->bankLength};
+    QString result{"(?)"};
+    if (bankNumber < names.count()) {
+        result = names[bankNumber];
+    }
+    return result;
+}
+
 void PatternModel::setBankOffset(int bankOffset)
 {
     if (d->bankOffset != bankOffset) {

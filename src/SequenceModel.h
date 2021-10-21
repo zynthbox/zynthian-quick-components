@@ -40,6 +40,7 @@ public:
         TextRole,
         NameRole,
         LayerRole,
+        BankRole,
     };
 
     QHash<int, QByteArray> roleNames() const override;
