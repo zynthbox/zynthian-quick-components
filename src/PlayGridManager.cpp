@@ -116,8 +116,8 @@ public:
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
 
-    QList<NoteDetails> offNotes;
-    QList<NoteDetails> onNotes;
+    QList<std::vector<unsigned char> > offNotes;
+    QList<std::vector<unsigned char> > onNotes;
     RtMidiOut *midiout = 0;
     std::vector<unsigned char> midiMessage;
 
@@ -644,10 +644,14 @@ void PlayGridManager::scheduleNote(int midiNote, int midiChannel, bool setOn, in
     // Not using this one yet... but we shall!
     Q_UNUSED(delay)
     Q_UNUSED(duration)
-    NoteDetails note;
-    note.midiNote = midiNote;
-    note.midiChannel = midiChannel;
-    note.velocity = velocity;
+    std::vector<unsigned char> note;
+    if (setOn) {
+        note.push_back(0x90 + midiChannel);
+    } else {
+        note.push_back(0x80 + midiChannel);
+    }
+    note.push_back(midiNote);
+    note.push_back(velocity);
     if (setOn) {
         d->onNotes.append(note);
     } else {
@@ -658,16 +662,11 @@ void PlayGridManager::scheduleNote(int midiNote, int midiChannel, bool setOn, in
 void PlayGridManager::metronomeTick(int beat)
 {
     if (d->midiout) {
-        for (const NoteDetails &offNote : qAsConst(d->offNotes)) {
-            d->midiMessage[0] = 0x80 + offNote.midiChannel;
-            d->midiMessage[1] = offNote.midiNote;
-            d->midiout->sendMessage(&d->midiMessage);
+        for (const std::vector<unsigned char> &offNote : qAsConst(d->offNotes)) {
+            d->midiout->sendMessage(&offNote);
         }
-        for (const NoteDetails &onNote : qAsConst(d->onNotes)) {
-            d->midiMessage[0] = 0x90 + onNote.midiChannel;
-            d->midiMessage[1] = onNote.midiNote;
-            d->midiMessage[2] = onNote.velocity;
-            d->midiout->sendMessage(&d->midiMessage);
+        for (const std::vector<unsigned char> &onNote : qAsConst(d->onNotes)) {
+            d->midiout->sendMessage(&onNote);
         }
     }
     d->offNotes.clear();
