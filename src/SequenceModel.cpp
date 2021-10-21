@@ -23,6 +23,8 @@
 #include "Note.h"
 #include "PatternModel.h"
 
+#include <SyncTimer.h>
+
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -297,6 +299,7 @@ void SequenceModel::startSequencePlayback()
 {
     if (!d->listeningToMetronome) {
         d->listeningToMetronome = true;
+        d->sequencePosition = qobject_cast<SyncTimer*>(playGridManager()->syncTimer())->beat() - 1;
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
     }
     playGridManager()->startMetronome();
