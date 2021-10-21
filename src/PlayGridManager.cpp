@@ -194,12 +194,19 @@ PlayGridManager::PlayGridManager(QQmlEngine* parent)
     d->engine = parent;
     connect(this, &PlayGridManager::metronomeActiveChanged, [this](){
         if (d->syncTimer && !d->syncTimer->timerRunning()) {
-            std::vector<unsigned char> message;
-            message.push_back(0x7B);
-            message.push_back(0);
-            d->midiout->sendMessage(&message);
+            QList<int> channels;
             for (Note *note : d->notes) {
                 note->setIsPlaying(false);
+                if (!channels.contains(note->midiChannel())) {
+                    channels << note->midiChannel();
+                }
+            }
+            std::vector<unsigned char> message;
+            message.push_back(0xB0);
+            message.push_back(0x7B);
+            for (int i : channels) {
+                message[0] = 0xB0 + i;
+                d->midiout->sendMessage(&message);
             }
         }
     });
