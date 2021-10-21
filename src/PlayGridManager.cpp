@@ -812,6 +812,7 @@ void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char
         }
         d->midiMessage[1] = midiNote;
         d->midiMessage[2] = velocity;
+        // std::cout << "Sending midi note message " << +d->midiMessage[0] << " " << +d->midiMessage[1] << " " << +d->midiMessage[2] << endl;
         d->midiout->sendMessage(&d->midiMessage);
     }
 }
