@@ -192,6 +192,17 @@ PlayGridManager::PlayGridManager(QQmlEngine* parent)
     , d(new Private(this))
 {
     d->engine = parent;
+    connect(this, &PlayGridManager::metronomeActiveChanged, [this](){
+        if (d->syncTimer && !d->syncTimer->timerRunning()) {
+            std::vector<unsigned char> message;
+            message.push_back(0x7B);
+            message.push_back(0);
+            d->midiout->sendMessage(&message);
+            for (Note *note : d->notes) {
+                note->setIsPlaying(false);
+            }
+        }
+    });
 }
 
 PlayGridManager::~PlayGridManager()
