@@ -639,7 +639,7 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
     Q_EMIT mostRecentlyChangedNotesChanged();
 }
 
-void PlayGridManager::scheduleNote(int midiNote, int midiChannel, bool setOn, int velocity, int duration, int delay)
+void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn, unsigned char velocity, int duration, int delay)
 {
     // Not using this one yet... but we shall!
     Q_UNUSED(delay)
@@ -802,7 +802,7 @@ bool PlayGridManager::metronomeActive() const
     return false;
 }
 
-void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, int channel, bool setOn)
+void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn)
 {
     if (d->midiout) {
         if (setOn) {

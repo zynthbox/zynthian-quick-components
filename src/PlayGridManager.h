@@ -196,7 +196,7 @@ public:
      * @param duration An optional duration (0 means don't schedule a release)
      * @param delay A delay in ms counting from the beat
      */
-    Q_INVOKABLE void scheduleNote(int midiNote, int midiChannel, bool setOn = true, int velocity = 64, int duration = 0, int delay = 0);
+    Q_INVOKABLE void scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn = true, unsigned char velocity = 64, int duration = 0, int delay = 0);
 
     QObject *syncTimer() const;
     void setSyncTimer(QObject *syncTimer);
@@ -231,7 +231,7 @@ public:
     Q_SIGNAL void metronomeBeat128thChanged();
 
     // TODO This is a temporary thing while we get the c++ side integrated properly
-    Q_INVOKABLE void sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, int channel, bool setOn);
+    Q_INVOKABLE void sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn);
 private:
     class Private;
     Private *d;
