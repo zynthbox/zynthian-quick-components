@@ -43,6 +43,7 @@ public:
     int sequencePosition{0};
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
+    bool listeningToMetronome{false};
 
     QString getDataLocation()
     {
@@ -298,16 +299,17 @@ void SequenceModel::setPositionOn(int row, int column, bool stopPrevious) const
 
 void SequenceModel::startSequencePlayback()
 {
-    if (!playGridManager()->metronomeActive()) {
+    if (!d->listeningToMetronome) {
+        d->listeningToMetronome = true;
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
-        playGridManager()->startMetronome();
     }
+    playGridManager()->startMetronome();
 }
 
 void SequenceModel::stopSequencePlayback()
 {
     playGridManager()->stopMetronome();
-    for (QObject *noteObject : d->queuedForOffNotes) {
+    for (QObject *noteObject : d->onifiedNotes) {
         Note *note = qobject_cast<Note*>(noteObject);
         note->setOff();
     }
@@ -320,9 +322,10 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    d->queuedForOffNotes.clear();
+    d->queuedForOffNotes = d->onifiedNotes;
+    d->onifiedNotes.clear();
     for (PatternModel *pattern : d->patternModels) {
-        d->queuedForOffNotes.append(pattern->handleSequenceAdvancement(d->sequencePosition));
+        d->onifiedNotes.append(pattern->handleSequenceAdvancement(d->sequencePosition));
     }
     d->sequencePosition++;
 }
