@@ -307,13 +307,16 @@ void SequenceModel::startSequencePlayback()
 
 void SequenceModel::stopSequencePlayback()
 {
-    disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
-    d->listeningToMetronome = false;
-    playGridManager()->stopMetronome();
+    if (d->listeningToMetronome) {
+        disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+        d->listeningToMetronome = false;
+        playGridManager()->stopMetronome();
+    }
     for (QObject *noteObject : d->queuedForOffNotes) {
         Note *note = qobject_cast<Note*>(noteObject);
         note->setOff();
     }
+    d->queuedForOffNotes.clear();
 }
 
 void SequenceModel::resetSequence()
