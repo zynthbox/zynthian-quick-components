@@ -110,8 +110,6 @@ public:
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
 
-    QList<std::vector<unsigned char> > offNotes;
-    QList<std::vector<unsigned char> > onNotes;
     RtMidiOut *midiout{nullptr};
     std::vector<unsigned char> midiMessage;
 
@@ -637,40 +635,11 @@ void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiCha
 {
     if (d->syncTimer) {
         d->syncTimer->scheduleNote(midiNote, midiChannel, setOn, velocity, duration, delay);
-    } else {
-        // so, like, this should not be possible or useful anyway, but also... keep it around for now?
-        // Not using this one yet... but we shall!
-        Q_UNUSED(delay)
-        Q_UNUSED(duration)
-        std::vector<unsigned char> note;
-        if (setOn) {
-            note.push_back(0x90 + midiChannel);
-        } else {
-            note.push_back(0x80 + midiChannel);
-        }
-        note.push_back(midiNote);
-        note.push_back(velocity);
-        if (setOn) {
-            d->onNotes.append(note);
-        } else {
-            d->offNotes.append(note);
-        }
     }
 }
 
 void PlayGridManager::metronomeTick(int beat)
 {
-    if (d->midiout) {
-        for (const std::vector<unsigned char> &offNote : qAsConst(d->offNotes)) {
-            d->midiout->sendMessage(&offNote);
-        }
-        for (const std::vector<unsigned char> &onNote : qAsConst(d->onNotes)) {
-            d->midiout->sendMessage(&onNote);
-        }
-    }
-    d->offNotes.clear();
-    d->onNotes.clear();
-
     d->metronomeBeat128th = beat;
     Q_EMIT metronomeBeat128thChanged();
     if (beat % 2 == 0) {
@@ -736,13 +705,6 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
         if (d->syncTimer) {
             d->syncTimer->addCallback(&timer_callback);
             connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, &PlayGridManager::metronomeActiveChanged);
-            connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
-                for (const std::vector<unsigned char> &offNote : qAsConst(d->offNotes)) {
-                    d->midiout->sendMessage(&offNote);
-                }
-                d->offNotes.clear();
-                d->onNotes.clear();
-            });
         }
         Q_EMIT syncTimerChanged();
     }
