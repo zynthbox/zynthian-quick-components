@@ -42,7 +42,7 @@ public:
     int version{0};
     int sequencePosition{0};
     QObjectList onifiedNotes;
-    QObjectList advancedOnifiedNotes;
+    QObjectList queuedForOffNotes;
 
     QString getDataLocation()
     {
@@ -66,7 +66,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, [this](){
         if (!d->playGridManager->metronomeActive()) {
             disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
-            for (QObject *noteObject : d->advancedOnifiedNotes) {
+            for (QObject *noteObject : d->queuedForOffNotes) {
                 Note *note = qobject_cast<Note*>(noteObject);
                 note->setOff();
             }
@@ -316,9 +316,9 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    d->advancedOnifiedNotes.clear();
+    d->queuedForOffNotes.clear();
     for (PatternModel *pattern : d->patternModels) {
-        d->advancedOnifiedNotes.append(pattern->handleSequenceAdvancement(d->sequencePosition));
+        d->queuedForOffNotes.append(pattern->handleSequenceAdvancement(d->sequencePosition));
     }
     d->sequencePosition++;
 }

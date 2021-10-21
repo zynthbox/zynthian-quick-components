@@ -398,7 +398,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
 QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
 {
     static const QLatin1String velocityString{"velocity"};
-    QObjectList onifiedNotes;
+    QObjectList queuedNotes;
     if (d->enabled) {
         // check whether the sequencePosition + 1 matches our note length
         quint64 nextPosition = sequencePosition + 1;
@@ -459,14 +459,14 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                         const QVariantHash &metaHash = meta[i].toHash();
                         if (metaHash.isEmpty() && subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
-                            onifiedNotes << subnote;
+                            queuedNotes << subnote;
                         } else if (subnote) {
                             int velocity{64};
                             if (metaHash.contains(velocityString)) {
                                 velocity = metaHash.value(velocityString).toInt();
                             }
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity);
-                            onifiedNotes << subnote;
+                            queuedNotes << subnote;
                         }
                     }
                 } else if (subnotes.count() > 0) {
@@ -474,12 +474,12 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                         Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                         if (subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
-                            onifiedNotes << subnote;
+                            queuedNotes << subnote;
                         }
                     }
                 } else {
                     playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true);
-                    onifiedNotes << note;
+                    queuedNotes << note;
                 }
             }
             int previousRow = row;
@@ -491,16 +491,18 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
             if (previousRow == -1) {
                 previousRow = d->availableBars - 1;
             }
-            const Note *previousNote = qobject_cast<Note*>(getNote(previousRow + d->bankOffset, previousColumn));
+            Note *previousNote = qobject_cast<Note*>(getNote(previousRow + d->bankOffset, previousColumn));
             if (previousNote) {
                 const QVariantList &subnotes = previousNote->subnotes();
                 if (subnotes.count() > 0) {
                     for (int i = 0; i < subnotes.count(); ++i) {
-                        const Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                        Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
+                        queuedNotes << subnote;
                     }
                 } else {
                     playGridManager()->scheduleNote(previousNote->midiNote(), previousNote->midiChannel(), false);
+                    queuedNotes << previousNote;
                 }
             }
             d->playingRow = row;
@@ -509,5 +511,5 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
             QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
         }
     }
-    return onifiedNotes;
+    return queuedNotes;
 }
