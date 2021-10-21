@@ -320,6 +320,9 @@ void SequenceModel::stopSequencePlayback()
         Note *note = qobject_cast<Note*>(noteObject);
         note->setOff();
     }
+    for (PatternModel *pattern : d->patternModels) {
+        pattern->handleSequenceStop();
+    }
     d->queuedForOffNotes.clear();
 }
 

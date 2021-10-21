@@ -238,6 +238,10 @@ public:
      * @return A list of notes turned on during this run of the function
      */
     QObjectList handleSequenceAdvancement(quint64 sequencePosition);
+    /**
+     * \brief When turning off playback, this function will turn off any notes that are waiting to be turned off
+     */
+    void handleSequenceStop();
 private:
     class Private;
     Private *d;

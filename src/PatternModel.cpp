@@ -37,6 +37,8 @@ public:
     bool enabled{true};
     int playingRow{0};
     int playingColumn{0};
+
+    QObjectList queuedNotes;
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -422,7 +424,6 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
 QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
 {
     static const QLatin1String velocityString{"velocity"};
-    QObjectList queuedNotes;
     if (d->enabled) {
         // check whether the sequencePosition + 1 matches our note length
         quint64 nextPosition = sequencePosition + 1;
@@ -467,6 +468,7 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
         }
 
         if (relevantToUs) {
+            d->queuedNotes.clear();
             // Get the next row/column combination, and schedule the previous one off, and the next one on
             // squish nextPosition down to fit inside our available range (d->availableBars * d->width)
             // start + (numberToBeWrapped - start) % (limit - start)
@@ -483,14 +485,14 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                         const QVariantHash &metaHash = meta[i].toHash();
                         if (metaHash.isEmpty() && subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
-                            queuedNotes << subnote;
+                            d->queuedNotes << subnote;
                         } else if (subnote) {
                             int velocity{64};
                             if (metaHash.contains(velocityString)) {
                                 velocity = metaHash.value(velocityString).toInt();
                             }
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity);
-                            queuedNotes << subnote;
+                            d->queuedNotes << subnote;
                         }
                     }
                 } else if (subnotes.count() > 0) {
@@ -498,12 +500,12 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                         Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                         if (subnote) {
                             playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
-                            queuedNotes << subnote;
+                            d->queuedNotes << subnote;
                         }
                     }
                 } else {
                     playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true);
-                    queuedNotes << note;
+                    d->queuedNotes << note;
                 }
             }
             int previousRow = row;
@@ -522,18 +524,27 @@ QObjectList PatternModel::handleSequenceAdvancement(quint64 sequencePosition)
                     for (int i = 0; i < subnotes.count(); ++i) {
                         Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), false);
-                        queuedNotes << subnote;
+                        d->queuedNotes << subnote;
                     }
                 } else {
                     playGridManager()->scheduleNote(previousNote->midiNote(), previousNote->midiChannel(), false);
-                    queuedNotes << previousNote;
+                    d->queuedNotes << previousNote;
                 }
             }
             d->playingRow = row;
             d->playingColumn = column;
             QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
             QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
+            return d->queuedNotes;
         }
     }
-    return queuedNotes;
+    return QObjectList{};
+}
+
+void PatternModel::handleSequenceStop()
+{
+    for (const QObject* noteObj : d->queuedNotes) {
+        const Note *note{qobject_cast<const Note*>(noteObj)};
+        note->setOff();
+    }
 }
