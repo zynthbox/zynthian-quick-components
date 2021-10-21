@@ -66,11 +66,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     d->playGridManager = parent;
     connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, [this](){
         if (!d->playGridManager->metronomeActive()) {
-            disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
-            for (QObject *noteObject : d->queuedForOffNotes) {
-                Note *note = qobject_cast<Note*>(noteObject);
-                note->setOff();
-            }
+            stopSequencePlayback();
         }
     });
 }
@@ -309,8 +305,9 @@ void SequenceModel::startSequencePlayback()
 void SequenceModel::stopSequencePlayback()
 {
     disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+    d->listeningToMetronome = false;
     playGridManager()->stopMetronome();
-    for (QObject *noteObject : d->onifiedNotes) {
+    for (QObject *noteObject : d->queuedForOffNotes) {
         Note *note = qobject_cast<Note*>(noteObject);
         note->setOff();
     }
