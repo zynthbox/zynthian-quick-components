@@ -310,6 +310,7 @@ void SequenceModel::startSequencePlayback()
     // pre-fill the first beat with notes
     for (PatternModel *pattern : d->patternModels) {
         pattern->handleSequenceAdvancement(d->sequencePosition, 1);
+        pattern->updateSequencePosition(d->sequencePosition);
     }
     d->sequencePosition++;
     playGridManager()->startMetronome();
@@ -334,7 +335,10 @@ void SequenceModel::stopSequencePlayback()
 
 void SequenceModel::resetSequence()
 {
-    d->sequencePosition = -1;
+    d->sequencePosition = 0;
+    for (PatternModel *pattern : d->patternModels) {
+        pattern->updateSequencePosition(d->sequencePosition);
+    }
 }
 
 void SequenceModel::advanceSequence()
