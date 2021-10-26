@@ -492,13 +492,13 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 nextPosition = nextPosition % (d->availableBars * d->width);
                 int row = (nextPosition / d->width) % d->availableBars;
                 int column = nextPosition - (row * d->availableBars);
-                Note *note = qobject_cast<Note*>(getNote(row + d->bankOffset, column));
+                const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
                 if (note) {
                     const QVariantList &subnotes = note->subnotes();
                     const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
                     if (meta.count() == subnotes.count()) {
                         for (int i = 0; i < subnotes.count(); ++i) {
-                            Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                            const Note *subnote = qobject_cast<const Note*>(subnotes[i].value<QObject*>());
                             const QVariantHash &metaHash = meta[i].toHash();
                             if (metaHash.isEmpty() && subnote) {
                                 playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
@@ -512,7 +512,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         }
                     } else if (subnotes.count() > 0) {
                         for (const QVariant &subnoteVar : subnotes) {
-                            Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                            const Note *subnote = qobject_cast<const Note*>(subnoteVar.value<QObject*>());
                             if (subnote) {
                                 playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
                             }
