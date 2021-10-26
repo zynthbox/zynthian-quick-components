@@ -503,10 +503,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             if (metaHash.isEmpty() && subnote) {
                                 playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
                             } else if (subnote) {
-                                int velocity{64};
-                                if (metaHash.contains(velocityString)) {
-                                    velocity = metaHash.value(velocityString).toInt();
-                                }
+                                const int velocity{metaHash.value(velocityString, 64).toInt()};
                                 playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity, noteDuration, progressionIncrement);
                             }
                         }
