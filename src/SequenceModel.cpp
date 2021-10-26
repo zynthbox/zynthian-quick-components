@@ -320,6 +320,7 @@ void SequenceModel::stopSequencePlayback()
 {
     if (d->listeningToMetronome) {
         disconnect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
+        disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
         d->listeningToMetronome = false;
         playGridManager()->stopMetronome();
     }
