@@ -427,11 +427,9 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
         quint64 noteDuration{0};
         bool relevantToUs{false};
         for (int progressionIncrement = 0; progressionIncrement < progressionLength; ++progressionIncrement) {
-            quint64 nextPosition = sequencePosition + progressionIncrement + 1;
-            // Some low-ish hanging fruit for optimisation work:
-            // Switch the modulo and division to bitwise operations, they are /much/ faster, especially modulo
-            // Multiplication is apparently commonly faster not bitshifting, so leave that
-            // https://www.jacksondunstan.com/articles/1946
+            quint64 nextPosition = sequencePosition + progressionIncrement;
+            // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
+            // but GCC already does that for you at -O2, so don't bother :)
             switch (d->noteLength) {
             case 1:
                 if (nextPosition % 32 == 0) {
@@ -532,10 +530,8 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     bool relevantToUs{false};
     quint64 nextPosition = sequencePosition + 1;
-    // Some low-ish hanging fruit for optimisation work:
-    // Switch the modulo and division to bitwise operations, they are /much/ faster, especially modulo
-    // Multiplication is apparently commonly faster not bitshifting, so leave that
-    // https://www.jacksondunstan.com/articles/1946
+    // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
+    // but GCC already does that for you at -O2, so don't bother :)
     switch (d->noteLength) {
     case 1:
         if (nextPosition % 32 == 0) {
