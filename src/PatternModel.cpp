@@ -501,24 +501,24 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
                             const QVariantHash &metaHash = meta[i].toHash();
                             if (metaHash.isEmpty() && subnote) {
-                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, nextPosition);
+                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
                             } else if (subnote) {
                                 int velocity{64};
                                 if (metaHash.contains(velocityString)) {
                                     velocity = metaHash.value(velocityString).toInt();
                                 }
-                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity, noteDuration, nextPosition);
+                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity, noteDuration, progressionIncrement);
                             }
                         }
                     } else if (subnotes.count() > 0) {
                         for (const QVariant &subnoteVar : subnotes) {
                             Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
                             if (subnote) {
-                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, nextPosition);
+                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
                             }
                         }
                     } else {
-                        playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true, 64, noteDuration, nextPosition);
+                        playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true, 64, noteDuration, progressionIncrement);
                     }
                 }
             }
