@@ -529,7 +529,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     bool relevantToUs{false};
-    quint64 nextPosition = sequencePosition + 1;
+    quint64 nextPosition = sequencePosition;
     // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
     // but GCC already does that for you at -O2, so don't bother :)
     switch (d->noteLength) {

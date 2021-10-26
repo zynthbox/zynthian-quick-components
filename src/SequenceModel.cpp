@@ -303,16 +303,17 @@ void SequenceModel::startSequencePlayback()
 {
     if (!d->listeningToMetronome) {
         d->listeningToMetronome = true;
-        d->sequencePosition = qobject_cast<SyncTimer*>(playGridManager()->syncTimer())->beat() - 1;
         connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
+        // In case the playback is already going, let's not be off-beat
+        d->sequencePosition = qobject_cast<SyncTimer*>(playGridManager()->syncTimer())->beat();
+        // pre-fill the first beat with notes
+        for (PatternModel *pattern : d->patternModels) {
+            pattern->handleSequenceAdvancement(d->sequencePosition, 1);
+            pattern->updateSequencePosition(d->sequencePosition);
+        }
+        d->sequencePosition++;
     }
-    // pre-fill the first beat with notes
-    for (PatternModel *pattern : d->patternModels) {
-        pattern->handleSequenceAdvancement(d->sequencePosition, 1);
-        pattern->updateSequencePosition(d->sequencePosition);
-    }
-    d->sequencePosition++;
     playGridManager()->startMetronome();
 }
 
