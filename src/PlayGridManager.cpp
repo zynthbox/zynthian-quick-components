@@ -649,7 +649,7 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
     Q_EMIT mostRecentlyChangedNotesChanged();
 }
 
-void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn, unsigned char velocity, int duration, int delay)
+void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn, unsigned char velocity, quint64 duration, quint64 delay)
 {
     if (d->syncTimer) {
         d->syncTimer->scheduleNote(midiNote, midiChannel, setOn, velocity, duration, delay);

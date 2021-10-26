@@ -304,15 +304,20 @@ void SequenceModel::startSequencePlayback()
     if (!d->listeningToMetronome) {
         d->listeningToMetronome = true;
         d->sequencePosition = qobject_cast<SyncTimer*>(playGridManager()->syncTimer())->beat() - 1;
-        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+        connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
     }
+    // pre-fill the first beat with notes
+    for (PatternModel *pattern : d->patternModels) {
+        pattern->handleSequenceAdvancement(d->sequencePosition, 1);
+    }
+    d->sequencePosition++;
     playGridManager()->startMetronome();
 }
 
 void SequenceModel::stopSequencePlayback()
 {
     if (d->listeningToMetronome) {
-        disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
+        disconnect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
         d->listeningToMetronome = false;
         playGridManager()->stopMetronome();
     }
@@ -333,10 +338,9 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    d->queuedForOffNotes = d->onifiedNotes;
-    d->onifiedNotes.clear();
+    int sequenceProgressionLength{16};
     for (PatternModel *pattern : d->patternModels) {
-        d->onifiedNotes.append(pattern->handleSequenceAdvancement(d->sequencePosition));
+        pattern->handleSequenceAdvancement(d->sequencePosition, sequenceProgressionLength);
     }
-    d->sequencePosition++;
+    d->sequencePosition = d->sequencePosition + sequenceProgressionLength;
 }

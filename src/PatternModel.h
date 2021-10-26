@@ -235,9 +235,9 @@ public:
      * of this Pattern (notes will be scheduled for on/off on the beat preceding their location in
      * the Pattern, to ensure the lowest possible latency)
      * @param sequencePosition The position in the sequence that should be considered (literally a count of ticks)
-     * @return A list of notes turned on during this run of the function
+     * @param progressionLength The number of ticks until the next position (that is, how many ticks between this and the next call of the function)
      */
-    QObjectList handleSequenceAdvancement(quint64 sequencePosition);
+    void handleSequenceAdvancement(quint64 sequencePosition, int progressionLength);
     /**
      * \brief When turning off playback, this function will turn off any notes that are waiting to be turned off
      */
