@@ -239,6 +239,12 @@ public:
      */
     void handleSequenceAdvancement(quint64 sequencePosition, int progressionLength);
     /**
+     * \brief Used by SequenceModel to update its patterns' positions to the actual sequence playback position during playback
+     *
+     * @param sequencePosition The position in the sequence that should be considered
+     */
+    void updateSequencePosition(quint64 sequencePosition);
+    /**
      * \brief When turning off playback, this function will turn off any notes that are waiting to be turned off
      */
     void handleSequenceStop();

@@ -129,6 +129,10 @@ public:
      * \brief Advances the sequence position during playback (usually handled by the internal sequence playback system)
      */
     Q_SLOT void advanceSequence();
+    /**
+     * \brief Updates the positions in the child PatternModels during playback
+     */
+    Q_SLOT void updatePatternPositions();
 private:
     class Private;
     Private *d;

@@ -523,14 +523,66 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true, 64, noteDuration, nextPosition);
                     }
                 }
-                // FIXME this lot will need some fixery stuffs... can't just use note-on values, that wouldn't be useful
-                // update this from a handler from sequence which fires each tick (track previously current internally, only do dataChanged on the two specific indices)
-//                 d->playingRow = row;
-//                 d->playingColumn = column;
-//                 QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
-//                 QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
             }
         }
+    }
+}
+
+void PatternModel::updateSequencePosition(quint64 sequencePosition)
+{
+    bool relevantToUs{false};
+    quint64 nextPosition = sequencePosition + 1;
+    // Some low-ish hanging fruit for optimisation work:
+    // Switch the modulo and division to bitwise operations, they are /much/ faster, especially modulo
+    // Multiplication is apparently commonly faster not bitshifting, so leave that
+    // https://www.jacksondunstan.com/articles/1946
+    switch (d->noteLength) {
+    case 1:
+        if (nextPosition % 32 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 32;
+        }
+        break;
+    case 2:
+        if (nextPosition % 16 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 16;
+        }
+        break;
+    case 3:
+        if (nextPosition % 8 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 8;
+        }
+        break;
+    case 4:
+        if (nextPosition % 4 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 4;
+        }
+        break;
+    case 5:
+        if (nextPosition % 2 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 2;
+        }
+        break;
+    case 6:
+        relevantToUs = true;
+        break;
+    default:
+        qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
+        break;
+    }
+
+    if (relevantToUs) {
+        nextPosition = nextPosition % (d->availableBars * d->width);
+        int row = (nextPosition / d->width) % d->availableBars;
+        int column = nextPosition - (row * d->availableBars);
+        d->playingRow = row;
+        d->playingColumn = column;
+        QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
+        QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
     }
 }
 
