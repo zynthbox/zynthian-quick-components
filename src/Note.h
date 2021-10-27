@@ -72,6 +72,5 @@ private:
     class Private;
     Private* d;
 };
-Q_DECLARE_METATYPE(const Note*);
 
 #endif//NOTE_H
