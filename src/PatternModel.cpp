@@ -419,7 +419,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     return onifiedNotes;
 }
 
-void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength)
+void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
     static const QLatin1String velocityString{"velocity"};
     if (d->enabled) {
@@ -491,7 +491,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 // start + (numberToBeWrapped - start) % (limit - start)
                 nextPosition = nextPosition % (d->availableBars * d->width);
                 int row = (nextPosition / d->width) % d->availableBars;
-                int column = nextPosition - (row * d->availableBars);
+                int column = nextPosition - (row * d->width);
                 const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
                 if (note) {
                     const QVariantList &subnotes = note->subnotes();
@@ -573,7 +573,7 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
     if (relevantToUs) {
         nextPosition = nextPosition % (d->availableBars * d->width);
         int row = (nextPosition / d->width) % d->availableBars;
-        int column = nextPosition - (row * d->availableBars);
+        int column = nextPosition - (row * d->width);
         d->playingRow = row;
         d->playingColumn = column;
         QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
