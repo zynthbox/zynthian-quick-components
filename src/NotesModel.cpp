@@ -205,7 +205,7 @@ QVariant NotesModel::data(const QModelIndex& index, int role) const
     if (d->parentModel) {
         result = d->parentModel->data(d->parentModel->index(d->parentRow, index.row()), role);
     } else if (index.row() >= 0 && index.row() < d->entries.count()) {
-        QList<Entry> rowEntries = d->entries.at(index.row());
+        const QList<Entry> &rowEntries = d->entries.at(index.row());
         if (index.column() >= 0 && index.column() < rowEntries.count()) {
             const Entry &entry = rowEntries.at(index.column());
             switch(role) {
@@ -321,7 +321,7 @@ QVariant NotesModel::getMetadata(int row, int column) const
     QVariant data;
     if (!d->parentModel) {
         if (row >= 0 && row < d->entries.count()) {
-            QList<Entry> rowEntries = d->entries.at(row);
+            const QList<Entry> &rowEntries = d->entries.at(row);
             if (column >= 0 && column < rowEntries.count()) {
                 data = rowEntries.at(column).metaData;
             }
