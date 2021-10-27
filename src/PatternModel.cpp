@@ -59,7 +59,7 @@ int PatternModel::subnoteIndex(int row, int column, int midiNote) const
         const Note* note = qobject_cast<Note*>(getNote(row, column));
         if (note) {
             for (int i = 0; i < note->subnotes().count(); ++i) {
-                const Note* subnote = qobject_cast<Note*>(note->subnotes().at(i).value<QObject*>());
+                const Note* subnote = note->subnotes().at(i).value<const Note*>();
                 if (subnote && subnote->midiNote() == midiNote) {
                     result = i;
                     break;
@@ -74,7 +74,7 @@ int PatternModel::addSubnote(int row, int column, QObject* note)
 {
     int newPosition{-1};
     if (row > -1 && row < height() && column > -1 && column < width() && note) {
-        Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+        const Note* oldCompound = qobject_cast<const Note*>(getNote(row, column));
         QVariantList subnotes;
         QVariantList metadata;
         if (oldCompound) {
@@ -100,7 +100,7 @@ int PatternModel::addSubnote(int row, int column, QObject* note)
 void PatternModel::removeSubnote(int row, int column, int subnote)
 {
     if (row > -1 && row < height() && column > -1 && column < width()) {
-        Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+        const Note* oldCompound = qobject_cast<const Note*>(getNote(row, column));
         QVariantList subnotes;
         QVariantList metadata;
         if (oldCompound) {
@@ -226,11 +226,11 @@ void PatternModel::setMidiChannel(int midiChannel)
         d->midiChannel = actualChannel;
         for (int row = 0; row < rowCount(); ++row) {
             for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
-                Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+                const Note* oldCompound = qobject_cast<const Note*>(getNote(row, column));
                 QVariantList newSubnotes;
                 if (oldCompound) {
-                    for (const QVariant &subnote :oldCompound->subnotes()) {
-                        Note *oldNote = qobject_cast<Note*>(subnote.value<QObject*>());
+                    for (const QVariant &subnote : oldCompound->subnotes()) {
+                        const Note *oldNote = subnote.value<const Note*>();
                         if (oldNote) {
                             newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), actualChannel));
                         } else {
@@ -368,10 +368,10 @@ int PatternModel::playingColumn() const
 void PatternModel::setPositionOff(int row, int column) const
 {
     if (row > -1 && row < height() && column > -1 && column < width()) {
-        const Note *note = qobject_cast<Note*>(getNote(row, column));
+        const Note *note = qobject_cast<const Note*>(getNote(row, column));
         if (note) {
             for (const QVariant &subnoteVar : note->subnotes()) {
-                Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                const Note *subnote = subnoteVar.value<const Note*>();
                 if (subnote) {
                     subnote->setOff();
                 }
@@ -385,13 +385,13 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     static const QLatin1String velocityString{"velocity"};
     QObjectList onifiedNotes;
     if (row > -1 && row < height() && column > -1 && column < width()) {
-        const Note *note = qobject_cast<Note*>(getNote(row, column));
+        const Note *note = qobject_cast<const Note*>(getNote(row, column));
         if (note) {
             const QVariantList &subnotes = note->subnotes();
             const QVariantList &meta = getMetadata(row, column).toList();
             if (meta.count() == subnotes.count()) {
                 for (int i = 0; i < subnotes.count(); ++i) {
-                    Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                    Note *subnote = subnotes[i].value<Note*>();
                     const QVariantHash &metaHash = meta[i].toHash();
                     if (metaHash.isEmpty() && subnote) {
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
@@ -407,7 +407,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
                 }
             } else {
                 for (const QVariant &subnoteVar : subnotes) {
-                    Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                    Note *subnote = subnoteVar.value<Note*>();
                     if (subnote) {
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
                         onifiedNotes << subnote;
@@ -498,7 +498,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                     const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
                     if (meta.count() == subnotes.count()) {
                         for (int i = 0; i < subnotes.count(); ++i) {
-                            const Note *subnote = qobject_cast<const Note*>(subnotes[i].value<QObject*>());
+                            const Note *subnote = subnotes[i].value<const Note*>();
                             const QVariantHash &metaHash = meta[i].toHash();
                             if (subnote) {
                                 if (metaHash.isEmpty()) {
@@ -511,7 +511,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         }
                     } else if (subnotes.count() > 0) {
                         for (const QVariant &subnoteVar : subnotes) {
-                            const Note *subnote = qobject_cast<const Note*>(subnoteVar.value<QObject*>());
+                            const Note *subnote = subnoteVar.value<const Note*>();
                             if (subnote) {
                                 playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
                             }
@@ -528,38 +528,37 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     bool relevantToUs{false};
-    quint64 nextPosition = sequencePosition;
     // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
     // but GCC already does that for you at -O2, so don't bother :)
     switch (d->noteLength) {
     case 1:
-        if (nextPosition % 32 == 0) {
+        if (sequencePosition % 32 == 0) {
             relevantToUs = true;
-            nextPosition = nextPosition / 32;
+            sequencePosition = sequencePosition / 32;
         }
         break;
     case 2:
-        if (nextPosition % 16 == 0) {
+        if (sequencePosition % 16 == 0) {
             relevantToUs = true;
-            nextPosition = nextPosition / 16;
+            sequencePosition = sequencePosition / 16;
         }
         break;
     case 3:
-        if (nextPosition % 8 == 0) {
+        if (sequencePosition % 8 == 0) {
             relevantToUs = true;
-            nextPosition = nextPosition / 8;
+            sequencePosition = sequencePosition / 8;
         }
         break;
     case 4:
-        if (nextPosition % 4 == 0) {
+        if (sequencePosition % 4 == 0) {
             relevantToUs = true;
-            nextPosition = nextPosition / 4;
+            sequencePosition = sequencePosition / 4;
         }
         break;
     case 5:
-        if (nextPosition % 2 == 0) {
+        if (sequencePosition % 2 == 0) {
             relevantToUs = true;
-            nextPosition = nextPosition / 2;
+            sequencePosition = sequencePosition / 2;
         }
         break;
     case 6:
@@ -571,9 +570,9 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
     }
 
     if (relevantToUs) {
-        nextPosition = nextPosition % (d->availableBars * d->width);
-        int row = (nextPosition / d->width) % d->availableBars;
-        int column = nextPosition - (row * d->width);
+        sequencePosition = sequencePosition % (d->availableBars * d->width);
+        int row = (sequencePosition / d->width) % d->availableBars;
+        int column = sequencePosition - (row * d->width);
         d->playingRow = row;
         d->playingColumn = column;
         QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
