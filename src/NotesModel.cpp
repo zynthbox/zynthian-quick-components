@@ -281,7 +281,7 @@ QObject* NotesModel::getNote(int row, int column) const
     QObject *obj{nullptr};
     if (!d->parentModel) {
         if (row >= 0 && row < d->entries.count()) {
-            QList<Entry> rowEntries = d->entries.at(row);
+            const QList<Entry> &rowEntries = d->entries.at(row);
             if (column >= 0 && column < rowEntries.count()) {
                 obj = rowEntries.at(column).note;
             }
