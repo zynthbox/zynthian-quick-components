@@ -303,8 +303,8 @@ void SequenceModel::startSequencePlayback()
 {
     if (!d->listeningToMetronome) {
         d->listeningToMetronome = true;
-        connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
-        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
+        connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
+        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
         // In case the playback is already going, let's not be off-beat
         d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
         // pre-fill the first beat with notes
