@@ -39,10 +39,10 @@ public:
     { }
     SequenceModel *q;
     PlayGridManager *playGridManager{nullptr};
+    SyncTimer *syncTimer{nullptr};
     QList<PatternModel*> patternModels;
     int activePattern{0};
     int version{0};
-    int sequencePosition{-1};
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
     bool listeningToMetronome{false};
@@ -306,13 +306,12 @@ void SequenceModel::startSequencePlayback()
         connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
         // In case the playback is already going, let's not be off-beat
-        d->sequencePosition = qobject_cast<SyncTimer*>(playGridManager()->syncTimer())->beat();
+        d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
         // pre-fill the first beat with notes
         for (PatternModel *pattern : d->patternModels) {
-            pattern->handleSequenceAdvancement(d->sequencePosition, 1);
-            pattern->updateSequencePosition(d->sequencePosition);
+            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), 1);
+            pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
         }
-        d->sequencePosition++;
     }
     playGridManager()->startMetronome();
 }
@@ -337,9 +336,8 @@ void SequenceModel::stopSequencePlayback()
 
 void SequenceModel::resetSequence()
 {
-    d->sequencePosition = 0;
     for (PatternModel *pattern : d->patternModels) {
-        pattern->updateSequencePosition(d->sequencePosition);
+        pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
     }
 }
 
@@ -347,14 +345,13 @@ void SequenceModel::advanceSequence()
 {
     int sequenceProgressionLength{16};
     for (PatternModel *pattern : d->patternModels) {
-        pattern->handleSequenceAdvancement(d->sequencePosition, sequenceProgressionLength);
+        pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
     }
 }
 
 void SequenceModel::updatePatternPositions()
 {
-    d->sequencePosition++;
     for (PatternModel *pattern : d->patternModels) {
-        pattern->updateSequencePosition(d->sequencePosition);
+        pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
     }
 }
