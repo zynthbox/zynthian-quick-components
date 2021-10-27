@@ -500,11 +500,13 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         for (int i = 0; i < subnotes.count(); ++i) {
                             const Note *subnote = qobject_cast<const Note*>(subnotes[i].value<QObject*>());
                             const QVariantHash &metaHash = meta[i].toHash();
-                            if (metaHash.isEmpty() && subnote) {
-                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
-                            } else if (subnote) {
-                                const int velocity{metaHash.value(velocityString, 64).toInt()};
-                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity, noteDuration, progressionIncrement);
+                            if (subnote) {
+                                if (metaHash.isEmpty()) {
+                                    playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
+                                } else {
+                                    const int velocity{metaHash.value(velocityString, 64).toInt()};
+                                    playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity, noteDuration, progressionIncrement);
+                                }
                             }
                         }
                     } else if (subnotes.count() > 0) {
