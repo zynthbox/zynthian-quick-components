@@ -66,6 +66,11 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     , d(new Private(this))
 {
     d->playGridManager = parent;
+    // Fetch the sync timer out, just for convenience (and speed of access during playback)
+    // It might seem slightly dangerous, but this is supposed to be set before anything else happens,
+    // so it should be entirely safe to do it here. We will also do it in the startSequencePlayback
+    // call, however, just for belts and braces and whatnot.
+    d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
     connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, [this](){
         if (!d->playGridManager->metronomeActive()) {
             stopSequencePlayback();
@@ -303,14 +308,19 @@ void SequenceModel::startSequencePlayback()
 {
     if (!d->listeningToMetronome) {
         d->listeningToMetronome = true;
+        // These two must be direct connections, or things will not be done in the correct
+        // order, and all the notes will end up scheduled at the wrong time, and the
+        // pattern position will be set sporadically, which leads to everything
+        // all kinds of looking laggy and weird. So, direct connection.
         connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
-        // In case the playback is already going, let's not be off-beat
+        // Let's just be safe, and make sure we've actually got the timer to hand. It should
+        // be there by now, but just to be on the safe side.
         d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
-        // pre-fill the first beat with notes
+        // pre-fill the first beat with notes - the first beat will also call the function,
+        // but will do so for +1, not current cumulativeBeat, so we need to prefill things a bit.
         for (PatternModel *pattern : d->patternModels) {
             pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), 1);
-            pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
         }
     }
     playGridManager()->startMetronome();
@@ -336,8 +346,10 @@ void SequenceModel::stopSequencePlayback()
 
 void SequenceModel::resetSequence()
 {
+    // This function is mostly cosmetic... the playback will, in fact, follow the global beat.
+    // TODO Maybe we need some way of feeding some reset information back to the sync timer from here?
     for (PatternModel *pattern : d->patternModels) {
-        pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+        pattern->updateSequencePosition(0);
     }
 }
 
@@ -345,7 +357,7 @@ void SequenceModel::advanceSequence()
 {
     int sequenceProgressionLength{16};
     for (PatternModel *pattern : d->patternModels) {
-        pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+        pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() + 1, sequenceProgressionLength);
     }
 }
 
