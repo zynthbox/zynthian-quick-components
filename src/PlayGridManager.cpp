@@ -24,6 +24,7 @@
 #include "NotesModel.h"
 #include "PatternModel.h"
 #include "SettingsContainer.h"
+#include "MidiListener.h"
 
 // ZynthiLoops library
 #include <libzl/SyncTimer.h>
@@ -38,66 +39,8 @@
 #include <QList>
 #include <QQmlComponent>
 #include <QStandardPaths>
-#include <QThread>
 
 #include <RtMidi.h>
-
-class MidiListener : public QThread {
-    void run() {
-        RtMidiIn *midiin = new RtMidiIn();
-        std::vector<unsigned char> message;
-        int nBytes, i;
-        double stamp;
-        // Check available ports.
-        unsigned int nPorts = midiin->getPortCount();
-        if ( nPorts > 0 ) {
-            std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n";
-            std::string portName;
-            for (unsigned int i = 0; i < nPorts; ++i) {
-                try {
-                    portName = midiin->getPortName(i);
-                    if (portName.rfind("Midi Through", 0) == 0) {
-                        std::cout << "Using input port " << i << " named " << portName << endl;
-                        midiin->openPort(i);
-                        break;
-                    }
-                }
-                catch (RtMidiError &error) {
-                    error.printMessage();
-                    delete midiin;
-                    midiin = nullptr;
-                }
-            }
-            if (midiin) {
-                // Don't ignore sysex, timing, or active sensing messages.
-                midiin->ignoreTypes( false, false, false );
-                // Periodically check input queue.
-                while ( !done ) {
-                    stamp = midiin->getMessage( &message );
-                    nBytes = message.size();
-                    if ( nBytes > 0 ) {
-                        for ( i=0; i<nBytes; i++ ) {
-                            std::cout << "Byte " << i << " = " << (int)message[i] << ", ";
-                        }
-                        std::cout << "stamp = " << stamp << std::endl;
-                    } else {
-                        // Sleep for 10 milliseconds - don't sleep unless the queue was empty
-                        msleep(10);
-                    }
-                }
-            }
-        }
-        if (midiin) {
-            delete midiin;
-        }
-    }
-    Q_SLOT void markAsDone() {
-        done = true;
-    }
-    Q_SIGNAL void messageReceived();
-private:
-    bool done{false};
-};
 
 Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
 void timer_callback(int beat) {
@@ -142,9 +85,9 @@ public:
                 }
             }
         }
+
         midiListener = new MidiListener;
-        QObject::connect(midiListener, SIGNAL(finished()),
-            midiListener, SLOT(deleteLater()));
+        QObject::connect(midiListener, SIGNAL(finished()), midiListener, SLOT(deleteLater()));
         midiListener->start();
 
         // Let's try and avoid any unnecessary things here...
@@ -187,6 +130,17 @@ public:
     int metronomeBeat128th{0};
 
     QFileSystemWatcher watcher;
+
+    void updateNoteState(int midiNote, int midiChannel, bool setOn) {
+        Note *note = findExistingNote(midiNote, midiChannel);
+        if (note) {
+            if (setOn) {
+                note->setIsPlaying(true);
+            } else {
+                note->setIsPlaying(false);
+            }
+        }
+    }
 
     void updatePlaygrids()
     {
