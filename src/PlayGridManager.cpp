@@ -53,10 +53,16 @@ class PlayGridManager::Private
 {
 public:
     Private(PlayGridManager *q) : q(q) {
+        // Let's try and avoid any unnecessary things here...
+        midiMessage.push_back(0);
+        midiMessage.push_back(0);
+        midiMessage.push_back(0);
+
         updatePlaygrids();
         connect(&watcher, &QFileSystemWatcher::directoryChanged, q, [this](){
             updatePlaygrids();
         });
+
         // RtMidiOut constructor
         try {
             midiout = new RtMidiOut();
@@ -86,20 +92,15 @@ public:
             }
         }
 
-        midiListener = new MidiListener;
-        QObject::connect(midiListener, SIGNAL(finished()), midiListener, SLOT(deleteLater()));
-        midiListener->start();
-
-        // Let's try and avoid any unnecessary things here...
-        midiMessage.push_back(0);
-        midiMessage.push_back(0);
-        midiMessage.push_back(0);
+        listenToEverything();
     }
     ~Private() {
         if (midiout) {
             delete midiout;
         }
-        midiListener->exit();
+        for (MidiListener *midiListener : midiListeners) {
+            midiListener->markAsDone();
+        }
     }
     PlayGridManager *q;
     QQmlEngine *engine;
@@ -119,7 +120,7 @@ public:
 
     RtMidiOut *midiout{nullptr};
     std::vector<unsigned char> midiMessage;
-    MidiListener *midiListener{nullptr};
+    QList<MidiListener*> midiListeners;
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -131,6 +132,25 @@ public:
 
     QFileSystemWatcher watcher;
 
+    void listenToEverything() {
+        for (MidiListener *midiListener : midiListeners) {
+            midiListener->markAsDone();
+        }
+        midiListeners.clear();
+        RtMidiIn *midiin = new RtMidiIn();
+        unsigned int nPorts = midiin->getPortCount();
+        if ( nPorts > 0 ) {
+            std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n";
+            for (unsigned int i = 0; i < nPorts; ++i) {
+                MidiListener *midiListener = new MidiListener(i);
+                QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
+                QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, bool setOn){ updateNoteState(midiNote, midiChannel, setOn); });
+                midiListener->start();
+                midiListeners << midiListener;
+            }
+        }
+    }
+
     void updateNoteState(int midiNote, int midiChannel, bool setOn) {
         Note *note = findExistingNote(midiNote, midiChannel);
         if (note) {
@@ -140,6 +160,7 @@ public:
                 note->setIsPlaying(false);
             }
         }
+        qDebug() << note << setOn << midiNote << midiChannel;
     }
 
     void updatePlaygrids()
