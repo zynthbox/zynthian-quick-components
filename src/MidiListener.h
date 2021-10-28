@@ -27,6 +27,8 @@
 #include <RtMidi.h>
 
 class MidiListener : public QThread {
+    Q_OBJECT
+public:
     void run() {
         RtMidiIn *midiin = new RtMidiIn();
         std::vector<unsigned char> message;

@@ -10,6 +10,8 @@ target_sources(zynthian-quick-plugin
     PlayGridManager.cpp
     SequenceModel.cpp
     SettingsContainer.cpp
+
+    MidiListener.h
     #resources.qrc
 )
 target_link_libraries(zynthian-quick-plugin Qt5::Core Qt5::Qml Qt5::Quick ${LIBZL_LIBRARIES} ${RTMIDI_LIBRARIES})
