@@ -140,7 +140,7 @@ public:
         RtMidiIn *midiin = new RtMidiIn();
         unsigned int nPorts = midiin->getPortCount();
         if ( nPorts > 0 ) {
-            std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n";
+            std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n" << std::endl;
             for (unsigned int i = 0; i < nPorts; ++i) {
                 MidiListener *midiListener = new MidiListener(i);
                 QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
@@ -160,7 +160,6 @@ public:
                 note->setIsPlaying(false);
             }
         }
-        qDebug() << note << setOn << midiNote << midiChannel;
     }
 
     void updatePlaygrids()
