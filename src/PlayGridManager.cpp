@@ -38,8 +38,66 @@
 #include <QList>
 #include <QQmlComponent>
 #include <QStandardPaths>
+#include <QThread>
 
 #include <RtMidi.h>
+
+class MidiListener : public QThread {
+    void run() {
+        RtMidiIn *midiin = new RtMidiIn();
+        std::vector<unsigned char> message;
+        int nBytes, i;
+        double stamp;
+        // Check available ports.
+        unsigned int nPorts = midiin->getPortCount();
+        if ( nPorts > 0 ) {
+            std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n";
+            std::string portName;
+            for (unsigned int i = 0; i < nPorts; ++i) {
+                try {
+                    portName = midiin->getPortName(i);
+                    if (portName.rfind("Midi Through", 0) == 0) {
+                        std::cout << "Using input port " << i << " named " << portName << endl;
+                        midiin->openPort(i);
+                        break;
+                    }
+                }
+                catch (RtMidiError &error) {
+                    error.printMessage();
+                    delete midiin;
+                    midiin = nullptr;
+                }
+            }
+            if (midiin) {
+                // Don't ignore sysex, timing, or active sensing messages.
+                midiin->ignoreTypes( false, false, false );
+                // Periodically check input queue.
+                while ( !done ) {
+                    stamp = midiin->getMessage( &message );
+                    nBytes = message.size();
+                    if ( nBytes > 0 ) {
+                        std::cout << "stamp = " << stamp << std::endl;
+                        for ( i=0; i<nBytes; i++ ) {
+                            std::cout << "Byte " << i << " = " << (int)message[i] << ", ";
+                        }
+                    } else {
+                        // Sleep for 10 milliseconds - don't sleep unless the queue was empty
+                        sleep(10);
+                    }
+                }
+            }
+        }
+        if (midiin) {
+            delete midiin;
+        }
+    }
+    Q_SLOT void markAsDone() {
+        done = true;
+    }
+    Q_SIGNAL void messageReceived();
+private:
+    bool done{false};
+};
 
 Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
 void timer_callback(int beat) {
@@ -84,6 +142,11 @@ public:
                 }
             }
         }
+        midiListener = new MidiListener;
+        QObject::connect(midiListener, SIGNAL(finished()),
+            midiListener, SLOT(deleteLater()));
+        midiListener->start();
+
         // Let's try and avoid any unnecessary things here...
         midiMessage.push_back(0);
         midiMessage.push_back(0);
@@ -93,6 +156,7 @@ public:
         if (midiout) {
             delete midiout;
         }
+        midiListener->exit();
     }
     PlayGridManager *q;
     QQmlEngine *engine;
@@ -112,6 +176,7 @@ public:
 
     RtMidiOut *midiout{nullptr};
     std::vector<unsigned char> midiMessage;
+    MidiListener *midiListener{nullptr};
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -563,7 +628,7 @@ void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)
 {
     if (notes.count() == velocities.count()) {
         for (int i = 0; i < notes.count(); ++i) {
-            setNoteState(notes[i].value<Note*>(), velocities[i].toInt(), true);
+            setNoteState(notes.at(i).value<Note*>(), velocities.at(i).toInt(), true);
         }
     }
 }
@@ -571,7 +636,7 @@ void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)
 void PlayGridManager::setNotesOff(QVariantList notes)
 {
     for (int i = 0; i < notes.count(); ++i) {
-        setNoteState(notes[i].value<Note*>(), 0, false);
+        setNoteState(notes.at(i).value<Note*>(), 0, false);
     }
 }
 void PlayGridManager::setNoteOn(QObject* note, int velocity)
