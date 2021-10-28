@@ -76,13 +76,13 @@ class MidiListener : public QThread {
                     stamp = midiin->getMessage( &message );
                     nBytes = message.size();
                     if ( nBytes > 0 ) {
-                        std::cout << "stamp = " << stamp << std::endl;
                         for ( i=0; i<nBytes; i++ ) {
                             std::cout << "Byte " << i << " = " << (int)message[i] << ", ";
                         }
+                        std::cout << "stamp = " << stamp << std::endl;
                     } else {
                         // Sleep for 10 milliseconds - don't sleep unless the queue was empty
-                        sleep(10);
+                        msleep(10);
                     }
                 }
             }
