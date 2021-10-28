@@ -434,7 +434,7 @@ QJsonObject PlayGridManager::noteToJsonObject(Note *note) const
         if (note->subnotes().count() > 0) {
             QJsonArray subnoteArray;
             for (const QVariant &subnote : note->subnotes()) {
-                subnoteArray << noteToJsonObject(qobject_cast<Note*>(subnote.value<QObject*>()));
+                subnoteArray << noteToJsonObject(subnote.value<Note*>());
             }
             jsonObject.insert("subnotes", subnoteArray);
         }
@@ -527,7 +527,7 @@ QString PlayGridManager::notesListToJson(const QVariantList& notes) const
     QJsonDocument json;
     QJsonArray notesArray;
     for (const QVariant &element : notes) {
-        notesArray << noteToJsonObject(qobject_cast<Note*>(element.value<QObject*>()));
+        notesArray << noteToJsonObject(element.value<Note*>());
     }
     json.setArray(notesArray);
     return json.toJson();
@@ -563,7 +563,7 @@ void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)
 {
     if (notes.count() == velocities.count()) {
         for (int i = 0; i < notes.count(); ++i) {
-            setNoteState(qobject_cast<Note*>(notes[i].value<QObject*>()), velocities[i].toInt(), true);
+            setNoteState(notes[i].value<Note*>(), velocities[i].toInt(), true);
         }
     }
 }
@@ -571,7 +571,7 @@ void PlayGridManager::setNotesOn(QVariantList notes, QVariantList velocities)
 void PlayGridManager::setNotesOff(QVariantList notes)
 {
     for (int i = 0; i < notes.count(); ++i) {
-        setNoteState(qobject_cast<Note*>(notes[i].value<QObject*>()), 0, false);
+        setNoteState(notes[i].value<Note*>(), 0, false);
     }
 }
 void PlayGridManager::setNoteOn(QObject* note, int velocity)

@@ -355,7 +355,7 @@ void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata)
         if (row > -1 && row < rowCount()) {
             QList<Entry> rowList;
             for (int i = 0; i < notes.count(); ++i) {
-                Note* actualNote = qobject_cast<Note*>(notes.at(i).value<QObject*>());
+                Note* actualNote = notes.at(i).value<Note*>();
                 QVariant actualMeta{metadata.at(i)};
                 if (QString(actualMeta.typeName()) == jsvalueType) {
                     const QJSValue tempMeta{actualMeta.value<QJSValue>()};
@@ -422,7 +422,7 @@ void NotesModel::addRow(const QVariantList &notes, const QVariantList &metadata)
         int metadataCount = metadata.count();
         for (int i = 0; i < notes.count(); ++i) {
             Entry entry;
-            Note *note = qobject_cast<Note*>(notes[i].value<QObject*>());
+            Note *note = notes[i].value<Note*>();
             entry.note = note;
             if (i < metadataCount) {
                 entry.metaData = metadata[i];
@@ -451,7 +451,7 @@ void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantL
         int metadataCount = metadata.count();
         for (int i = 0; i < notes.count(); ++i) {
             Entry entry;
-            Note *note = qobject_cast<Note*>(notes[i].value<QObject*>());
+            Note *note = notes[i].value<Note*>();
             entry.note = note;
             if (i < metadataCount) {
                 entry.metaData = metadata[i];

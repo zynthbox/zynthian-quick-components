@@ -150,7 +150,7 @@ void Note::setSubnotesOn(const QVariantList &velocities) const
         if (++i >= d->subnotes.count()) {
             break;
         }
-        const Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
+        const Note* subnote = note.value<Note*>();
         if (subnote) {
             subnote->setOn(velocities[i].toInt());
         }
@@ -163,7 +163,7 @@ void Note::setOn(int velocity) const
         d->playGridManager->sendAMidiNoteMessage(d->midiNote, velocity, d->midiChannel, true);
     }
     for (const QVariant &note : d->subnotes) {
-        const Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
+        const Note* subnote = note.value<Note*>();
         if (subnote) {
             subnote->setOn(velocity);
         }
@@ -176,7 +176,7 @@ void Note::setOff() const
         d->playGridManager->sendAMidiNoteMessage(d->midiNote, 0, d->midiChannel, false);
     }
     for (const QVariant &note : d->subnotes) {
-        Note* subnote = qobject_cast<Note*>(note.value<QObject*>());
+        const Note* subnote = note.value<Note*>();
         if (subnote) {
             subnote->setOff();
         }

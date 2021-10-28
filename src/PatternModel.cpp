@@ -59,7 +59,7 @@ int PatternModel::subnoteIndex(int row, int column, int midiNote) const
         const Note* note = qobject_cast<Note*>(getNote(row, column));
         if (note) {
             for (int i = 0; i < note->subnotes().count(); ++i) {
-                const Note* subnote = qobject_cast<Note*>(note->subnotes().at(i).value<QObject*>());
+                const Note* subnote = note->subnotes().at(i).value<Note*>();
                 if (subnote && subnote->midiNote() == midiNote) {
                     result = i;
                     break;
@@ -230,7 +230,7 @@ void PatternModel::setMidiChannel(int midiChannel)
                 QVariantList newSubnotes;
                 if (oldCompound) {
                     for (const QVariant &subnote :oldCompound->subnotes()) {
-                        Note *oldNote = qobject_cast<Note*>(subnote.value<QObject*>());
+                        Note *oldNote = subnote.value<Note*>();
                         if (oldNote) {
                             newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), actualChannel));
                         } else {
@@ -371,7 +371,7 @@ void PatternModel::setPositionOff(int row, int column) const
         const Note *note = qobject_cast<Note*>(getNote(row, column));
         if (note) {
             for (const QVariant &subnoteVar : note->subnotes()) {
-                Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                Note *subnote = subnoteVar.value<Note*>();
                 if (subnote) {
                     subnote->setOff();
                 }
@@ -391,7 +391,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
             const QVariantList &meta = getMetadata(row, column).toList();
             if (meta.count() == subnotes.count()) {
                 for (int i = 0; i < subnotes.count(); ++i) {
-                    Note *subnote = qobject_cast<Note*>(subnotes[i].value<QObject*>());
+                    Note *subnote = subnotes[i].value<Note*>();
                     const QVariantHash &metaHash = meta[i].toHash();
                     if (metaHash.isEmpty() && subnote) {
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
@@ -407,7 +407,7 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
                 }
             } else {
                 for (const QVariant &subnoteVar : subnotes) {
-                    Note *subnote = qobject_cast<Note*>(subnoteVar.value<QObject*>());
+                    Note *subnote = subnoteVar.value<Note*>();
                     if (subnote) {
                         playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true);
                         onifiedNotes << subnote;
@@ -498,7 +498,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                     const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
                     if (meta.count() == subnotes.count()) {
                         for (int i = 0; i < subnotes.count(); ++i) {
-                            const Note *subnote = qobject_cast<const Note*>(subnotes[i].value<QObject*>());
+                            const Note *subnote = subnotes[i].value<Note*>();
                             const QVariantHash &metaHash = meta[i].toHash();
                             if (subnote) {
                                 if (metaHash.isEmpty()) {
@@ -511,7 +511,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         }
                     } else if (subnotes.count() > 0) {
                         for (const QVariant &subnoteVar : subnotes) {
-                            const Note *subnote = qobject_cast<const Note*>(subnoteVar.value<QObject*>());
+                            const Note *subnote = subnoteVar.value<Note*>();
                             if (subnote) {
                                 playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
                             }
