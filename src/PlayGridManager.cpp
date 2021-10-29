@@ -79,7 +79,7 @@ public:
             for (unsigned int i = 0; i < nPorts; ++i) {
                 try {
                     portName = midiout->getPortName(i);
-                    if (portName.rfind("Midi Through", 0) == 0) {
+                    if (portName.rfind("ZynMidiRouter:seq", 0) == 0) {
                         std::cout << "Using output port " << i << " named " << portName << endl;
                         midiout->openPort(i);
                         break;
@@ -137,7 +137,7 @@ public:
             midiListener->markAsDone();
         }
         midiListeners.clear();
-        RtMidiIn *midiin = new RtMidiIn();
+        RtMidiIn *midiin = new RtMidiIn(RtMidi::UNIX_JACK);
         unsigned int nPorts = midiin->getPortCount();
         if ( nPorts > 0 ) {
             std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n" << std::endl;

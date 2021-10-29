@@ -34,7 +34,7 @@ public:
         , midiInPort(rtMidiInPort)
     {};
     void run() {
-        RtMidiIn *midiin = new RtMidiIn();
+        RtMidiIn *midiin = new RtMidiIn(RtMidi::UNIX_JACK);
         std::vector<unsigned char> message;
         int nBytes, i;
         double stamp;
