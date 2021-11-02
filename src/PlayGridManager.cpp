@@ -62,36 +62,7 @@ public:
         connect(&watcher, &QFileSystemWatcher::directoryChanged, q, [this](){
             updatePlaygrids();
         });
-
-        // RtMidiOut constructor
-        try {
-            midiout = new RtMidiOut();
-        }
-        catch ( RtMidiError &error ) {
-            error.printMessage();
-            midiout = nullptr;
-        }
-        if (midiout) {
-            // Check outputs.
-            unsigned int nPorts = midiout->getPortCount();
-            std::string portName;
-            std::cout << "\nThere are " << nPorts << " MIDI output ports available.\n";
-            for (unsigned int i = 0; i < nPorts; ++i) {
-                try {
-                    portName = midiout->getPortName(i);
-                    if (portName.rfind("ZynMidiRouter:seq", 0) == 0) {
-                        std::cout << "Using output port " << i << " named " << portName << endl;
-                        midiout->openPort(i);
-                        break;
-                    }
-                }
-                catch (RtMidiError &error) {
-                    error.printMessage();
-                    delete midiout;
-                }
-            }
-        }
-
+        ensureMidiOutput();
         listenToEverything();
     }
     ~Private() {
@@ -147,6 +118,37 @@ public:
                 QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, bool setOn){ updateNoteState(midiNote, midiChannel, setOn); });
                 midiListener->start();
                 midiListeners << midiListener;
+            }
+        }
+    }
+    void ensureMidiOutput() {
+        // RtMidiOut constructor
+        try {
+            midiout = new RtMidiOut();
+        }
+        catch ( RtMidiError &error ) {
+            error.printMessage();
+            midiout = nullptr;
+        }
+        if (midiout) {
+            // Check outputs.
+            unsigned int nPorts = midiout->getPortCount();
+            std::string portName;
+            std::cout << "\nThere are " << nPorts << " MIDI output ports available.\n";
+            for (unsigned int i = 0; i < nPorts; ++i) {
+                try {
+                    portName = midiout->getPortName(i);
+                    if (portName.rfind("ZynMidiRouter:seq", 0) == 0) {
+                        std::cout << "Using output port " << i << " named " << portName << endl;
+                        midiout->openPort(i);
+                        break;
+                    }
+                }
+                catch (RtMidiError &error) {
+                    error.printMessage();
+                    delete midiout;
+                    midiout = nullptr;
+                }
             }
         }
     }
@@ -232,7 +234,7 @@ PlayGridManager::PlayGridManager(QQmlEngine* parent)
 {
     d->engine = parent;
     connect(this, &PlayGridManager::metronomeActiveChanged, [this](){
-        if (d->syncTimer && !d->syncTimer->timerRunning()) {
+        if (d->syncTimer && !d->syncTimer->timerRunning() && d->midiout) {
             QList<int> channels;
             for (Note *note : d->notes) {
                 note->setIsPlaying(false);
@@ -312,6 +314,9 @@ void PlayGridManager::setPitch(int pitch)
 {
     int adjusted = qBound(0, pitch + 8192, 16383);
     if (d->pitch != adjusted) {
+        if (!d->midiout) {
+            d->ensureMidiOutput();
+        }
         if (d->midiout) {
             int shiftedValue = adjusted << 1;              // shift so top bit of lsb is in msb
             unsigned char msb = HiByte(shiftedValue);      // get the high bits
@@ -335,6 +340,9 @@ void PlayGridManager::setModulation(int modulation)
 {
     int adjusted = qBound(0, modulation, 127);
     if (d->modulation != adjusted) {
+        if (!d->midiout) {
+            d->ensureMidiOutput();
+        }
         if (d->midiout) {
             d->midiMessage[0] = 0xB0;
             d->midiMessage[1] = 0x01;
@@ -839,6 +847,9 @@ bool PlayGridManager::metronomeActive() const
 
 void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn)
 {
+    if (!d->midiout) {
+        d->ensureMidiOutput();
+    }
     if (d->midiout) {
         if (setOn) {
             d->midiMessage[0] = 0x90 + channel;
