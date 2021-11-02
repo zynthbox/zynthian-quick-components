@@ -34,7 +34,13 @@ class PlayGridManager : public QObject
     Q_PROPERTY(QStringList playgrids READ playgrids NOTIFY playgridsChanged)
     Q_PROPERTY(QVariantMap currentPlaygrids READ currentPlaygrids NOTIFY currentPlaygridsChanged)
     Q_PROPERTY(QVariantMap dashboardModels READ dashboardModels NOTIFY dashboardModelsChanged)
+    /**
+     * \brief A way to set the pitch shift value (between -8192 and 8191, 0 being no shift)
+     */
     Q_PROPERTY(int pitch READ pitch WRITE setPitch NOTIFY pitchChanged)
+    /**
+     * \brief A way to set the modulation value (between 0 and 127, with 0 being no modulation)
+     */
     Q_PROPERTY(int modulation READ modulation WRITE setModulation NOTIFY modulationChanged)
     Q_PROPERTY(QVariantList mostRecentlyChangedNotes READ mostRecentlyChangedNotes NOTIFY mostRecentlyChangedNotesChanged)
 

@@ -306,11 +306,22 @@ int PlayGridManager::pitch() const
     return d->pitch;
 }
 
+#define LoByte(i)    ( (char) i )
+#define HiByte(i)    ( (char) ( ((int) i) >> 8) )
 void PlayGridManager::setPitch(int pitch)
 {
-    if (d->pitch != pitch) {
-        // TODO send midi command
-        d->pitch = pitch;
+    int adjusted = qBound(0, pitch + 8192, 16383);
+    if (d->pitch != adjusted) {
+        if (d->midiout) {
+            int shiftedValue = adjusted << 1;              // shift so top bit of lsb is in msb
+            unsigned char msb = HiByte(shiftedValue);      // get the high bits
+            unsigned char lsb = LoByte(shiftedValue) >> 1; // get the low 7 bits and shift right
+            d->midiMessage[0] = 0xE0;
+            d->midiMessage[1] = lsb;
+            d->midiMessage[2] = msb;
+            d->midiout->sendMessage(&d->midiMessage);
+        }
+        d->pitch = adjusted;
         Q_EMIT pitchChanged();
     }
 }
@@ -322,9 +333,15 @@ int PlayGridManager::modulation() const
 
 void PlayGridManager::setModulation(int modulation)
 {
-    if (d->modulation != modulation) {
-        // TODO send midi command
-        d->modulation = modulation;
+    int adjusted = qBound(0, modulation, 127);
+    if (d->modulation != adjusted) {
+        if (d->midiout) {
+            d->midiMessage[0] = 0xB0;
+            d->midiMessage[1] = 0x01;
+            d->midiMessage[2] = adjusted;
+            d->midiout->sendMessage(&d->midiMessage);
+        }
+        d->modulation = adjusted;
         Q_EMIT modulationChanged();
     }
 }
