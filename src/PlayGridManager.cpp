@@ -138,8 +138,8 @@ public:
             for (unsigned int i = 0; i < nPorts; ++i) {
                 try {
                     portName = midiout->getPortName(i);
-                    if (portName.rfind("ZynMidiRouter:seq", 0) == 0) {
-                        std::cout << "Using output port " << i << " named " << portName << endl;
+                    if (portName.rfind("Midi Through:Midi Through Port", 0) == 0) {
+                        std::cout << "Using output port " << i << " named " << portName << std::endl;
                         midiout->openPort(i);
                         break;
                     }
@@ -150,6 +150,9 @@ public:
                     midiout = nullptr;
                 }
             }
+        }
+        if (!midiout) {
+            std::cout << "Failed to open an actual midi output, which clearly is not great." << std::endl;
         }
     }
 
