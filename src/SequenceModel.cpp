@@ -75,7 +75,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
         if (!d->playGridManager->metronomeActive()) {
             stopSequencePlayback();
         }
-    });
+    }, Qt::DirectConnection);
 }
 
 SequenceModel::~SequenceModel()

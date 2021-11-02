@@ -219,9 +219,9 @@ void PlayGrid::setPlayGridManager(QObject* playGridManager)
             d->playGridManager->disconnect(this);
         }
         d->playGridManager = qobject_cast<PlayGridManager*>(playGridManager);
-        connect(d->playGridManager, &PlayGridManager::pitchChanged, this, &PlayGrid::pitchChanged);
-        connect(d->playGridManager, &PlayGridManager::modulationChanged, this, &PlayGrid::modulationChanged);
-        connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, &PlayGrid::metronomeActiveChanged);
+        connect(d->playGridManager, &PlayGridManager::pitchChanged, this, &PlayGrid::pitchChanged, Qt::DirectConnection);
+        connect(d->playGridManager, &PlayGridManager::modulationChanged, this, &PlayGrid::modulationChanged, Qt::DirectConnection);
+        connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, &PlayGrid::metronomeActiveChanged, Qt::DirectConnection);
         Q_EMIT playGridManagerChanged();
     }
 }
