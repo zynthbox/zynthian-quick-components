@@ -262,11 +262,11 @@ public:
                     if (midiNote > -1) {
                         Q_EMIT noteChanged(midiNote, midiChannel, setOn);
                     } else {
-                        // Spit out the unknown thing onto the cli - this should come in handy later on
-                        for ( i=0; i<nBytes; i++ ) {
-                            std::cout << "Byte " << i << " = " << (int)message[i] << ", ";
-                        }
-                        std::cout << "stamp = " << stamp << std::endl;
+//                         // Spit out the unknown thing onto the cli - this should come in handy later on
+//                         for ( i=0; i<nBytes; i++ ) {
+//                             std::cout << "Byte " << i << " = " << (int)message[i] << ", ";
+//                         }
+//                         std::cout << "stamp = " << stamp << std::endl;
                     }
                 } else {
                     // Sleep for 10 milliseconds - don't sleep unless the queue was empty
