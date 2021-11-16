@@ -312,7 +312,7 @@ void SequenceModel::startSequencePlayback()
         // order, and all the notes will end up scheduled at the wrong time, and the
         // pattern position will be set sporadically, which leads to everything
         // all kinds of looking laggy and weird. So, direct connection.
-        connect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
+        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
         // Let's just be safe, and make sure we've actually got the timer to hand. It should
         // be there by now, but just to be on the safe side.
@@ -329,7 +329,7 @@ void SequenceModel::startSequencePlayback()
 void SequenceModel::stopSequencePlayback()
 {
     if (d->listeningToMetronome) {
-        disconnect(playGridManager(), &PlayGridManager::metronomeBeat8thChanged, this, &SequenceModel::advanceSequence);
+        disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
         disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
         d->listeningToMetronome = false;
         playGridManager()->stopMetronome();
@@ -355,7 +355,7 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    int sequenceProgressionLength{16};
+    int sequenceProgressionLength{2};
     for (PatternModel *pattern : d->patternModels) {
         pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() + 1, sequenceProgressionLength);
     }
