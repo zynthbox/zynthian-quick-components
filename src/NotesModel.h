@@ -91,7 +91,7 @@ public:
      * @param column The column of the position to set to the given note
      * @param note The new note to be set in the specified location (this may be null, to clear the position)
      */
-    Q_INVOKABLE void setNote(int row, int column, QObject *note);
+    Q_INVOKABLE virtual void setNote(int row, int column, QObject *note);
     /**
      * \brief Get the metadata instances for an entire row (matching the positions in the row)
      * @note Not valid on child models (see parentModel())
@@ -114,7 +114,7 @@ public:
      * @param column The column of the position to set the metadata for
      * @param metadata The piece of metadata you wish to set
      */
-    Q_INVOKABLE void setMetadata(int row, int column, QVariant metadata);
+    Q_INVOKABLE virtual void setMetadata(int row, int column, QVariant metadata);
 
     /**
      * \brief Set the list of notes and metadata for the given row to be the given list

@@ -24,6 +24,11 @@
 
 #include <QDebug>
 
+// Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
+#define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+#include <juce_audio_formats/juce_audio_formats.h>
+#include <SyncTimer.h>
+
 class PatternModel::Private {
 public:
     Private() {}
@@ -37,6 +42,16 @@ public:
     bool enabled{true};
     int playingRow{0};
     int playingColumn{0};
+
+    // These two are equivalent to the data found in each note, and is stored
+    // per-position (the index is row * width + column). These must be cleared
+    // on any change of the notes (which should always be done through setNote
+    // and setMetadata to ensure this). If they are not cleared on changes, what
+    // ends up sent to SyncTimer during playback will not match what the model
+    // contains. So, remember your pattern hygiene and clean your buffers!
+    QHash<int, juce::MidiBuffer> onBuffers;
+    QHash<int, juce::MidiBuffer> offBuffers;
+    SyncTimer* syncTimer{nullptr};
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -154,6 +169,20 @@ QVariant PatternModel::subnoteMetadata(int row, int column, int subnote, const Q
         }
     }
     return result;
+}
+
+void PatternModel::setNote(int row, int column, QObject* note)
+{
+    d->onBuffers.remove((row * d->width) + column);
+    d->offBuffers.remove((row * d->width) + column);
+    NotesModel::setNote(row, column, note);
+}
+
+void PatternModel::setMetadata(int row, int column, QVariant metadata)
+{
+    d->onBuffers.remove((row * d->width) + column);
+    d->offBuffers.remove((row * d->width) + column);
+    NotesModel::setMetadata(row, column, metadata);
 }
 
 void PatternModel::clear()
@@ -419,6 +448,19 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     return onifiedNotes;
 }
 
+void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned char velocity, bool setOn) {
+    unsigned char note[3];
+    if (setOn) {
+        note[0] = 0x90 + theNote->midiChannel();
+    } else {
+        note[0] = 0x80 + theNote->midiChannel();
+    }
+    note[1] = theNote->midiNote();
+    note[2] = velocity;
+    const int onOrOff = setOn ? 1 : 0;
+    buffer.addEvent(note, 3, onOrOff);
+}
+
 void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
     static const QLatin1String velocityString{"velocity"};
@@ -492,34 +534,50 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 nextPosition = nextPosition % (d->availableBars * d->width);
                 int row = (nextPosition / d->width) % d->availableBars;
                 int column = nextPosition - (row * d->width);
-                const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
-                if (note) {
-                    const QVariantList &subnotes = note->subnotes();
-                    const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
-                    if (meta.count() == subnotes.count()) {
-                        for (int i = 0; i < subnotes.count(); ++i) {
-                            const Note *subnote = subnotes[i].value<Note*>();
-                            const QVariantHash &metaHash = meta[i].toHash();
-                            if (subnote) {
-                                if (metaHash.isEmpty()) {
-                                    playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
-                                } else {
-                                    const int velocity{metaHash.value(velocityString, 64).toInt()};
-                                    playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, velocity, noteDuration, progressionIncrement);
+
+                if (!d->onBuffers.contains(nextPosition + (d->bankOffset * d->width))) {
+                    juce::MidiBuffer onBuffer;
+                    juce::MidiBuffer offBuffer;
+                    const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
+                    if (note) {
+                        const QVariantList &subnotes = note->subnotes();
+                        const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
+                        if (meta.count() == subnotes.count()) {
+                            for (int i = 0; i < subnotes.count(); ++i) {
+                                const Note *subnote = subnotes[i].value<Note*>();
+                                const QVariantHash &metaHash = meta[i].toHash();
+                                if (subnote) {
+                                    if (metaHash.isEmpty()) {
+                                        addNoteToBuffer(onBuffer, subnote, 64, true);
+                                        addNoteToBuffer(offBuffer, subnote, 64, false);
+                                    } else {
+                                        const int velocity{metaHash.value(velocityString, 64).toInt()};
+                                        addNoteToBuffer(onBuffer, subnote, velocity, true);
+                                        addNoteToBuffer(offBuffer, subnote, velocity, false);
+                                    }
                                 }
                             }
-                        }
-                    } else if (subnotes.count() > 0) {
-                        for (const QVariant &subnoteVar : subnotes) {
-                            const Note *subnote = subnoteVar.value<Note*>();
-                            if (subnote) {
-                                playGridManager()->scheduleNote(subnote->midiNote(), subnote->midiChannel(), true, 64, noteDuration, progressionIncrement);
+                        } else if (subnotes.count() > 0) {
+                            for (const QVariant &subnoteVar : subnotes) {
+                                const Note *subnote = subnoteVar.value<Note*>();
+                                if (subnote) {
+                                    addNoteToBuffer(onBuffer, subnote, 64, true);
+                                    addNoteToBuffer(offBuffer, subnote, 64, false);
+                                }
                             }
+                        } else {
+                            addNoteToBuffer(onBuffer, note, 64, true);
+                            addNoteToBuffer(offBuffer, note, 64, false);
                         }
-                    } else {
-                        playGridManager()->scheduleNote(note->midiNote(), note->midiChannel(), true, 64, noteDuration, progressionIncrement);
                     }
+                    d->onBuffers[nextPosition + (d->bankOffset * d->width)] = onBuffer;
+                    d->offBuffers[nextPosition + (d->bankOffset * d->width)] = offBuffer;
                 }
+                if (!d->syncTimer) {
+                    d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
+                }
+                d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement);
+                d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration);
             }
         }
     }

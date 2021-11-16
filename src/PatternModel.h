@@ -171,6 +171,31 @@ public:
     Q_INVOKABLE QVariant subnoteMetadata(int row, int column, int subnote, const QString &key);
 
     /**
+     * \brief Set the indicated position in the model to the given note
+     * @note This function (and setMetadata) is vital and if you must change notes in ways that are not covered in other
+     * PatternModel functions, use this, not the ones on NotesModel, otherwise playback will not work correctly!
+     * This sets a specified location to contain the Note object passed to the function. If the location does
+     * not yet exist, rows will be appended to the model until there are that many rows, and column added to
+     * the row until the position exists. Clearing the position will not remove the position from the model.
+     * @note Not valid on child models (see parentModel())
+     * @param row The row of the position to set to the given note
+     * @param column The column of the position to set to the given note
+     * @param note The new note to be set in the specified location (this may be null, to clear the position)
+     */
+    Q_INVOKABLE void setNote(int row, int column, QObject *note) override;
+
+    /**
+     * \brief Set an abstract piece of metadata for the given position
+     * @note This function (and setNote) is vital and if you must change metadata in ways that are not covered in other
+     * PatternModel functions, use this, not the ones on NotesModel, otherwise playback will not work correctly!
+     * @note Not valid on child models (see parentModel())
+     * @param row The row of the position to set metadata for
+     * @param column The column of the position to set the metadata for
+     * @param metadata The piece of metadata you wish to set
+     */
+    Q_INVOKABLE void setMetadata(int row, int column, QVariant metadata) override;
+
+    /**
      * \brief Removes all notes and metadata from the model
      */
     Q_INVOKABLE void clear() override;
