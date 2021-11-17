@@ -179,7 +179,7 @@ void PatternRunnable::run()
                                 }
                             }
                             for (int stepColumn = 0; stepColumn < height; ++stepColumn) {
-                                img.setPixelColor((row * pattern->width() + column), stepColumn, stepColors[stepColumn]);
+                                img.setPixelColor((row * pattern->width() + column), height - stepColumn - 1, stepColors[stepColumn]);
                             }
                         }
                     }
