@@ -44,7 +44,8 @@ void QmlPlugins::registerTypes(const char *uri)
     qmlRegisterType<PlayGrid>(uri, 1, 0, "PlayGrid");
     qmlRegisterSingletonType<PlayGridManager>(uri, 1, 0, "PlayGridManager", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
         Q_UNUSED(scriptEngine)
-        PlayGridManager *playGridManager = new PlayGridManager(engine);
+        PlayGridManager *playGridManager = PlayGridManager::instance();
+        playGridManager->setEngine(engine);
         QQmlEngine::setObjectOwnership(playGridManager, QQmlEngine::CppOwnership);
         return playGridManager;
     });

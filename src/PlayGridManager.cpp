@@ -75,7 +75,7 @@ public:
         }
     }
     PlayGridManager *q;
-    QQmlEngine *engine;
+    QQmlEngine *engine{nullptr};
     QStringList playgrids;
     QVariantMap currentPlaygrids;
     QVariantMap dashboardModels;
@@ -232,11 +232,15 @@ public:
     }
 };
 
-PlayGridManager::PlayGridManager(QQmlEngine* parent)
+void PlayGridManager::setEngine(QQmlEngine* engine)
+{
+    d->engine = engine;
+}
+
+PlayGridManager::PlayGridManager(QObject* parent)
     : QObject(parent)
     , d(new Private(this))
 {
-    d->engine = parent;
     connect(this, &PlayGridManager::metronomeActiveChanged, [this](){
         if (d->syncTimer && !d->syncTimer->timerRunning() && d->midiout) {
             QList<int> channels;
@@ -483,7 +487,7 @@ QObject* PlayGridManager::getNamedInstance(const QString& name, const QString& q
     QObject *instance{nullptr};
     if (d->namedInstances.contains(name)) {
         instance = d->namedInstances[name];
-    } else {
+    } else if (d->engine) {
         QQmlComponent component(d->engine);
         component.setData(QString("import QtQuick 2.4\n%1 { objectName: \"%2\" }").arg(qmlTypeName).arg(name).toUtf8(), QUrl());
         instance = component.create();

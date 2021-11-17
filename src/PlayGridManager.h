@@ -23,6 +23,7 @@
 #define PLAYGRIDMANAGER_H
 
 #include <QObject>
+#include <QCoreApplication>
 #include <QVariantMap>
 #include <QJsonObject>
 
@@ -53,7 +54,16 @@ class PlayGridManager : public QObject
     Q_PROPERTY(int metronomeBeat64th READ metronomeBeat64th NOTIFY metronomeBeat64thChanged)
     Q_PROPERTY(int metronomeBeat128th READ metronomeBeat128th NOTIFY metronomeBeat128thChanged)
 public:
-    explicit PlayGridManager(QQmlEngine *parent = nullptr);
+    static PlayGridManager* instance() {
+        static PlayGridManager* instance{nullptr};
+        if (!instance) {
+            instance = new PlayGridManager(qApp);
+        }
+        return instance;
+    };
+    void setEngine(QQmlEngine *engine);
+
+    explicit PlayGridManager(QObject *parent = nullptr);
     ~PlayGridManager() override;
 
     QStringList playgrids() const;
