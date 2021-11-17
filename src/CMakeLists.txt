@@ -5,6 +5,7 @@ target_sources(zynthian-quick-plugin
     FilterProxy.cpp
     Note.cpp
     NotesModel.cpp
+    PatternImageProvider.cpp
     PatternModel.cpp
     PlayGrid.cpp
     PlayGridManager.cpp

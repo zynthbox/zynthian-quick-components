@@ -28,11 +28,13 @@
 #include "FilterProxy.h"
 #include "Note.h"
 #include "NotesModel.h"
+#include "PatternImageProvider.h"
 #include "PlayGrid.h"
 #include "SettingsContainer.h"
 
 void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
 {
+    engine->addImageProvider("pattern", new PatternImageProvider());
 }
 
 void QmlPlugins::registerTypes(const char *uri)
