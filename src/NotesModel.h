@@ -32,6 +32,7 @@ class NotesModel : public QAbstractListModel
     Q_PROPERTY(QVariantMap roles READ roles CONSTANT)
     Q_PROPERTY(QObject* parentModel READ parentModel CONSTANT)
     Q_PROPERTY(int parentRow READ parentRow NOTIFY parentRowChanged)
+    Q_PROPERTY(quint64 lastModified READ lastModified NOTIFY lastModifiedChanged);
 public:
     explicit NotesModel(PlayGridManager *parent = nullptr);
     explicit NotesModel(NotesModel *parent, int row);
@@ -65,6 +66,12 @@ public:
      */
     Q_INVOKABLE int parentRow() const;
     Q_SIGNAL void parentRowChanged();
+    /**
+     * \brief When the last change was made on the model (setting notes, metadata, or anything else really)
+     * @return The timestamp of the most recent change, to the nearest second
+     */
+    quint64 lastModified() const;
+    Q_SIGNAL void lastModifiedChanged();
 
     /**
      * \brief Get a list with all the notes in the specified row

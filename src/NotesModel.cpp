@@ -22,6 +22,7 @@
 #include "NotesModel.h"
 #include "Note.h"
 
+#include <QDateTime>
 #include <QDebug>
 #include <QTimer>
 #include <QJSValue>
@@ -60,6 +61,7 @@ public:
     NotesModel *q;
     NotesModel *parentModel{nullptr};
     int parentRow{-1};
+    quint64 lastModified{0};
     QList<NotesModel*> childModels;
     QList< QList<Entry> > entries;
 
@@ -109,6 +111,13 @@ NotesModel::NotesModel(PlayGridManager* parent)
     : QAbstractListModel(parent)
     , d(new Private(this))
 {
+    auto lastChangedModifier = [this](){
+        d->lastModified = QDateTime::currentSecsSinceEpoch();
+        Q_EMIT lastModifiedChanged();
+    };
+    connect(this, &QAbstractItemModel::dataChanged, this, lastChangedModifier, Qt::QueuedConnection);
+    connect(this, &QAbstractItemModel::modelReset, this, lastChangedModifier, Qt::QueuedConnection);
+    connect(this, &NotesModel::rowsChanged, this, lastChangedModifier, Qt::QueuedConnection);
 }
 
 NotesModel::NotesModel(NotesModel* parent, int row)
@@ -260,6 +269,11 @@ QObject* NotesModel::parentModel() const
 int NotesModel::parentRow() const
 {
     return d->parentRow;
+}
+
+quint64 NotesModel::lastModified() const
+{
+    return d->lastModified;
 }
 
 QVariantList NotesModel::getRow(int row) const
