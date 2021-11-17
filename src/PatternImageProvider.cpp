@@ -26,6 +26,7 @@
 #include "PlayGridManager.h"
 #include "SequenceModel.h"
 
+#include <QDebug>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QRunnable>
@@ -141,14 +142,7 @@ void PatternRunnable::abort()
 
 void PatternRunnable::run()
 {
-    QSize ourSize(128, 128);
-    if(d->requestedSize.width() > 0 && d->requestedSize.height() > 0)
-    {
-        ourSize = d->requestedSize;
-    }
-
     QImage img;
-
     QStringList splitId = d->id.split('/');
     if (splitId.count() == 3) {
         QString sequenceName{splitId[0]};
@@ -158,6 +152,7 @@ void PatternRunnable::run()
         if (sequence) {
             PatternModel *pattern = qobject_cast<PatternModel*>(sequence->get(patternIndex));
             if (pattern) {
+                qDebug() << Q_FUNC_INFO << sequence << pattern << bank;
                 int height = 1;
                 int width = pattern->width() * pattern->bankLength();
                 img = QImage(width, height, QImage::Format_ARGB32);
@@ -172,7 +167,7 @@ void PatternRunnable::run()
                         QColor dotColor;
                         if (row < pattern->availableBars()) {
                             const Note *note = qobject_cast<const Note*>(pattern->getNote(row, column));
-                            if (note->subnotes().count() > 0) {
+                            if (note && note->subnotes().count() > 0) {
                                 dotColor = white;
                             } else {
                                 dotColor = gray;
@@ -187,7 +182,7 @@ void PatternRunnable::run()
         }
     }
 
-    Q_EMIT done(img.scaled(ourSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+    Q_EMIT done(img);
 }
 
 #include "PatternImageProvider.moc" // We have us some Q_OBJECT bits in here, so we need this one in here as well

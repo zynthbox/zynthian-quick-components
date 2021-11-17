@@ -39,7 +39,7 @@ class PatternImageProvider : public QQuickAsyncImageProvider
 {
 public:
     explicit PatternImageProvider();
-    ~PatternImageProvider() override;
+    ~PatternImageProvider() override = default;
 
     /**
      * \brief Get an image.
