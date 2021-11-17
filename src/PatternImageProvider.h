@@ -23,6 +23,7 @@
 #define PATTERNIMAGEPROVIDER_H
 
 #include <QQuickAsyncImageProvider>
+#include <memory>
 
 /**
  * \brief An image provider which sends back a visual representation of a PatternModel
@@ -30,7 +31,7 @@
  * The url used to fetch an image of a pattern might look as follows:
  * image://pattern/Global/3/1
  * The above will return a representation of
- * Bank B (that is, the bank at the zero indexed position 1) 
+ * Bank B (that is, the bank at the zero indexed position 1)
  * in the pattern at index 3 (that is, the fourth pattern)
  * in the sequence named Global
  */
