@@ -143,7 +143,8 @@ void PatternRunnable::abort()
 void PatternRunnable::run()
 {
     QImage img;
-    QStringList splitId = d->id.split('/');
+    // In case there's a ? to signify e.g. a timestamp or other trickery to get our thumbnail updated, ignore that section
+    QStringList splitId = d->id.split('?').first().split('/');
     if (splitId.count() == 3) {
         QString sequenceName{splitId[0]};
         int patternIndex{splitId[1].toInt()};
