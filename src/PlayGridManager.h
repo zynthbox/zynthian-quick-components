@@ -204,13 +204,8 @@ public:
      */
     Q_INVOKABLE void scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn = true, unsigned char velocity = 64, quint64 duration = 0, quint64 delay = 0);
 
-    QObject *syncTimer() const;
+    QObject *syncTimer();
     void setSyncTimer(QObject *syncTimer);
-    // TODO When someone works out how to pass a c_void_p through python and set it as the value
-    // of a QObject* property, the following function needs to go very away.
-    // This is a reeeally ugly bit of something-something-something, but until someone can fix
-    // up the libzl passthrough in python, this works...
-    Q_INVOKABLE void setSyncTimerObj(int memoryAddress);
     Q_SIGNAL void syncTimerChanged();
 
     Q_INVOKABLE void startMetronome();

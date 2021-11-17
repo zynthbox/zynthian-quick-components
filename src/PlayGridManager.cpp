@@ -27,6 +27,7 @@
 #include "MidiListener.h"
 
 // ZynthiLoops library
+#include <libzl.h>
 #include <libzl/SyncTimer.h>
 
 #include <QQmlEngine>
@@ -795,18 +796,11 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
     }
 }
 
-void PlayGridManager::setSyncTimerObj(int memoryAddress)
+QObject* PlayGridManager::syncTimer()
 {
-    qDebug() << Q_FUNC_INFO << "Setting sync timer object by explicitly interpreting an integer as a memory address. This isn't awesome, but it'll have to do for now. See todo in PlayGridManage.h";
-    QObject* thing = reinterpret_cast<QObject*>(memoryAddress);
-    if (!thing || qobject_cast<SyncTimer*>(thing) == nullptr) {
-        qWarning() << Q_FUNC_INFO << "The memory address does not seem to contain anything useful to us - maybe the libzl installation is corrupted?";
+    if (!d->syncTimer) {
+        setSyncTimer(SyncTimer_instance());
     }
-    setSyncTimer(thing);
-}
-
-QObject* PlayGridManager::syncTimer() const
-{
     return d->syncTimer;
 }
 
