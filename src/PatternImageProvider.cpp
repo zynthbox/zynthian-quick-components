@@ -152,30 +152,35 @@ void PatternRunnable::run()
         if (sequence) {
             PatternModel *pattern = qobject_cast<PatternModel*>(sequence->get(patternIndex));
             if (pattern) {
-                qDebug() << Q_FUNC_INFO << sequence << pattern << bank;
-                int height = 1;
+                int height = 12;
                 int width = pattern->width() * pattern->bankLength();
-                img = QImage(width, height, QImage::Format_ARGB32);
-                // Black dot for "bank is not within availableBars
-                static const QColor white{"white"};
-                static const QColor gray{"gray"};
-                static const QColor black{"black"};
+                img = QImage(width, height, QImage::Format_RGB32);
                 // White dot for "got notes to play"
+                static const QColor white{"white"};
                 // Dark gray dot for "no note, but pattern is enabled"
+                static const QColor gray{"gray"};
+                // Black dot for "bank is not within availableBars
+                static const QColor black{"black"};
+                img.fill(black);
                 for (int row = bank * pattern->bankLength(); row < (bank + 1) * pattern->bankLength(); ++row) {
                     for (int column = 0; column < pattern->width(); ++column) {
-                        QColor dotColor;
                         if (row < pattern->availableBars()) {
+                            QList<QColor> stepColors{gray, gray, gray, gray, gray, gray, gray, gray, gray, gray, gray, gray};
                             const Note *note = qobject_cast<const Note*>(pattern->getNote(row, column));
-                            if (note && note->subnotes().count() > 0) {
-                                dotColor = white;
-                            } else {
-                                dotColor = gray;
+                            if (note) {
+                                const QVariantList &subnotes = note->subnotes();
+                                for (const QVariant &subnoteVar : subnotes) {
+                                    Note *subnote = subnoteVar.value<Note*>();
+                                    // This really shouldn't happen, but let's make sure anyway...
+                                    if (subnote->octave() < 12) {
+                                        stepColors[subnote->octave()] = white;
+                                    }
+                                }
                             }
-                        } else {
-                            dotColor = black;
+                            for (int stepColumn = 0; stepColumn < height; ++stepColumn) {
+                                img.setPixelColor((row * pattern->width() + column), stepColumn, stepColors[stepColumn]);
+                            }
                         }
-                        img.setPixelColor(0, (row * pattern->width() + column), dotColor);
                     }
                 }
             }
