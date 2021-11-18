@@ -23,6 +23,7 @@
 #include "Note.h"
 #include "PatternModel.h"
 
+#include <libzl.h>
 #include <SyncTimer.h>
 
 #include <QFile>
@@ -45,7 +46,7 @@ public:
     int version{0};
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
-    bool listeningToMetronome{false};
+    bool isPlaying{false};
 
     QString getDataLocation()
     {
@@ -70,9 +71,9 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     // It might seem slightly dangerous, but this is supposed to be set before anything else happens,
     // so it should be entirely safe to do it here. We will also do it in the startSequencePlayback
     // call, however, just for belts and braces and whatnot.
-    d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
-    connect(d->playGridManager, &PlayGridManager::metronomeActiveChanged, this, [this](){
-        if (!d->playGridManager->metronomeActive()) {
+    d->syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
+    connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
+        if (!d->syncTimer->timerRunning()) {
             stopSequencePlayback();
         }
     }, Qt::DirectConnection);
@@ -304,19 +305,22 @@ void SequenceModel::setPositionOn(int row, int column, bool stopPrevious) const
     }
 }
 
+bool SequenceModel::isPlaying() const
+{
+    return d->isPlaying;
+}
+
 void SequenceModel::startSequencePlayback()
 {
-    if (!d->listeningToMetronome) {
-        d->listeningToMetronome = true;
+    if (!d->isPlaying) {
+        d->isPlaying = true;
+        Q_EMIT isPlayingChanged();
         // These two must be direct connections, or things will not be done in the correct
         // order, and all the notes will end up scheduled at the wrong time, and the
         // pattern position will be set sporadically, which leads to everything
         // all kinds of looking laggy and weird. So, direct connection.
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
-        // Let's just be safe, and make sure we've actually got the timer to hand. It should
-        // be there by now, but just to be on the safe side.
-        d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
         // pre-fill the first beat with notes - the first beat will also call the function,
         // but will do so for +1, not current cumulativeBeat, so we need to prefill things a bit.
         for (PatternModel *pattern : d->patternModels) {
@@ -328,10 +332,11 @@ void SequenceModel::startSequencePlayback()
 
 void SequenceModel::stopSequencePlayback()
 {
-    if (d->listeningToMetronome) {
+    if (d->isPlaying) {
         disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
         disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
-        d->listeningToMetronome = false;
+        d->isPlaying = false;
+        Q_EMIT isPlayingChanged();
         playGridManager()->stopMetronome();
     }
     for (QObject *noteObject : d->queuedForOffNotes) {

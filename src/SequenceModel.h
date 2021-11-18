@@ -31,6 +31,7 @@ class SequenceModel : public QAbstractListModel
     Q_OBJECT
     Q_PROPERTY(int activePattern READ activePattern WRITE setActivePattern NOTIFY activePatternChanged)
     Q_PROPERTY(QObject* activePatternObject READ activePatternObject NOTIFY activePatternChanged)
+    Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -111,6 +112,14 @@ public:
      * @param stopPrevious If true, the function will stop any previous notes set on on the same sequence (default is to do so, pass false to disable this automagic)
      */
     Q_INVOKABLE void setPositionOn(int row, int column, bool stopPrevious = true) const;
+
+    /**
+     * \brief Whether or not the sequence is playing
+     * @see startSequencePlayback()
+     * @see stopSequencePlayback()
+     */
+    bool isPlaying() const;
+    Q_SIGNAL void isPlayingChanged();
 
     /**
      * \brief Starts playback of the sequence using the global timer
