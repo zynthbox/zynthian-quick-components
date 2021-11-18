@@ -42,6 +42,8 @@ public:
         NameRole,
         LayerRole,
         BankRole,
+        PlaybackPositionRole,
+        BankPlaybackPositionRole
     };
 
     QHash<int, QByteArray> roleNames() const override;

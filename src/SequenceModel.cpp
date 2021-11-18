@@ -92,6 +92,8 @@ QHash<int, QByteArray> SequenceModel::roleNames() const
         {NameRole, "name"},
         {LayerRole, "layer"},
         {BankRole, "bank"},
+        {PlaybackPositionRole, "playbackPosition"},
+        {BankPlaybackPositionRole, "bankPlaybackPosition"},
     };
     return roles;
 }
@@ -115,6 +117,13 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
             break;
         case BankRole:
             result.setValue(model->bank());
+            break;
+        case PlaybackPositionRole:
+            result.setValue(model->playbackPosition());
+            break;
+        case BankPlaybackPositionRole:
+            result.setValue(model->bankPlaybackPosition());
+            break;
         default:
             break;
         }
@@ -161,6 +170,7 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     connect(pattern, &PatternModel::midiChannelChanged, this, updatePattern);
     connect(pattern, &PatternModel::objectNameChanged, this, updatePattern);
     connect(pattern, &PatternModel::bankOffsetChanged, this, updatePattern);
+    connect(pattern, &PatternModel::playingColumnChanged, this, updatePattern);
     d->patternModels.insert(insertionRow, pattern);
     setActivePattern(d->activePattern);
     endInsertRows();
