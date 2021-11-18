@@ -67,10 +67,6 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     , d(new Private(this))
 {
     d->playGridManager = parent;
-    // Fetch the sync timer out, just for convenience (and speed of access during playback)
-    // It might seem slightly dangerous, but this is supposed to be set before anything else happens,
-    // so it should be entirely safe to do it here. We will also do it in the startSequencePlayback
-    // call, however, just for belts and braces and whatnot.
     d->syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
     connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
         if (!d->syncTimer->timerRunning()) {
