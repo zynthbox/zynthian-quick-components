@@ -34,6 +34,28 @@ class PlayGridManager : public QObject
     Q_OBJECT
     Q_PROPERTY(QStringList playgrids READ playgrids NOTIFY playgridsChanged)
     Q_PROPERTY(QVariantMap currentPlaygrids READ currentPlaygrids NOTIFY currentPlaygridsChanged)
+    /**
+     * \brief Get the index of the playgrid currently selected as the user's preferred sequence editor
+     *
+     * If the playgrid set as the desired playgrid has been uninstalled or is otherwise unavailable,
+     * the index of the default one will be returned instead.
+     * You will commonly use this in combination with setCurrentPlaygrid() to display a pattern in
+     * the editor. This will commonly be done as follows:
+     *
+     * \code{.js}
+        zynthian.current_modal_screen_id = "playgrid";
+        ZynQuick.PlayGridManager.setCurrentPlaygrid("playgrid", ZynQuick.PlayGridManager.sequenceEditorIndex);
+        var sequence = ZynQuick.PlayGridManager.getSequenceModel("Global");
+        sequence.activePattern = indexOfYourSelectedPattern;
+     * \endcode
+     *
+     * In particular, indexOfYourSelectedPattern will need to be one of the patterns in the model (it
+     * will be clamped, so setting it out of bounds is safe, but you likely don't want to guess).
+     *
+     * @note To set this, use the setPreferredSequencer() function (which takes an ID, not an index)
+     */
+    Q_PROPERTY(int sequenceEditorIndex READ sequenceEditorIndex NOTIFY sequenceEditorIndexChanged)
+
     Q_PROPERTY(QVariantMap dashboardModels READ dashboardModels NOTIFY dashboardModelsChanged)
     /**
      * \brief A way to set the pitch shift value (between -8192 and 8191, 0 being no shift)
@@ -87,6 +109,10 @@ public:
     int modulation() const;
     void setModulation(int modulation);
     Q_SIGNAL void modulationChanged();
+
+    int sequenceEditorIndex() const;
+    Q_SIGNAL void sequenceEditorIndexChanged();
+    Q_INVOKABLE void setPreferredSequencer(const QString &playgridID);
 
     /**
      * \brief Returns a sequence model suitable for holding a series of PatternModel instances

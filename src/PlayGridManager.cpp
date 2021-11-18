@@ -78,6 +78,7 @@ public:
     QQmlEngine *engine{nullptr};
     QStringList playgrids;
     QVariantMap currentPlaygrids;
+    QString preferredSequencer;
     QVariantMap dashboardModels;
     int pitch{0};
     int modulation{0};
@@ -360,6 +361,26 @@ void PlayGridManager::setModulation(int modulation)
         d->modulation = adjusted;
         Q_EMIT modulationChanged();
     }
+}
+
+int PlayGridManager::sequenceEditorIndex() const
+{
+    int sequencerIndex{d->playgrids.contains(d->preferredSequencer)};
+    if (sequencerIndex < 0) {
+        for (int i = 0; i < d->playgrids.count(); ++i) {
+            if (d->playgrids[i].contains("drumatique")) {
+                sequencerIndex = i;
+                break;
+            }
+        }
+    }
+    return sequencerIndex;
+}
+
+void PlayGridManager::setPreferredSequencer(const QString& playgridID)
+{
+    d->preferredSequencer = playgridID;
+    Q_EMIT sequenceEditorIndexChanged();
 }
 
 QObject* PlayGridManager::getSequenceModel(const QString& name)
