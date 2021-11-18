@@ -39,6 +39,10 @@ class PatternModel : public NotesModel
 {
     Q_OBJECT
     /**
+     * \brief The SequenceModel this PatternModel instance belongs to
+     */
+    Q_PROPERTY(QObject* sequence READ sequence CONSTANT)
+    /**
      * \brief The length of each row in the model (similar to column count, but for all rows)
      * @note Setting this to a value smaller than the current state will remove any notes set in the overflow columns
      * @default 16
@@ -205,6 +209,8 @@ public:
      * @param row The row that you wish to clear of all data
      */
     Q_INVOKABLE void clearRow(int row);
+
+    QObject* sequence() const;
 
     int width() const;
     void setWidth(int width);

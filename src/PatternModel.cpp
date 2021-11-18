@@ -52,12 +52,14 @@ public:
     QHash<int, juce::MidiBuffer> onBuffers;
     QHash<int, juce::MidiBuffer> offBuffers;
     SyncTimer* syncTimer{nullptr};
+    SequenceModel *sequence;
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
     : NotesModel(parent->playGridManager())
     , d(new Private)
 {
+    d->sequence = parent;
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
 }
@@ -221,6 +223,11 @@ void PatternModel::setWidth(int width)
             setRowData(row, rowNotes, rowMetadata);
         }
     }
+}
+
+QObject* PatternModel::sequence() const
+{
+    return d->sequence;
 }
 
 int PatternModel::width() const
