@@ -125,6 +125,25 @@ class PatternModel : public NotesModel
      * @default 0
      */
     Q_PROPERTY(int playingColumn READ playingColumn NOTIFY playingColumnChanged)
+    /**
+     * \brief The global playback position within the pattern
+     * This property will be -1 when the Pattern is not being played back
+     * If played back, it will be ((playingRow * width) + playingColumn)
+     * When using this for displaying a position in the UI, remember to also check the bank
+     * to see whether what you are displaying should display the position. You can subtract
+     * (bankOffset * width) to find a local position inside your current bank, or you can use
+     * bankPlaybackPosition to get this value (though you should ensure to also check whether
+     * the bank you are displaying is the one which is currently selected)
+     */
+    Q_PROPERTY(int playbackPosition READ playbackPosition NOTIFY playingColumnChanged)
+    /**
+     * \brief The bank-local playback position (see also playbackPosition)
+     * This property will contain the value of playbackPosition, but with the subtraction of
+     * the bank offset already done for you.
+     * @note When using this for displaying positions, make sure to check you are displaying
+     * the currently selected bank.
+     */
+    Q_PROPERTY(int bankPlaybackPosition READ bankPlaybackPosition NOTIFY playingColumnChanged)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -255,6 +274,8 @@ public:
     Q_SIGNAL void playingRowChanged();
     int playingColumn() const;
     Q_SIGNAL void playingColumnChanged();
+    int playbackPosition() const;
+    int bankPlaybackPosition() const;
 
     Q_INVOKABLE void setPositionOff(int row, int column) const;
     Q_INVOKABLE QObjectList setPositionOn(int row, int column) const;

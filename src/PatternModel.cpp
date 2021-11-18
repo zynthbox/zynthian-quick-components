@@ -401,6 +401,20 @@ int PatternModel::playingColumn() const
     return d->playingColumn;
 }
 
+int PatternModel::playbackPosition() const
+{
+    return d->sequence->isPlaying() && d->enabled
+        ? (d->playingRow * d->width) + d->playingColumn
+        : -1;
+}
+
+int PatternModel::bankPlaybackPosition() const
+{
+    return d->sequence->isPlaying() && d->enabled
+        ? (d->playingRow * d->width) + d->playingColumn - (d->bankOffset * d->width)
+        : -1;
+}
+
 void PatternModel::setPositionOff(int row, int column) const
 {
     if (row > -1 && row < height() && column > -1 && column < width()) {
