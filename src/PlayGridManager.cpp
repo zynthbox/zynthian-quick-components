@@ -242,6 +242,7 @@ PlayGridManager::PlayGridManager(QObject* parent)
     : QObject(parent)
     , d(new Private(this))
 {
+    setSyncTimer(SyncTimer_instance());
     connect(this, &PlayGridManager::metronomeActiveChanged, [this](){
         if (d->syncTimer && !d->syncTimer->timerRunning() && d->midiout) {
             QList<int> channels;
@@ -823,9 +824,6 @@ void PlayGridManager::setSyncTimer(QObject* syncTimer)
 
 QObject* PlayGridManager::syncTimer()
 {
-    if (!d->syncTimer) {
-        setSyncTimer(SyncTimer_instance());
-    }
     return d->syncTimer;
 }
 
