@@ -653,7 +653,7 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
         nextPosition = nextPosition % (d->availableBars * d->width);
         int row = (nextPosition / d->width) % d->availableBars;
         int column = nextPosition - (row * d->width);
-        d->playingRow = row;
+        d->playingRow = row + d->bankOffset;
         d->playingColumn = column;
         QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
         QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
