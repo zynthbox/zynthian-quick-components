@@ -216,11 +216,11 @@ QObject* SequenceModel::activePatternObject() const
     return nullptr;
 }
 
-void SequenceModel::load()
+void SequenceModel::load(const QString &fileName)
 {
     beginResetModel();
     QString data;
-    QFile file(d->getDataLocation() + "/" + QString::number(d->version));
+    QFile file(fileName.isEmpty() ? d->getDataLocation() + "/" + QString::number(d->version) : fileName);
     if (file.exists()) {
         if (file.open(QIODevice::ReadOnly)) {
             data = QString::fromUtf8(file.readAll());
@@ -248,7 +248,7 @@ void SequenceModel::load()
     endResetModel();
 }
 
-bool SequenceModel::save()
+bool SequenceModel::save(const QString &fileName)
 {
     bool success = false;
 
@@ -264,9 +264,9 @@ bool SequenceModel::save()
     jsonDoc.setObject(sequenceObject);
     QString data = jsonDoc.toJson();
 
-    QDir confLocation(d->getDataLocation());
+    QDir confLocation(fileName.isEmpty() ? d->getDataLocation() : fileName.left(fileName.lastIndexOf("/")));
     if (confLocation.exists() || confLocation.mkpath(confLocation.path())) {
-        QFile dataFile(confLocation.path() + "/" + QString::number(d->version));
+        QFile dataFile(fileName.isEmpty() ? confLocation.path() + "/" + QString::number(d->version) : fileName);
         if (dataFile.open(QIODevice::WriteOnly) && dataFile.write(data.toUtf8())) {
             success = true;
         }

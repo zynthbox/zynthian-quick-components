@@ -83,13 +83,15 @@ public:
 
     /**
      * \brief Load the data for this Sequence (and all Patterns contained within it) from disk
+     * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one
      */
-    Q_INVOKABLE void load();
+    Q_INVOKABLE void load(const QString &fileName = QString());
     /**
      * \brief Save the data for this Sequence (and all Patterns contained within it) to disk
+     * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one (this WILL be overwritten if it exists)
      * @return True if successful, false if not
      */
-    Q_INVOKABLE bool save();
+    Q_INVOKABLE bool save(const QString &fileName = QString());
     /**
      * \brief Clear all patterns of all notes
      */
