@@ -568,6 +568,7 @@ QString PlayGridManager::modelToJson(QObject* model) const
         modelObject["activeBar"] = patternModel->activeBar();
         modelObject["bankOffset"] = patternModel->bankOffset();
         modelObject["bankLength"] = patternModel->bankLength();
+        modelObject["enabled"] = patternModel->enabled();
         QJsonDocument notesDoc;
         notesDoc.setArray(d->generateModelNotesSection(patternModel));
         modelObject["notes"] = QString::fromUtf8(notesDoc.toJson());
@@ -612,6 +613,12 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             pattern->setActiveBar(patternObject.value("activeBar").toInt());
             pattern->setBankOffset(patternObject.value("bankOffset").toInt());
             pattern->setBankLength(patternObject.value("bankLength").toInt());
+            // Because we've not always persisted this... probably wants to go away at some point in the near future
+            if (patternObject.contains("enabled")) {
+                pattern->setEnabled(true);
+            } else {
+                pattern->setEnabled(patternObject.value("enabled").toBool());
+            }
         }
     }
 }
