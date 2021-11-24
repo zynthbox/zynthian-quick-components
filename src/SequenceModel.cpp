@@ -330,7 +330,7 @@ void SequenceModel::startSequencePlayback()
         // pre-fill the first beat with notes - the first beat will also call the function,
         // but will do so for +1, not current cumulativeBeat, so we need to prefill things a bit.
         for (PatternModel *pattern : d->patternModels) {
-            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), 1);
+            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() - 1, 1);
         }
     }
     playGridManager()->startMetronome();
@@ -366,9 +366,9 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    int sequenceProgressionLength{2};
+    int sequenceProgressionLength{1};
     for (PatternModel *pattern : d->patternModels) {
-        pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() + 1, sequenceProgressionLength);
+        pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
     }
 }
 

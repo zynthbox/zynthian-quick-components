@@ -486,10 +486,13 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 {
     static const QLatin1String velocityString{"velocity"};
     if (d->enabled) {
-        // check whether the sequencePosition + 1 matches our note length
         quint64 noteDuration{0};
         bool relevantToUs{false};
-        for (int progressionIncrement = 0; progressionIncrement < progressionLength; ++progressionIncrement) {
+        // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
+        // beat, not the current one. That is to say, prepare the next frame, not the current one (since those notes
+        // have already been played).
+        for (int progressionIncrement = 1; progressionIncrement <= progressionLength; ++progressionIncrement) {
+            // check whether the sequencePosition + progressionIncrement matches our note length
             quint64 nextPosition = sequencePosition + progressionIncrement;
             // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
             // but GCC already does that for you at -O2, so don't bother :)
