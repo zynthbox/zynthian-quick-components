@@ -615,9 +615,9 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             pattern->setBankLength(patternObject.value("bankLength").toInt());
             // Because we've not always persisted this... probably wants to go away at some point in the near future
             if (patternObject.contains("enabled")) {
-                pattern->setEnabled(true);
-            } else {
                 pattern->setEnabled(patternObject.value("enabled").toBool());
+            } else {
+                pattern->setEnabled(true);
             }
         }
     }
