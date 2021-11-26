@@ -485,7 +485,8 @@ void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned cha
 void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
     static const QLatin1String velocityString{"velocity"};
-    if (d->enabled) {
+    // Don't play notes on channel 0, because that's the "any input thanks" channel, and we don't want patterns to play to that
+    if (d->enabled && d->midiChannel > 0) {
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -609,57 +610,60 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
-    bool relevantToUs{false};
-    quint64 nextPosition = sequencePosition;
-    // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
-    // but GCC already does that for you at -O2, so don't bother :)
-    switch (d->noteLength) {
-    case 1:
-        if (nextPosition % 32 == 0) {
+    // Don't play notes on channel 0, because that's the "any input thanks" channel, and we don't want patterns to play to that
+    if ((d->enabled && d->midiChannel > 0) || sequencePosition == 0) {
+        bool relevantToUs{false};
+        quint64 nextPosition = sequencePosition;
+        // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
+        // but GCC already does that for you at -O2, so don't bother :)
+        switch (d->noteLength) {
+        case 1:
+            if (nextPosition % 32 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 32;
+            }
+            break;
+        case 2:
+            if (nextPosition % 16 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 16;
+            }
+            break;
+        case 3:
+            if (nextPosition % 8 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 8;
+            }
+            break;
+        case 4:
+            if (nextPosition % 4 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 4;
+            }
+            break;
+        case 5:
+            if (nextPosition % 2 == 0) {
+                relevantToUs = true;
+                nextPosition = nextPosition / 2;
+            }
+            break;
+        case 6:
             relevantToUs = true;
-            nextPosition = nextPosition / 32;
+            break;
+        default:
+            qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
+            break;
         }
-        break;
-    case 2:
-        if (nextPosition % 16 == 0) {
-            relevantToUs = true;
-            nextPosition = nextPosition / 16;
-        }
-        break;
-    case 3:
-        if (nextPosition % 8 == 0) {
-            relevantToUs = true;
-            nextPosition = nextPosition / 8;
-        }
-        break;
-    case 4:
-        if (nextPosition % 4 == 0) {
-            relevantToUs = true;
-            nextPosition = nextPosition / 4;
-        }
-        break;
-    case 5:
-        if (nextPosition % 2 == 0) {
-            relevantToUs = true;
-            nextPosition = nextPosition / 2;
-        }
-        break;
-    case 6:
-        relevantToUs = true;
-        break;
-    default:
-        qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
-        break;
-    }
 
-    if (relevantToUs) {
-        nextPosition = nextPosition % (d->availableBars * d->width);
-        int row = (nextPosition / d->width) % d->availableBars;
-        int column = nextPosition - (row * d->width);
-        d->playingRow = row + d->bankOffset;
-        d->playingColumn = column;
-        QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
-        QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
+        if (relevantToUs) {
+            nextPosition = nextPosition % (d->availableBars * d->width);
+            int row = (nextPosition / d->width) % d->availableBars;
+            int column = nextPosition - (row * d->width);
+            d->playingRow = row + d->bankOffset;
+            d->playingColumn = column;
+            QMetaObject::invokeMethod(this, "playingRowChanged", Qt::QueuedConnection);
+            QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
+        }
     }
 }
 
