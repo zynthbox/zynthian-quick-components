@@ -874,18 +874,7 @@ bool PlayGridManager::metronomeActive() const
 
 void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn)
 {
-    if (!d->midiout) {
-        d->ensureMidiOutput();
-    }
-    if (d->midiout) {
-        if (setOn) {
-            d->midiMessage[0] = 0x90 + channel;
-        } else {
-            d->midiMessage[0] = 0x80 + channel;
-        }
-        d->midiMessage[1] = midiNote;
-        d->midiMessage[2] = velocity;
-        // std::cout << "Sending midi note message " << +d->midiMessage[0] << " " << +d->midiMessage[1] << " " << +d->midiMessage[2] << endl;
-        d->midiout->sendMessage(&d->midiMessage);
+    if (d->syncTimer) {
+        d->syncTimer->sendNoteImmediately(midiNote, channel, setOn, velocity);
     }
 }

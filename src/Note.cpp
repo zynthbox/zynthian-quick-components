@@ -21,6 +21,12 @@
 
 #include "Note.h"
 
+// Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
+#define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+#include <juce_audio_formats/juce_audio_formats.h>
+#include <libzl.h>
+#include <SyncTimer.h>
+
 class Note::Private {
 public:
     Private() { }
@@ -31,6 +37,8 @@ public:
     bool isPlaying{false};
     QVariantList subnotes;
     int scaleIndex{0};
+
+    SyncTimer *syncTimer{nullptr};
 };
 
 Note::Note(PlayGridManager* parent)
@@ -38,6 +46,7 @@ Note::Note(PlayGridManager* parent)
     , d(new Private)
 {
     d->playGridManager = parent;
+    d->syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
 }
 
 Note::~Note()
@@ -146,39 +155,55 @@ int Note::scaleIndex() const
 void Note::setSubnotesOn(const QVariantList &velocities) const
 {
     int i = -1;
+    juce::MidiBuffer onBuffer;
     for (const QVariant &note : d->subnotes) {
         if (++i >= d->subnotes.count()) {
             break;
         }
         const Note* subnote = note.value<Note*>();
         if (subnote) {
-            subnote->setOn(velocities[i].toInt());
+            onBuffer.addEvent(juce::MidiMessage::noteOn(subnote->midiChannel() + 1, subnote->midiNote(), juce::uint8(velocities[i].toUInt())), 0);
         }
+    }
+    if (d->syncTimer && onBuffer.getNumEvents() > 0) {
+        d->syncTimer->sendMidiBufferImmediately(onBuffer);
     }
 }
 
 void Note::setOn(int velocity) const
 {
     if (d->midiNote < 128) {
-        d->playGridManager->sendAMidiNoteMessage(d->midiNote, velocity, d->midiChannel, true);
+        if (d->syncTimer) {
+            d->syncTimer->sendNoteImmediately(d->midiNote, d->midiChannel, true, velocity);
+        }
     }
+    juce::MidiBuffer onBuffer;
     for (const QVariant &note : d->subnotes) {
         const Note* subnote = note.value<Note*>();
         if (subnote) {
-            subnote->setOn(velocity);
+            onBuffer.addEvent(juce::MidiMessage::noteOn(subnote->midiChannel() + 1, subnote->midiNote(), juce::uint8(velocity)), 0);
         }
+    }
+    if (d->syncTimer && onBuffer.getNumEvents() > 0) {
+        d->syncTimer->sendMidiBufferImmediately(onBuffer);
     }
 }
 
 void Note::setOff() const
 {
     if (d->midiNote < 128) {
-        d->playGridManager->sendAMidiNoteMessage(d->midiNote, 0, d->midiChannel, false);
+        if (d->syncTimer) {
+            d->syncTimer->sendNoteImmediately(d->midiNote, d->midiChannel, false, 0);
+        }
     }
+    juce::MidiBuffer offBuffer;
     for (const QVariant &note : d->subnotes) {
         const Note* subnote = note.value<Note*>();
         if (subnote) {
-            subnote->setOff();
+            offBuffer.addEvent(juce::MidiMessage::noteOff(subnote->midiChannel() + 1, subnote->midiNote()), 0);
         }
+    }
+    if (d->syncTimer && offBuffer.getNumEvents() > 0) {
+        d->syncTimer->sendMidiBufferImmediately(offBuffer);
     }
 }
