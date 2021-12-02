@@ -60,7 +60,8 @@ class PatternModel : public NotesModel
      * This is potentially an expensive operation, as it will replace all notes in the model with ones matching the newly set channel
      * @note When adding and removing notes to the model, they will be checked (and changed to fit)
      * The range for this property is 0-15 (and any attempt to set it outside of that value will be clamped)
-     * @default 0
+     * @note Setting the midi channel to 15 will cause no notes to be played (as this is considered a control channel and not for notes)
+     * @default 15
      */
     Q_PROPERTY(int midiChannel READ midiChannel WRITE setMidiChannel NOTIFY midiChannelChanged)
     /**

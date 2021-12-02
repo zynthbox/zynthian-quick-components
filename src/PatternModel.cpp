@@ -33,7 +33,7 @@ class PatternModel::Private {
 public:
     Private() {}
     int width{16};
-    int midiChannel{0};
+    int midiChannel{15};
     int noteLength{3};
     int availableBars{1};
     int activeBar{0};
@@ -485,8 +485,8 @@ void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned cha
 void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
     static const QLatin1String velocityString{"velocity"};
-    // Don't play notes on channel 0, because that's the "any input thanks" channel, and we don't want patterns to play to that
-    if (d->enabled && d->midiChannel > 0) {
+    // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
+    if (d->enabled && d->midiChannel != 15) {
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -610,8 +610,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
-    // Don't play notes on channel 0, because that's the "any input thanks" channel, and we don't want patterns to play to that
-    if ((d->enabled && d->midiChannel > 0) || sequencePosition == 0) {
+    // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
+    if ((d->enabled && d->midiChannel != 15) || sequencePosition == 0) {
         bool relevantToUs{false};
         quint64 nextPosition = sequencePosition;
         // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
