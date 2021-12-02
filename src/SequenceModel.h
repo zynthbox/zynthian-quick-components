@@ -32,6 +32,10 @@ class SequenceModel : public QAbstractListModel
     Q_PROPERTY(int activePattern READ activePattern WRITE setActivePattern NOTIFY activePatternChanged)
     Q_PROPERTY(QObject* activePatternObject READ activePatternObject NOTIFY activePatternChanged)
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
+    /**
+     * \brief Sets a reference to the song this Sequence is associated with
+     */
+    Q_PROPERTY(QObject* song READ song WRITE setSong NOTIFY songChanged);
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -96,6 +100,10 @@ public:
      * \brief Clear all patterns of all notes
      */
     Q_INVOKABLE void clear();
+
+    void setSong(QObject *song);
+    QObject *song() const;
+    Q_SIGNAL void songChanged();
 
     /**
      * \brief Set the named property on the pattern with the specified index the given value

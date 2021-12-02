@@ -26,10 +26,11 @@
 #include <libzl.h>
 #include <SyncTimer.h>
 
+#include <QDebug>
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QDir>
 
 #define PATTERN_COUNT 5
 
@@ -41,6 +42,7 @@ public:
     SequenceModel *q;
     PlayGridManager *playGridManager{nullptr};
     SyncTimer *syncTimer{nullptr};
+    QObject *song{nullptr};
     QList<PatternModel*> patternModels;
     int activePattern{0};
     int version{0};
@@ -60,6 +62,28 @@ public:
         // test and make sure that this env var contains something, or spit out .local/zynthian or something
         return QString("%1/session/sequences/%2").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR"))).arg(safe);
     }
+
+    void handleSongChanged() {
+        if (song) {
+            QString sketchFolderName = song->property("sketchFolderName").toString();
+            qDebug() << sketchFolderName;
+//             q->load(sketchFolderName);
+        }
+//         // TODO Get the sketch folder and save to there
+//         // TODO Reset the version
+//         version++;
+//         for (PatternModel *pattern : patternModels) {
+//             pattern->clear();
+//             pattern->setMidiChannel(0);
+//             pattern->setNoteLength(3);
+//             pattern->setAvailableBars(1);
+//             pattern->setActiveBar(0);
+//             pattern->setBankOffset(0);
+//             pattern->setBankLength(8);
+//             pattern->setEnabled(true);
+//         }
+//         q->setActivePattern(0);
+    }
 };
 
 SequenceModel::SequenceModel(PlayGridManager* parent)
@@ -73,6 +97,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
             stopSequencePlayback();
         }
     }, Qt::DirectConnection);
+    connect(this, &SequenceModel::songChanged, [this](){ d->handleSongChanged(); });
 }
 
 SequenceModel::~SequenceModel()
@@ -278,6 +303,19 @@ void SequenceModel::clear()
 {
     for (PatternModel *model : d->patternModels) {
         model->clear();
+    }
+}
+
+QObject* SequenceModel::song() const
+{
+    return d->song;
+}
+
+void SequenceModel::setSong(QObject* song)
+{
+    if (d->song != song) {
+        d->song = song;
+        Q_EMIT songChanged();
     }
 }
 
