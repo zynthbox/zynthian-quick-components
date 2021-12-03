@@ -166,10 +166,10 @@ void PatternRunnable::run()
                 img.fill(black);
                 QPainter painter(&img);
                 painter.fillRect(0, 0, pattern->availableBars() * pattern->width(), height, gray);
-                for (int row = bank * pattern->bankLength(); row < (bank + 1) * pattern->bankLength(); ++row) {
+                for (int row = 0; row < pattern->bankLength(); ++row) {
                     for (int column = 0; column < pattern->width(); ++column) {
                         if (row < pattern->availableBars()) {
-                            const Note *note = qobject_cast<const Note*>(pattern->getNote(row, column));
+                            const Note *note = qobject_cast<const Note*>(pattern->getNote(row + bank * pattern->bankLength(), column));
                             if (note) {
                                 const QVariantList &subnotes = note->subnotes();
                                 for (const QVariant &subnoteVar : subnotes) {
