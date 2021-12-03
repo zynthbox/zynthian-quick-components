@@ -464,15 +464,17 @@ QObject* PlayGridManager::getCompoundNote(const QVariantList& notes)
     Note *note{nullptr};
     // Make the compound note's fake note value...
     int fake_midi_note = 128;
+    int index{1};
     for (QObject *subnote : actualNotes) {
         Note *actualSubnote = qobject_cast<Note*>(subnote);
         if (actualSubnote) {
-            fake_midi_note = fake_midi_note + (127 * actualSubnote->midiNote() + (actualSubnote->midiChannel() + 1));
+            fake_midi_note = fake_midi_note + (index * (127 * actualSubnote->midiNote() + (actualSubnote->midiChannel() + 1)));
         } else {
             // BAD CODER! THIS IS NOT A NOTE!
             fake_midi_note = -1;
             break;
         }
+        ++index;
     }
     if (fake_midi_note > 127) {
         for (Note *aNote : d->notes) {
