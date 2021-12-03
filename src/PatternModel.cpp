@@ -551,6 +551,10 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
                 break;
             }
+            // A quick hack to try and make things stay a little bit more in time...
+            if (noteDuration > 1) {
+                --noteDuration;
+            }
 
             if (relevantToUs) {
                 // Get the next row/column combination, and schedule the previous one off, and the next one on
