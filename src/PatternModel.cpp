@@ -555,6 +555,9 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
             if (noteDuration > 1) {
                 --noteDuration;
             }
+            if (noteDuration > 1) {
+                --noteDuration;
+            }
 
             if (relevantToUs) {
                 // Get the next row/column combination, and schedule the previous one off, and the next one on
