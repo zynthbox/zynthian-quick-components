@@ -581,13 +581,6 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
                 break;
             }
-            // A quick hack to try and make things stay a little bit more in time...
-            if (noteDuration > 1) {
-                --noteDuration;
-            }
-            if (noteDuration > 1) {
-                --noteDuration;
-            }
 
             if (relevantToUs) {
                 // Get the next row/column combination, and schedule the previous one off, and the next one on
@@ -638,8 +631,12 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 if (!d->syncTimer) {
                     d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
                 }
-                d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement);
-                d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration);
+                // If sequencePosition is -1, that means we're on the prefilling step and need to
+                // adjust the delay so we're scheduling the notes onto the right position, otherwise
+                // we're just posting messages for the next step
+                const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
+                d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
+                d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
             }
         }
     }
