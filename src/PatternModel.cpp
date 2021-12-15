@@ -486,7 +486,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 {
     static const QLatin1String velocityString{"velocity"};
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if (d->enabled && d->midiChannel != 15) {
+    if ((d->enabled || d->sequence->soloPatternObject() == this) && d->midiChannel != 15) {
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -618,7 +618,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if ((d->enabled && d->midiChannel != 15) || sequencePosition == 0) {
+    if (((d->enabled || d->sequence->soloPatternObject() == this) && d->midiChannel != 15) || sequencePosition == 0) {
         bool relevantToUs{false};
         quint64 nextPosition = sequencePosition;
         // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,

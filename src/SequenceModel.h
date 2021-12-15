@@ -36,6 +36,14 @@ class SequenceModel : public QAbstractListModel
      * \brief Sets a reference to the song this Sequence is associated with
      */
     Q_PROPERTY(QObject* song READ song WRITE setSong NOTIFY songChanged);
+    /**
+     * \brief Index of a pattern which will become the only one played
+     * This property which will override all other playback settings. That is, the pattern will be
+     * played whether or not it is enabled, and no other patterns will be played while there is a
+     * pattern set here. Set to the default value (-1) to disable soloing.
+     * \default -1
+     */
+    Q_PROPERTY(int soloPattern READ soloPattern WRITE setSoloPattern NOTIFY soloPatternChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -104,6 +112,11 @@ public:
     void setSong(QObject *song);
     QObject *song() const;
     Q_SIGNAL void songChanged();
+
+    void setSoloPattern(int soloPattern);
+    int soloPattern() const;
+    PatternModel *soloPatternObject() const;
+    Q_SIGNAL void soloPatternChanged();
 
     /**
      * \brief Set the named property on the pattern with the specified index the given value

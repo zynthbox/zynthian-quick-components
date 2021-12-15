@@ -43,6 +43,8 @@ public:
     PlayGridManager *playGridManager{nullptr};
     SyncTimer *syncTimer{nullptr};
     QObject *song{nullptr};
+    int soloPattern{-1};
+    PatternModel *soloPatternObject{nullptr};
     QList<PatternModel*> patternModels;
     int activePattern{0};
     int version{0};
@@ -319,6 +321,29 @@ void SequenceModel::setSong(QObject* song)
     }
 }
 
+int SequenceModel::soloPattern() const
+{
+    return d->soloPattern;
+}
+
+PatternModel* SequenceModel::soloPatternObject() const
+{
+    return d->soloPatternObject;
+}
+
+void SequenceModel::setSoloPattern(int soloPattern)
+{
+    if (d->soloPattern != soloPattern) {
+        d->soloPattern = soloPattern;
+        if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
+            d->soloPatternObject = d->patternModels[d->soloPattern];
+        } else {
+            d->soloPatternObject = nullptr;
+        }
+        Q_EMIT soloPatternChanged();
+    }
+}
+
 void SequenceModel::setPatternProperty(int patternIndex, const QString& property, const QVariant& value)
 {
     if (patternIndex > -1 && patternIndex < d->patternModels.count()) {
@@ -405,14 +430,28 @@ void SequenceModel::resetSequence()
 void SequenceModel::advanceSequence()
 {
     int sequenceProgressionLength{1};
-    for (PatternModel *pattern : d->patternModels) {
-        pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+    if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
+        PatternModel *pattern = d->patternModels[d->soloPattern];
+        if (pattern) {
+            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+        }
+    } else {
+        for (PatternModel *pattern : d->patternModels) {
+            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+        }
     }
 }
 
 void SequenceModel::updatePatternPositions()
 {
-    for (PatternModel *pattern : d->patternModels) {
-        pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+    if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
+        PatternModel *pattern = d->patternModels[d->soloPattern];
+        if (pattern) {
+            pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+        }
+    } else {
+        for (PatternModel *pattern : d->patternModels) {
+            pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+        }
     }
 }
