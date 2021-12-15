@@ -415,6 +415,19 @@ int PatternModel::bankPlaybackPosition() const
         : -1;
 }
 
+bool PatternModel::isPlaying() const
+{
+    bool isPlaying{false};
+    if (d->sequence && d->sequence->isPlaying()) {
+        if (d->sequence->soloPattern() > -1) {
+            isPlaying = (d->sequence->soloPatternObject() == this);
+        } else {
+            isPlaying = d->enabled;
+        }
+    }
+    return isPlaying;
+}
+
 void PatternModel::setPositionOff(int row, int column) const
 {
     if (row > -1 && row < height() && column > -1 && column < width()) {

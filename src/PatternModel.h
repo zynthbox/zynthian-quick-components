@@ -145,6 +145,13 @@ class PatternModel : public NotesModel
      * the currently selected bank.
      */
     Q_PROPERTY(int bankPlaybackPosition READ bankPlaybackPosition NOTIFY playingColumnChanged)
+    /**
+     * \brief Whether or not this pattern is currently included in playback
+     * This is essentially the same as performing a check on the parent sequence to see whether
+     * that is playing, and then further checking whether this pattern is the current solo track
+     * if one is set, and if none is set then whether the pattern is enabled.
+     */
+    Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -277,6 +284,9 @@ public:
     Q_SIGNAL void playingColumnChanged();
     int playbackPosition() const;
     int bankPlaybackPosition() const;
+
+    bool isPlaying() const;
+    Q_SIGNAL void isPlayingChanged();
 
     Q_INVOKABLE void setPositionOff(int row, int column) const;
     Q_INVOKABLE QObjectList setPositionOn(int row, int column) const;
