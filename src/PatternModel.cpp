@@ -330,12 +330,13 @@ int PatternModel::activeBar() const
 
 void PatternModel::setBank(const QString& bank)
 {
+    // A, B, and C are some old fallback stuff...
     int newOffset{d->bankOffset};
-    if (bank.toUpper() == "A") {
+    if (bank.toUpper() == "A" || bank.toUpper() == "I") {
         newOffset = 0;
-    } else if (bank.toUpper() == "B") {
+    } else if (bank.toUpper() == "B" || bank.toUpper() == "II") {
         newOffset = d->bankLength;
-    } else if (bank.toUpper() == "C") {
+    } else if (bank.toUpper() == "C" || bank.toUpper() == "III") {
         newOffset = d->bankLength * 2;
     }
     setBankOffset(newOffset);
@@ -343,7 +344,7 @@ void PatternModel::setBank(const QString& bank)
 
 QString PatternModel::bank() const
 {
-    static const QStringList names{QLatin1String{"A"}, QLatin1String{"B"}, QLatin1String{"C"}};
+    static const QStringList names{QLatin1String{"I"}, QLatin1String{"II"}, QLatin1String{"III"}};
     int bankNumber{d->bankOffset / d->bankLength};
     QString result{"(?)"};
     if (bankNumber < names.count()) {
