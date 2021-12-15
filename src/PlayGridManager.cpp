@@ -90,6 +90,7 @@ public:
     QMap<QString, QObject*> namedInstances;
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
+    int currentMidiChannel{-1};
 
     RtMidiOut *midiout{nullptr};
     std::vector<unsigned char> midiMessage;
@@ -750,6 +751,19 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
     }
     d->mostRecentlyChangedNotes << metadata;
     Q_EMIT mostRecentlyChangedNotesChanged();
+}
+
+void PlayGridManager::setCurrentMidiChannel(int midiChannel)
+{
+    if (d->currentMidiChannel != midiChannel) {
+        d->currentMidiChannel = midiChannel;
+        Q_EMIT currentMidiChannelChanged();
+    }
+}
+
+int PlayGridManager::currentMidiChannel() const
+{
+    return d->currentMidiChannel;
 }
 
 void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn, unsigned char velocity, quint64 duration, quint64 delay)

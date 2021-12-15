@@ -67,6 +67,12 @@ class PlayGridManager : public QObject
     Q_PROPERTY(int modulation READ modulation WRITE setModulation NOTIFY modulationChanged)
     Q_PROPERTY(QVariantList mostRecentlyChangedNotes READ mostRecentlyChangedNotes NOTIFY mostRecentlyChangedNotesChanged)
 
+    /**
+     * \brief The midi channel associated with the currently selected track, or -1 if the channel is invalid
+     * @default -1
+     */
+    Q_PROPERTY(int currentMidiChannel READ currentMidiChannel WRITE setCurrentMidiChannel NOTIFY currentMidiChannelChanged)
+
     Q_PROPERTY(QObject* syncTimer READ syncTimer WRITE setSyncTimer NOTIFY syncTimerChanged)
     Q_PROPERTY(bool metronomeActive READ metronomeActive NOTIFY metronomeActiveChanged)
     Q_PROPERTY(int metronomeBeat4th READ metronomeBeat4th NOTIFY metronomeBeat4thChanged)
@@ -229,6 +235,9 @@ public:
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
     Q_INVOKABLE void updateNoteState(QVariantMap metadata);
 
+    void setCurrentMidiChannel(int midiChannel);
+    int currentMidiChannel() const;
+    Q_SIGNAL void currentMidiChannelChanged();
     /**
      * \brief Schedules a note to be set on or off on the next tick of the metronome
      * @param midiNote The note you wish to change the state of
