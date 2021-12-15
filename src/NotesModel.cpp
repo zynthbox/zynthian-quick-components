@@ -57,12 +57,16 @@ public:
         noteDataChangedEmitter.setInterval(0);
         noteDataChangedEmitter.setSingleShot(true);
         QObject::connect(&noteDataChangedEmitter, &QTimer::timeout, q, [this](){ emitNoteDataChanged(); });
+        isEmtpyUpdater.setInterval(1);
+        isEmtpyUpdater.setSingleShot(true);
+        QObject::connect(&isEmtpyUpdater, &QTimer::timeout, q, [this](){ updateIsEmtpy(); });
     }
     NotesModel *q;
     NotesModel *parentModel{nullptr};
     int parentRow{-1};
     quint64 lastModified{0};
     QList<NotesModel*> childModels;
+    bool isEmpty{true};
     QList< QList<Entry> > entries;
 
     void ensurePositionExists(int row, int column) {
@@ -104,6 +108,26 @@ public:
             }
         }
         updateNotes.clear();
+    }
+
+    QTimer isEmtpyUpdater;
+    void updateIsEmtpy() {
+        bool updatedIsEmpty{true};
+        for (const QList<Entry> &row : entries) {
+            for (const Entry &entry : row) {
+                if (entry.note && (entry.note->midiNote() < 128 || entry.note->subnotes().count() > 0)) {
+                    isEmpty = false;
+                    break;
+                }
+            }
+            if (updatedIsEmpty == false) {
+                break;
+            }
+        }
+        if (updatedIsEmpty != isEmpty) {
+            isEmpty = updatedIsEmpty;
+            Q_EMIT q->isEmptyChanged();
+        }
     }
 };
 
@@ -276,6 +300,11 @@ quint64 NotesModel::lastModified() const
     return d->lastModified;
 }
 
+bool NotesModel::isEmpty() const
+{
+    return d->isEmpty;
+}
+
 QVariantList NotesModel::getRow(int row) const
 {
     QVariantList list;
@@ -311,6 +340,7 @@ void NotesModel::setNote(int row, int column, QObject* note)
         QList<Entry> rowList = d->entries[row];
         rowList[column].note = qobject_cast<Note*>(note);
         d->entries[row] = rowList;
+        d->isEmtpyUpdater.start();
         QModelIndex changed = createIndex(row, column);
         dataChanged(changed, changed);
     }
@@ -357,6 +387,7 @@ void NotesModel::setMetadata(int row, int column, QVariant metadata)
         }
         rowList[column].metaData = actualMeta;
         d->entries[row] = rowList;
+        d->isEmtpyUpdater.start();
         QModelIndex changed = createIndex(row, column);
         dataChanged(changed, changed);
     }
@@ -381,6 +412,7 @@ void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata)
                 rowList.append(entry);
             }
             d->entries[row] = rowList;
+            d->isEmtpyUpdater.start();
             dataChanged(createIndex(row, 0), createIndex(row, rowList.count() - 1));
         }
     }
@@ -408,6 +440,7 @@ void NotesModel::trim()
         }
         beginResetModel();
         d->entries = newList;
+        d->isEmtpyUpdater.start();
         endResetModel();
     }
 }
@@ -424,6 +457,7 @@ void NotesModel::clear()
             }
         }
         d->entries.clear();
+        d->isEmtpyUpdater.start();
         endResetModel();
         Q_EMIT rowsChanged();
     }
@@ -447,6 +481,7 @@ void NotesModel::addRow(const QVariantList &notes, const QVariantList &metadata)
             beginInsertRows(QModelIndex(), 0, 0);
             d->entries.insert(0, actualNotes);
             d->noteDataChangedUpdater.start();
+            d->isEmtpyUpdater.start();
             endInsertRows();
             Q_EMIT rowsChanged();
         }
@@ -477,6 +512,7 @@ void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantL
             d->entries.insert(index, actualNotes);
             d->noteDataChangedUpdater.start();
             endInsertRows();
+            d->isEmtpyUpdater.start();
             Q_EMIT rowsChanged();
         }
     }
@@ -487,6 +523,7 @@ void NotesModel::removeRow(int row)
     if (!d->parentModel && row > -1 && row < d->entries.count()) {
         beginRemoveRows(QModelIndex(), row, row);
         d->entries.removeAt(row);
+        d->isEmtpyUpdater.start();
         endRemoveRows();
     }
 }

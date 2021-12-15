@@ -33,6 +33,10 @@ class NotesModel : public QAbstractListModel
     Q_PROPERTY(QObject* parentModel READ parentModel CONSTANT)
     Q_PROPERTY(int parentRow READ parentRow NOTIFY parentRowChanged)
     Q_PROPERTY(quint64 lastModified READ lastModified NOTIFY lastModifiedChanged);
+    /**
+     * \brief Whether or not there are any notes anywhere in the model
+     */
+    Q_PROPERTY(bool isEmpty READ isEmpty NOTIFY isEmptyChanged);
 public:
     explicit NotesModel(PlayGridManager *parent = nullptr);
     explicit NotesModel(NotesModel *parent, int row);
@@ -72,6 +76,9 @@ public:
      */
     quint64 lastModified() const;
     Q_SIGNAL void lastModifiedChanged();
+
+    bool isEmpty() const;
+    Q_SIGNAL void isEmptyChanged();
 
     /**
      * \brief Get a list with all the notes in the specified row
