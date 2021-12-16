@@ -60,6 +60,17 @@ PatternModel::PatternModel(SequenceModel* parent)
     , d(new Private)
 {
     d->sequence = parent;
+    connect(d->sequence, &SequenceModel::isPlayingChanged, this, &PatternModel::isPlayingChanged);
+    connect(d->sequence, &SequenceModel::soloPatternChanged, this, &PatternModel::isPlayingChanged);
+    connect(this, &PatternModel::enabledChanged, this, &PatternModel::isPlayingChanged);
+    // This is to ensure that when the current sound changes and we have no midi channel, we will schedule
+    // the notes that are expected of us
+    connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
+        if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
+            d->onBuffers.clear();
+            d->offBuffers.clear();
+        }
+    });
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
 }
@@ -279,6 +290,8 @@ void PatternModel::setMidiChannel(int midiChannel)
                 setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
             }
         }
+        d->onBuffers.clear();
+        d->offBuffers.clear();
         Q_EMIT midiChannelChanged();
     }
 }
@@ -292,6 +305,8 @@ void PatternModel::setNoteLength(int noteLength)
 {
     if (d->noteLength != noteLength) {
         d->noteLength = noteLength;
+        d->onBuffers.clear();
+        d->offBuffers.clear();
         Q_EMIT noteLengthChanged();
     }
 }
@@ -404,14 +419,14 @@ int PatternModel::playingColumn() const
 
 int PatternModel::playbackPosition() const
 {
-    return d->sequence->isPlaying() && d->enabled
+    return isPlaying()
         ? (d->playingRow * d->width) + d->playingColumn
         : -1;
 }
 
 int PatternModel::bankPlaybackPosition() const
 {
-    return d->sequence->isPlaying() && d->enabled
+    return isPlaying()
         ? (d->playingRow * d->width) + d->playingColumn - (d->bankOffset * d->width)
         : -1;
 }
@@ -483,12 +498,12 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
     return onifiedNotes;
 }
 
-void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned char velocity, bool setOn) {
+void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned char velocity, bool setOn, int overrideChannel) {
     unsigned char note[3];
     if (setOn) {
-        note[0] = 0x90 + theNote->midiChannel();
+        note[0] = 0x90 + (overrideChannel > -1 ? overrideChannel : theNote->midiChannel());
     } else {
-        note[0] = 0x80 + theNote->midiChannel();
+        note[0] = 0x80 + (overrideChannel > -1 ? overrideChannel : theNote->midiChannel());
     }
     note[1] = theNote->midiNote();
     note[2] = velocity;
@@ -500,7 +515,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 {
     static const QLatin1String velocityString{"velocity"};
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if ((d->enabled || d->sequence->soloPatternObject() == this) && d->midiChannel != 15) {
+    if ((d->enabled || d->sequence->soloPatternObject() == this) && (d->midiChannel != 15 || d->sequence->playGridManager()->currentMidiChannel() > -1)) {
+        const int overrideChannel{(d->midiChannel == 15) ? d->sequence->playGridManager()->currentMidiChannel() : -1};
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -594,12 +610,12 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                 const QVariantHash &metaHash = meta[i].toHash();
                                 if (subnote) {
                                     if (metaHash.isEmpty()) {
-                                        addNoteToBuffer(onBuffer, subnote, 64, true);
-                                        addNoteToBuffer(offBuffer, subnote, 64, false);
+                                        addNoteToBuffer(onBuffer, subnote, 64, true, overrideChannel);
+                                        addNoteToBuffer(offBuffer, subnote, 64, false, overrideChannel);
                                     } else {
                                         const int velocity{metaHash.value(velocityString, 64).toInt()};
-                                        addNoteToBuffer(onBuffer, subnote, velocity, true);
-                                        addNoteToBuffer(offBuffer, subnote, velocity, false);
+                                        addNoteToBuffer(onBuffer, subnote, velocity, true, overrideChannel);
+                                        addNoteToBuffer(offBuffer, subnote, velocity, false, overrideChannel);
                                     }
                                 }
                             }
@@ -607,13 +623,13 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             for (const QVariant &subnoteVar : subnotes) {
                                 const Note *subnote = subnoteVar.value<Note*>();
                                 if (subnote) {
-                                    addNoteToBuffer(onBuffer, subnote, 64, true);
-                                    addNoteToBuffer(offBuffer, subnote, 64, false);
+                                    addNoteToBuffer(onBuffer, subnote, 64, true, overrideChannel);
+                                    addNoteToBuffer(offBuffer, subnote, 64, false, overrideChannel);
                                 }
                             }
                         } else {
-                            addNoteToBuffer(onBuffer, note, 64, true);
-                            addNoteToBuffer(offBuffer, note, 64, false);
+                            addNoteToBuffer(onBuffer, note, 64, true, overrideChannel);
+                            addNoteToBuffer(offBuffer, note, 64, false, overrideChannel);
                         }
                     }
                     d->onBuffers[nextPosition + (d->bankOffset * d->width)] = onBuffer;
@@ -632,7 +648,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if (((d->enabled || d->sequence->soloPatternObject() == this) && d->midiChannel != 15) || sequencePosition == 0) {
+    if (((d->enabled || d->sequence->soloPatternObject() == this) && (d->midiChannel != 15 || d->sequence->playGridManager()->currentMidiChannel() > -1)) || sequencePosition == 0) {
         bool relevantToUs{false};
         quint64 nextPosition = sequencePosition;
         // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
