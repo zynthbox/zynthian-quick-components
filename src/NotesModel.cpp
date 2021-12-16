@@ -116,7 +116,7 @@ public:
         for (const QList<Entry> &row : entries) {
             for (const Entry &entry : row) {
                 if (entry.note && (entry.note->midiNote() < 128 || entry.note->subnotes().count() > 0)) {
-                    isEmpty = false;
+                    updatedIsEmpty = false;
                     break;
                 }
             }
