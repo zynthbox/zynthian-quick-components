@@ -850,14 +850,26 @@ QObject* PlayGridManager::syncTimer()
     return d->syncTimer;
 }
 
-void PlayGridManager::startMetronome()
+void hookUpAndMaybeStartTimer(PlayGridManager* pgm, bool startTimer = false)
 {
     // If we've already registered ourselves to get a callback, don't do that again, it just gets silly
-    if (!timer_callback_tickers->contains(this)) {
-        // TODO Send start metronome request to libzl
-        timer_callback_tickers->append(this);
-        Q_EMIT requestMetronomeStart();
+    if (!timer_callback_tickers->contains(pgm)) {
+        // TODO Send start metronome request to libzl directly
+        timer_callback_tickers->append(pgm);
     }
+    if (startTimer) {
+        Q_EMIT pgm->requestMetronomeStart();
+    }
+}
+
+void PlayGridManager::hookUpTimer()
+{
+    hookUpAndMaybeStartTimer(this);
+}
+
+void PlayGridManager::startMetronome()
+{
+    hookUpAndMaybeStartTimer(this, true);
 }
 
 void PlayGridManager::stopMetronome()

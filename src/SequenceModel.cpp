@@ -396,6 +396,7 @@ void SequenceModel::prepareSequencePlayback()
             pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() - 1, 8);
         }
     }
+    playGridManager()->hookUpTimer();
 }
 
 void SequenceModel::startSequencePlayback()
