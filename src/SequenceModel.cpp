@@ -379,7 +379,7 @@ bool SequenceModel::isPlaying() const
     return d->isPlaying;
 }
 
-void SequenceModel::startSequencePlayback()
+void SequenceModel::prepareSequencePlayback()
 {
     if (!d->isPlaying) {
         d->isPlaying = true;
@@ -396,6 +396,11 @@ void SequenceModel::startSequencePlayback()
             pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() - 1, 8);
         }
     }
+}
+
+void SequenceModel::startSequencePlayback()
+{
+    prepareSequencePlayback();
     playGridManager()->startMetronome();
 }
 

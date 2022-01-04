@@ -147,7 +147,13 @@ public:
     Q_SIGNAL void isPlayingChanged();
 
     /**
-     * \brief Starts playback of the sequence using the global timer
+     * \brief Prepares the sequence playback (requiring the global timer to be started manually)
+     * @note If the timer is already running, playback will be joined immediately
+     */
+    Q_INVOKABLE void prepareSequencePlayback();
+    /**
+     * \brief Prepares the sequence for playback, and starts the global timer
+     * @see prepareSequencePlayback()
      * @see resetSequence()
      */
     Q_INVOKABLE void startSequencePlayback();
