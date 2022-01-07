@@ -394,6 +394,24 @@ int PatternModel::bankLength() const
     return d->bankLength;
 }
 
+bool PatternModel::bankHasNotes(int bankIndex)
+{
+    bool hasNotes{false};
+    for (int row = 0; row < d->bankLength; ++row) {
+        for (int column = 0; column < d->width; ++column) {
+            Note* note = qobject_cast<Note*>(getNote(row + (bankIndex * d->bankLength), column));
+            if (note && note->subnotes().length() > 0) {
+                hasNotes = true;
+                break;
+            }
+        }
+        if (hasNotes) {
+            break;
+        }
+    }
+    return hasNotes;
+}
+
 void PatternModel::setEnabled(bool enabled)
 {
     if (d->enabled != enabled) {
