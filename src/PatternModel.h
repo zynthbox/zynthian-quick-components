@@ -276,7 +276,7 @@ public:
 
     /**
      * \brief Whether the given bank contains any notes at all
-     * You can "bind" to this by using the trick that the lastModified property changes. For example,
+     * In QML, you can "bind" to this by using the trick that the lastModified property changes. For example,
      * you might do something like:
      * <code>
        enabled: pattern.lastModified > -1 ? pattern.bankHasNotes(bankIndex) : pattern.bankHasNotes(bankIndex)
@@ -285,7 +285,7 @@ public:
      * @param bankIndex The index of the bank to check for notes
      * @return True if the bank at the given index contains any notes
      */
-    bool bankHasNotes(int bankIndex);
+    Q_INVOKABLE bool bankHasNotes(int bankIndex);
 
     void setEnabled(bool enabled);
     bool enabled() const;
