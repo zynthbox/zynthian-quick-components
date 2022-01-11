@@ -44,6 +44,12 @@ class SequenceModel : public QAbstractListModel
      * \default -1
      */
     Q_PROPERTY(int soloPattern READ soloPattern WRITE setSoloPattern NOTIFY soloPatternChanged)
+    /**
+     * \brief Convenience property for getting the actual pattern set as the solo pattern
+     * @see soloPattern
+     * \default null
+     */
+    Q_PROPERTY(QObject* soloPatternObject READ soloPatternObject NOTIFY soloPatternChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
