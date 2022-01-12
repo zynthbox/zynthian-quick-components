@@ -260,7 +260,7 @@ public:
                             break;
                     }
                     if (midiNote > -1) {
-                        Q_EMIT noteChanged(midiNote, midiChannel, setOn);
+                        Q_EMIT noteChanged(midiNote, midiChannel, velocity, setOn);
                     } else {
 //                         // Spit out the unknown thing onto the cli - this should come in handy later on
 //                         for ( i=0; i<nBytes; i++ ) {
@@ -281,7 +281,7 @@ public:
     Q_SLOT void markAsDone() {
         done = true;
     }
-    Q_SIGNAL void noteChanged(int midiNote, int midiChannel, bool setOn);
+    Q_SIGNAL void noteChanged(int midiNote, int midiChannel, int velocity, bool setOn);
 private:
     bool done{false};
     int midiInPort{-1};
