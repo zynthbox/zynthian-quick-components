@@ -34,6 +34,7 @@ class SequenceModel : public QAbstractListModel
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     /**
      * \brief Sets a reference to the song this Sequence is associated with
+     * @note Setting this will cause the Sequence to be reloaded to match that song (and clearing it will load the unassociated sequence)
      */
     Q_PROPERTY(QObject* song READ song WRITE setSong NOTIFY songChanged);
     /**
@@ -50,6 +51,29 @@ class SequenceModel : public QAbstractListModel
      * \default null
      */
     Q_PROPERTY(QObject* soloPatternObject READ soloPatternObject NOTIFY soloPatternChanged)
+
+    /**
+     * \brief The location this Sequence is stored in
+     * If this is not set, using save() or load() without passing a filename will create a filename
+     * for you (using the current song's location if set, or a generic location if none was set)
+     *
+     * The file system layout of a Sequence is as follows (allowing for granular upload and control)
+     * Sequence Name (a folder)
+     * - metadata.seq.json (a json file containing the basic information about the sequence)
+     * - patterns (a folder)
+     *   - 0.pat.json (a json file containing the notes and other data for the first pattern)
+     *   - 1.pat.json (a json file containing the notes and other data for the second pattern)
+     *   - 2.pat.json (a json file containing the notes and other data for the third pattern)
+     *   - 3.pat.json (a json file containing the notes and other data for the fourth pattern)
+     *   - 4.pat.json (a json file containing the notes and other data for the fifth pattern)
+     */
+    Q_PROPERTY(QString filePath READ filePath WRITE setFilePath NOTIFY filePathChanged)
+
+    /**
+     * \brief Whether there are unsaved changes in the sequence
+     * This will automatically be reset to false when loading and saving
+     */
+    Q_PROPERTY(bool isDirty READ isDirty WRITE setIsDirty NOTIFY isDirtyChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -99,17 +123,32 @@ public:
     QObject *activePatternObject() const;
     Q_SIGNAL void activePatternChanged();
 
+    Q_INVOKABLE QString filePath() const;
+    Q_INVOKABLE void setFilePath(const QString &filePath);
+    Q_SIGNAL void filePathChanged();
+
+    Q_INVOKABLE bool isDirty() const;
+    Q_INVOKABLE void setIsDirty(bool isDirty);
+    Q_INVOKABLE void setDirty() { setIsDirty(true); };
+    Q_SIGNAL void isDirtyChanged();
+
     /**
-     * \brief Load the data for this Sequence (and all Patterns contained within it) from disk
-     * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one
+     * \brief Load the data for this Sequence (and all Patterns contained within it) from the location indicated by filePath if none is given
+     * @note Not setting filePath prior to loading will cause a default to be generated
+     * @note Passing a filename to this function will reset the filePath property to that name
+     * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one (pass the metadata.seq.json location)
      */
     Q_INVOKABLE void load(const QString &fileName = QString());
     /**
-     * \brief Save the data for this Sequence (and all Patterns contained within it) to disk
-     * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one (this WILL be overwritten if it exists)
+     * \brief Save the data for this Sequence (and all Patterns contained within it) to the location indicated by filePath if none is given
+     * @note Not setting filePath prior to saving will cause a default to be generated
+     * @note Passing a filename to this function will reset the filePath property to that name
+     * @note Any file in the location WILL be overwritten if it already exists
+     * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one (pass the metadata.seq.json location)
      * @return True if successful, false if not
      */
     Q_INVOKABLE bool save(const QString &fileName = QString());
+
     /**
      * \brief Clear all patterns of all notes
      */

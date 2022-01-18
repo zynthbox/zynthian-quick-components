@@ -47,10 +47,26 @@ public:
     PatternModel *soloPatternObject{nullptr};
     QList<PatternModel*> patternModels;
     int activePattern{0};
+    QString filePath;
+    bool isDirty{false};
     int version{0};
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
     bool isPlaying{false};
+
+    void ensureFilePath(const QString &explicitFile) {
+        if (!explicitFile.isEmpty()) {
+            q->setFilePath(explicitFile);
+        }
+        if (filePath.isEmpty()) {
+            if (song) {
+                QString sketchFolder = song->property("sketchFolder").toString();
+                q->setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(QString::number(version)));
+            } else {
+                q->setFilePath(QString("%1/%2.sequence.json").arg(getDataLocation()).arg(QString::number(version)));
+            }
+        }
+    }
 
     QString getDataLocation()
     {
@@ -63,28 +79,6 @@ public:
         }
         // test and make sure that this env var contains something, or spit out .local/zynthian or something
         return QString("%1/session/sequences/%2").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR"))).arg(safe);
-    }
-
-    void handleSongChanged() {
-        if (song) {
-            QString sketchFolderName = song->property("sketchFolderName").toString();
-            qDebug() << sketchFolderName;
-//             q->load(sketchFolderName);
-        }
-//         // TODO Get the sketch folder and save to there
-//         // TODO Reset the version
-//         version++;
-//         for (PatternModel *pattern : patternModels) {
-//             pattern->clear();
-//             pattern->setMidiChannel(0);
-//             pattern->setNoteLength(3);
-//             pattern->setAvailableBars(1);
-//             pattern->setActiveBar(0);
-//             pattern->setBankOffset(0);
-//             pattern->setBankLength(8);
-//             pattern->setEnabled(true);
-//         }
-//         q->setActivePattern(0);
     }
 };
 
@@ -99,7 +93,6 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
             stopSequencePlayback();
         }
     }, Qt::DirectConnection);
-    connect(this, &SequenceModel::songChanged, [this](){ d->handleSongChanged(); });
 }
 
 SequenceModel::~SequenceModel()
@@ -194,6 +187,14 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     connect(pattern, &PatternModel::objectNameChanged, this, updatePattern);
     connect(pattern, &PatternModel::bankOffsetChanged, this, updatePattern);
     connect(pattern, &PatternModel::playingColumnChanged, this, updatePattern);
+    connect(pattern, &PatternModel::midiChannelChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::noteLengthChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::availableBarsChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::activeBarChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::bankOffsetChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::bankLengthChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::enabledChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &NotesModel::lastModifiedChanged, this, &SequenceModel::setDirty);
     d->patternModels.insert(insertionRow, pattern);
     setActivePattern(d->activePattern);
     endInsertRows();
@@ -227,6 +228,7 @@ void SequenceModel::setActivePattern(int activePattern)
     if (d->activePattern != adjusted) {
         d->activePattern = adjusted;
         Q_EMIT activePatternChanged();
+        setDirty();
     }
 }
 
@@ -243,11 +245,45 @@ QObject* SequenceModel::activePatternObject() const
     return nullptr;
 }
 
+QString SequenceModel::filePath() const
+{
+    return d->filePath;
+}
+
+void SequenceModel::setFilePath(const QString &filePath)
+{
+    if (d->filePath != filePath) {
+        d->filePath = filePath;
+        Q_EMIT filePathChanged();
+    }
+}
+
+bool SequenceModel::isDirty() const
+{
+    return d->isDirty;
+}
+
+void SequenceModel::setIsDirty(bool isDirty)
+{
+    if (d->isDirty != isDirty) {
+        d->isDirty = isDirty;
+        Q_EMIT isDirtyChanged();
+    }
+}
+
 void SequenceModel::load(const QString &fileName)
 {
     beginResetModel();
     QString data;
-    QFile file(fileName.isEmpty() ? d->getDataLocation() + "/" + QString::number(d->version) : fileName);
+    d->ensureFilePath(fileName);
+    QFile file(d->filePath);
+
+    // Clear our the existing model...
+    for (PatternModel *model : d->patternModels) {
+        model->disconnect(this);
+    }
+    d->patternModels.clear();
+
     if (file.exists()) {
         if (file.open(QIODevice::ReadOnly)) {
             data = QString::fromUtf8(file.readAll());
@@ -257,12 +293,20 @@ void SequenceModel::load(const QString &fileName)
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data.toUtf8());
     if (jsonDoc.isObject()) {
         QJsonObject obj = jsonDoc.object();
-        d->patternModels.clear();
-        int patternNumber{0};
-        for (const QJsonValue &patternValue : obj.value("patterns").toArray()) {
-            ++patternNumber;
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(patternNumber)), objectName()));
-            playGridManager()->setModelFromJson(model, patternValue.toString());
+        // Load the patterns from disk
+        const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
+        for (int i = 0; i < PATTERN_COUNT; ++i) {
+            QFile patternFile(QString("%1/patterns/%2-%3.pattern.json").arg(d->filePath.left(d->filePath.lastIndexOf("/"))).arg(sequenceNameForFiles).arg(QString::number(i + 1)));
+            if (patternFile.exists()) {
+                if (patternFile.open(QIODevice::ReadOnly)) {
+                    QString patternData = QString::fromUtf8(patternFile.readAll());
+                    patternFile.close();
+                    PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(i + 1)), objectName()));
+                    playGridManager()->setModelFromJson(model, patternData);
+                }
+            } else {
+                playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(i + 1)), objectName());
+            }
         }
         setActivePattern(obj.value("activePattern").toInt());
     }
@@ -272,6 +316,10 @@ void SequenceModel::load(const QString &fileName)
             playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(i + 1)), objectName());
         }
     }
+    if (activePattern() == -1) {
+        setActivePattern(0);
+    }
+    setIsDirty(false);
     endResetModel();
 }
 
@@ -281,31 +329,50 @@ bool SequenceModel::save(const QString &fileName)
 
     QJsonObject sequenceObject;
     sequenceObject["activePattern"] = activePattern();
-    QJsonArray patternArray;
-    for (PatternModel *pattern : d->patternModels) {
-        patternArray.append(playGridManager()->modelToJson(pattern));
-    }
-    sequenceObject["patterns"] = patternArray;
 
     QJsonDocument jsonDoc;
     jsonDoc.setObject(sequenceObject);
     QString data = jsonDoc.toJson();
 
-    QDir confLocation(fileName.isEmpty() ? d->getDataLocation() : fileName.left(fileName.lastIndexOf("/")));
-    if (confLocation.exists() || confLocation.mkpath(confLocation.path())) {
-        QFile dataFile(fileName.isEmpty() ? confLocation.path() + "/" + QString::number(d->version) : fileName);
+    d->ensureFilePath(fileName);
+    QDir sequenceLocation(d->filePath.left(d->filePath.lastIndexOf("/")));
+    QDir patternLocation(d->filePath.left(d->filePath.lastIndexOf("/")) + "/patterns");
+    if (sequenceLocation.exists() || sequenceLocation.mkpath(sequenceLocation.path())) {
+        QFile dataFile(d->filePath);
         if (dataFile.open(QIODevice::WriteOnly) && dataFile.write(data.toUtf8())) {
+            dataFile.close();
+            if (patternLocation.exists() || patternLocation.mkpath(patternLocation.path())) {
+                int i{0};
+                const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
+                for (PatternModel *pattern : d->patternModels) {
+                    QFile patternFile(QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(QString::number(i + 1)));
+                    if (patternFile.open(QIODevice::WriteOnly)) {
+                        patternFile.write(playGridManager()->modelToJson(pattern).toUtf8());
+                        patternFile.close();
+                    }
+                    ++i;
+                }
+            }
             success = true;
         }
     }
+    setIsDirty(false);
     return success;
 }
 
 void SequenceModel::clear()
 {
-    for (PatternModel *model : d->patternModels) {
-        model->clear();
+    for (PatternModel *pattern : d->patternModels) {
+        pattern->clear();
+        pattern->setMidiChannel(0);
+        pattern->setNoteLength(3);
+        pattern->setAvailableBars(1);
+        pattern->setActiveBar(0);
+        pattern->setBankOffset(0);
+        pattern->setBankLength(8);
+        pattern->setEnabled(true);
     }
+    setActivePattern(0);
 }
 
 QObject* SequenceModel::song() const
@@ -316,7 +383,15 @@ QObject* SequenceModel::song() const
 void SequenceModel::setSong(QObject* song)
 {
     if (d->song != song) {
+        if (d->song) {
+            d->song->disconnect(this);
+        }
         d->song = song;
+        if (d->song) {
+            QString sketchFolder = d->song->property("sketchFolder").toString();
+            setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(QString::number(d->version)));
+        }
+        load();
         Q_EMIT songChanged();
     }
 }
@@ -341,6 +416,7 @@ void SequenceModel::setSoloPattern(int soloPattern)
             d->soloPatternObject = nullptr;
         }
         Q_EMIT soloPatternChanged();
+        setDirty();
     }
 }
 
