@@ -440,12 +440,12 @@ QObject* PlayGridManager::getPatternModel(const QString& name, const QString& se
     PatternModel *model = d->patternModels.value(name);
     if (!model) {
         model = new PatternModel(sequence);
-        if (!sequence->contains(model)) {
-            sequence->insertPattern(model);
-        }
         model->setObjectName(name);
         QQmlEngine::setObjectOwnership(model, QQmlEngine::CppOwnership);
         d->patternModels[name] = model;
+    }
+    if (!sequence->contains(model)) {
+        sequence->insertPattern(model);
     }
     return model;
 }
