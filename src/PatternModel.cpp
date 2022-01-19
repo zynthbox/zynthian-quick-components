@@ -34,6 +34,7 @@ public:
     Private() {}
     int width{16};
     int midiChannel{15};
+    QString layerData;
     int noteLength{3};
     int availableBars{1};
     int activeBar{0};
@@ -299,6 +300,19 @@ void PatternModel::setMidiChannel(int midiChannel)
 int PatternModel::midiChannel() const
 {
     return d->midiChannel;
+}
+
+void PatternModel::setLayerData(const QString &layerData)
+{
+    if (d->layerData != layerData) {
+        d->layerData = layerData;
+        Q_EMIT layerDataChanged();
+    }
+}
+
+QString PatternModel::layerData() const
+{
+    return d->layerData;
 }
 
 void PatternModel::setNoteLength(int noteLength)

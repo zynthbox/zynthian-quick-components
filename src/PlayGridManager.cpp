@@ -601,9 +601,11 @@ QString PlayGridManager::modelToJson(QObject* model) const
         modelObject["bankOffset"] = patternModel->bankOffset();
         modelObject["bankLength"] = patternModel->bankLength();
         modelObject["enabled"] = patternModel->enabled();
+        modelObject["layerData"] = patternModel->layerData();
         QJsonDocument notesDoc;
         notesDoc.setArray(d->generateModelNotesSection(patternModel));
         modelObject["notes"] = QString::fromUtf8(notesDoc.toJson());
+        // Add in the Sound data from whatever sound is currently in use...
         json.setObject(modelObject);
     } else if (actualModel) {
         json.setArray(d->generateModelNotesSection(actualModel));
@@ -650,6 +652,11 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
                 pattern->setEnabled(patternObject.value("enabled").toBool());
             } else {
                 pattern->setEnabled(true);
+            }
+            if (patternObject.contains("layerData")) {
+                pattern->setLayerData(patternObject.value("layerData").toString());
+            } else {
+                pattern->setLayerData("");
             }
         }
     }

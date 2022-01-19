@@ -70,6 +70,12 @@ class PatternModel : public NotesModel
      *       more like a convenience alias for the layer's midiChannel property, but for now...)
      */
     Q_PROPERTY(int layer READ midiChannel WRITE setMidiChannel NOTIFY midiChannelChanged)
+    /*
+     * \brief A JSON representation of the sound associated with this pattern
+     * @note Technically this does not get used by the pattern itself, but it is stored along with all the other data that
+     *       makes up the pattern, so that if it is shared, it can be consumed by the importer and applied to its new home.
+     */
+    Q_PROPERTY(QString layerData READ layerData WRITE setLayerData NOTIFY layerDataChanged)
     /**
      * \brief The duration of a note in the pattern (the subdivision used to determine the speed of playback)
      * Values from 1 through 6, which each translate to the following:
@@ -250,6 +256,10 @@ public:
     void setMidiChannel(int midiChannel);
     int midiChannel() const;
     Q_SIGNAL void midiChannelChanged();
+
+    void setLayerData(const QString &layerData);
+    QString layerData() const;
+    Q_SIGNAL void layerDataChanged();
 
     void setNoteLength(int noteLength);
     int noteLength() const;

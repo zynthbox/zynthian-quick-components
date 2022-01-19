@@ -187,7 +187,9 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     connect(pattern, &PatternModel::objectNameChanged, this, updatePattern);
     connect(pattern, &PatternModel::bankOffsetChanged, this, updatePattern);
     connect(pattern, &PatternModel::playingColumnChanged, this, updatePattern);
+    connect(pattern, &PatternModel::layerDataChanged, this, updatePattern);
     connect(pattern, &PatternModel::midiChannelChanged, this, &SequenceModel::setDirty);
+    connect(pattern, &PatternModel::layerDataChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::noteLengthChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::availableBarsChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::activeBarChanged, this, &SequenceModel::setDirty);
@@ -365,6 +367,7 @@ void SequenceModel::clear()
     for (PatternModel *pattern : d->patternModels) {
         pattern->clear();
         pattern->setMidiChannel(0);
+        pattern->setLayerData("");
         pattern->setNoteLength(3);
         pattern->setAvailableBars(1);
         pattern->setActiveBar(0);
