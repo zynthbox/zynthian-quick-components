@@ -19,6 +19,7 @@
  *
  */
 
+class SequenceModel;
 #ifndef PLAYGRIDMANAGER_H
 #define PLAYGRIDMANAGER_H
 
@@ -145,6 +146,16 @@ public:
      * @return The pattern with the given name
      */
     Q_INVOKABLE QObject* getPatternModel(const QString &name, const QString& sequenceName);
+    /**
+     * \brief Returns a model suitable for use as a pattern, explicitly parented to a named sequence if none was found with the given name
+     *
+     * @note This was originally intended to be used for on-the-go file information when browsing the file system (and `name` is the filename in those cases)
+     *
+     * @param name The name of the pattern you wish to fetch
+     * @param sequence The sequence (or null) you wish to parent the pattern to if none was found
+     * @return The pattern with the given name
+     */
+    Q_INVOKABLE QObject* getPatternModel(const QString&name, SequenceModel *sequence = nullptr);
     Q_INVOKABLE QObject* getNotesModel(const QString &name);
     Q_INVOKABLE QObject* getNote(int midiNote, int midiChannel = 0);
     Q_INVOKABLE QObject* getCompoundNote(const QVariantList &notes);
@@ -192,6 +203,13 @@ public:
      * @param json A string containing a JSON formatted representation of a model's contents (or a list, see notesListToJson())
      */
     Q_INVOKABLE void setModelFromJson(QObject *model, const QString &json);
+    /**
+     * \brief Set the contents of the given model based on the JSON representation contained in the given file
+     *
+     * @param model A NotesModel object to set to match the json structure
+     * @param jsonFile A file which must contain only a JSON formatted representation of a model's contents (or a list, see notesListToJson())
+     */
+    Q_INVOKABLE void setModelFromJsonFile(QObject *model, const QString &jsonFile);
     /**
      * \brief Get a JSON representation of a list of Note objects
      *

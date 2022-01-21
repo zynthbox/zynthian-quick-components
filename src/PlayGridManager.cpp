@@ -430,6 +430,18 @@ QObject* PlayGridManager::getSequenceModel(const QString& name)
     return model;
 }
 
+QObject* PlayGridManager::getPatternModel(const QString&name, SequenceModel *sequence)
+{
+    PatternModel *model = d->patternModels.value(name);
+    if (!model) {
+        model = new PatternModel(sequence);
+        model->setObjectName(name);
+        QQmlEngine::setObjectOwnership(model, QQmlEngine::CppOwnership);
+        d->patternModels[name] = model;
+    }
+    return model;
+}
+
 QObject* PlayGridManager::getPatternModel(const QString& name, const QString& sequenceName)
 {
     // CAUTION:
@@ -658,6 +670,18 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             } else {
                 pattern->setLayerData("");
             }
+        }
+    }
+}
+
+void PlayGridManager::setModelFromJsonFile(QObject *model, const QString &jsonFile)
+{
+    QFile file(jsonFile);
+    if (file.exists()) {
+        if (file.open(QIODevice::ReadOnly)) {
+            QString data = QString::fromUtf8(file.readAll());
+            file.close();
+            setModelFromJson(model, data);
         }
     }
 }
