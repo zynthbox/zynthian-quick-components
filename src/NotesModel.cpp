@@ -533,5 +533,5 @@ PlayGridManager* NotesModel::playGridManager() const
     if (d->parentModel) {
         return d->parentModel->playGridManager();
     }
-    return qobject_cast<PlayGridManager*>(parent());
+    return PlayGridManager::instance();
 }

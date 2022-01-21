@@ -57,21 +57,24 @@ public:
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
-    : NotesModel(parent->playGridManager())
+    : NotesModel(parent ? parent->playGridManager() : nullptr)
     , d(new Private)
 {
+    // We need to make sure that we support orphaned patterns (that is, a pattern that is not contained within a sequence)
     d->sequence = parent;
-    connect(d->sequence, &SequenceModel::isPlayingChanged, this, &PatternModel::isPlayingChanged);
-    connect(d->sequence, &SequenceModel::soloPatternChanged, this, &PatternModel::isPlayingChanged);
-    connect(this, &PatternModel::enabledChanged, this, &PatternModel::isPlayingChanged);
-    // This is to ensure that when the current sound changes and we have no midi channel, we will schedule
-    // the notes that are expected of us
-    connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
-        if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
-            d->onBuffers.clear();
-            d->offBuffers.clear();
-        }
-    });
+    if (parent) {
+        connect(d->sequence, &SequenceModel::isPlayingChanged, this, &PatternModel::isPlayingChanged);
+        connect(d->sequence, &SequenceModel::soloPatternChanged, this, &PatternModel::isPlayingChanged);
+        connect(this, &PatternModel::enabledChanged, this, &PatternModel::isPlayingChanged);
+        // This is to ensure that when the current sound changes and we have no midi channel, we will schedule
+        // the notes that are expected of us
+        connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
+            if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
+                d->onBuffers.clear();
+                d->offBuffers.clear();
+            }
+        });
+    }
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
 }
