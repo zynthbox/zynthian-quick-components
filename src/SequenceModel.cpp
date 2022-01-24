@@ -53,6 +53,7 @@ public:
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
     bool isPlaying{false};
+    bool isLoading{false};
 
     void ensureFilePath(const QString &explicitFile) {
         if (!explicitFile.isEmpty()) {
@@ -172,16 +173,12 @@ QObject* SequenceModel::get(int patternIndex) const
 
 void SequenceModel::insertPattern(PatternModel* pattern, int row)
 {
-    int insertionRow = d->patternModels.count();
-    if (row > -1) {
-        // If we've been requested to add in a specific location, do so
-        insertionRow = qMin(qMax(0, row), d->patternModels.count());
-    }
-    beginInsertRows(QModelIndex(), insertionRow, insertionRow);
     auto updatePattern = [this,pattern](){
-        int row = d->patternModels.indexOf(pattern);
-        QModelIndex index(createIndex(row, 0));
-        dataChanged(index, index);
+        if (!d->isLoading) {
+            int row = d->patternModels.indexOf(pattern);
+            QModelIndex index(createIndex(row, 0));
+            dataChanged(index, index);
+        }
     };
     connect(pattern, &PatternModel::midiChannelChanged, this, updatePattern);
     connect(pattern, &PatternModel::objectNameChanged, this, updatePattern);
@@ -197,20 +194,26 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     connect(pattern, &PatternModel::bankLengthChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::enabledChanged, this, &SequenceModel::setDirty);
     connect(pattern, &NotesModel::lastModifiedChanged, this, &SequenceModel::setDirty);
+    int insertionRow = d->patternModels.count();
+    if (row > -1) {
+        // If we've been requested to add in a specific location, do so
+        insertionRow = qMin(qMax(0, row), d->patternModels.count());
+    }
+    if (!d->isLoading) { beginInsertRows(QModelIndex(), insertionRow, insertionRow); }
     d->patternModels.insert(insertionRow, pattern);
+    if (!d->isLoading) { endInsertRows(); }
     setActivePattern(d->activePattern);
-    endInsertRows();
 }
 
 void SequenceModel::removePattern(PatternModel* pattern)
 {
     int removalPosition = d->patternModels.indexOf(pattern);
     if (removalPosition > -1) {
-        beginRemoveRows(QModelIndex(), removalPosition, removalPosition);
+        if (!d->isLoading) { beginRemoveRows(QModelIndex(), removalPosition, removalPosition); }
         d->patternModels.removeAt(removalPosition);
         pattern->disconnect(this);
         setActivePattern(d->activePattern);
-        endRemoveRows();
+        if (!d->isLoading) { endRemoveRows(); }
     }
 }
 
@@ -275,6 +278,7 @@ void SequenceModel::setIsDirty(bool isDirty)
 
 void SequenceModel::load(const QString &fileName)
 {
+    d->isLoading = true;
     beginResetModel();
     QString data;
     d->ensureFilePath(fileName);
@@ -323,6 +327,7 @@ void SequenceModel::load(const QString &fileName)
     }
     setIsDirty(false);
     endResetModel();
+    d->isLoading = false;
 }
 
 bool SequenceModel::save(const QString &fileName)
