@@ -5,6 +5,7 @@ target_sources(zynthian-quick-plugin
     FilterProxy.cpp
     Note.cpp
     NotesModel.cpp
+    MidiListener.cpp
     PatternImageProvider.cpp
     PatternModel.cpp
     PlayGrid.cpp
