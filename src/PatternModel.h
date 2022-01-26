@@ -163,6 +163,12 @@ public:
     ~PatternModel() override;
 
     /**
+     * \brief Clear this pattern and replace all contents and settings with those contained in the given pattern
+     * @param otherPattern The pattern whose details you want to clone into this one
+     */
+    void cloneOther(PatternModel *otherPattern);
+
+    /**
      * \brief The subnote position of the note with the given midi note value in the requested position in the model
      * @param row The row you wish to check in
      * @param column The column in the row you wish to check in

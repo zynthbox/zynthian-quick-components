@@ -84,6 +84,28 @@ PatternModel::~PatternModel()
     delete d;
 }
 
+void PatternModel::cloneOther(PatternModel *otherPattern)
+{
+    if (otherPattern) {
+        clear();
+        setWidth(otherPattern->width());
+        setHeight(otherPattern->height());
+        setMidiChannel(otherPattern->midiChannel());
+        setLayerData(otherPattern->layerData());
+        setNoteLength(otherPattern->noteLength());
+        setAvailableBars(otherPattern->availableBars());
+        setActiveBar(otherPattern->activeBar());
+        setBankOffset(otherPattern->bankOffset());
+        setBankLength(otherPattern->bankLength());
+        setEnabled(otherPattern->enabled());
+
+        // Now clone all the notes
+        for (int i = 0; i < rowCount(); ++i) {
+            setRowData(i, otherPattern->getRow(i), otherPattern->getRowMetadata(i));
+        }
+    }
+}
+
 int PatternModel::subnoteIndex(int row, int column, int midiNote) const
 {
     int result{-1};
