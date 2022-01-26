@@ -19,7 +19,6 @@
  *
  */
 
-class SequenceModel;
 #ifndef PLAYGRIDMANAGER_H
 #define PLAYGRIDMANAGER_H
 
@@ -28,6 +27,7 @@ class SequenceModel;
 #include <QVariantMap>
 #include <QJsonObject>
 
+class SequenceModel;
 class QQmlEngine;
 class Note;
 class PlayGridManager : public QObject
@@ -175,6 +175,13 @@ public:
      * @return The instance with the given name
      */
     Q_INVOKABLE QObject* getNamedInstance(const QString &name, const QString& qmlTypeName);
+    /**
+     * \brief This will delete the object with the given name (previously created by PlayGridManager)
+     * This was originally created to allow for ease of management of the temporary Sequence and Pattern
+     * models created when browsing the filesystem (but likely would be useful for various other things)
+     * @param name The name of the object you wish to delete
+     */
+    Q_INVOKABLE void deleteNamedObject(const QString& name);
 
     /**
      * \brief Get a JSON representation of a Note object

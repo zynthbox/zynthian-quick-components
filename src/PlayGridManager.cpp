@@ -563,6 +563,23 @@ QObject* PlayGridManager::getNamedInstance(const QString& name, const QString& q
     return instance;
 }
 
+void PlayGridManager::deleteNamedObject(const QString &name)
+{
+    QObject *instance{nullptr};
+    if (d->namedInstances.contains(name)) {
+        instance = d->namedInstances.take(name);
+    } else if (d->sequenceModels.contains(name)) {
+        instance = d->sequenceModels.take(name);
+    } else if (d->patternModels.contains(name)) {
+        instance = d->patternModels.take(name);
+    } else if (d->settingsContainers.contains(name)) {
+        instance = d->settingsContainers.take(name);
+    }
+    if (instance) {
+        instance->deleteLater();
+    }
+}
+
 QJsonObject PlayGridManager::noteToJsonObject(Note *note) const
 {
     QJsonObject jsonObject;
