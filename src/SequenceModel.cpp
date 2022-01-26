@@ -46,6 +46,7 @@ public:
     int soloPattern{-1};
     PatternModel *soloPatternObject{nullptr};
     QList<PatternModel*> patternModels;
+    int bpm{0};
     int activePattern{0};
     QString filePath;
     bool isDirty{false};
@@ -227,6 +228,19 @@ PlayGridManager* SequenceModel::playGridManager() const
     return d->playGridManager;
 }
 
+void SequenceModel::setBpm(int bpm)
+{
+    if(d->bpm != bpm) {
+        d->bpm = bpm;
+        Q_EMIT bpmChanged();
+    }
+}
+
+int SequenceModel::bpm() const
+{
+    return d->bpm;
+}
+
 void SequenceModel::setActivePattern(int activePattern)
 {
     int adjusted = qMin(qMax(0, activePattern), d->patternModels.count());
@@ -315,6 +329,7 @@ void SequenceModel::load(const QString &fileName)
             }
         }
         setActivePattern(obj.value("activePattern").toInt());
+        setBpm(obj.value("bpm").toInt());
     }
     // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
     if (d->patternModels.count() < PATTERN_COUNT) {
@@ -330,22 +345,29 @@ void SequenceModel::load(const QString &fileName)
     d->isLoading = false;
 }
 
-bool SequenceModel::save(const QString &fileName)
+bool SequenceModel::save(const QString &fileName, bool exportOnly)
 {
     bool success = false;
 
     QJsonObject sequenceObject;
     sequenceObject["activePattern"] = activePattern();
+    sequenceObject["bpm"] = bpm();
 
     QJsonDocument jsonDoc;
     jsonDoc.setObject(sequenceObject);
     QString data = jsonDoc.toJson();
 
-    d->ensureFilePath(fileName);
-    QDir sequenceLocation(d->filePath.left(d->filePath.lastIndexOf("/")));
-    QDir patternLocation(d->filePath.left(d->filePath.lastIndexOf("/")) + "/patterns");
+    QString saveToPath;
+    if (exportOnly) {
+        saveToPath = fileName;
+    } else {
+        d->ensureFilePath(fileName);
+        saveToPath = d->filePath;
+    }
+    QDir sequenceLocation(saveToPath.left(saveToPath.lastIndexOf("/")));
+    QDir patternLocation(saveToPath.left(saveToPath.lastIndexOf("/")) + "/patterns");
     if (sequenceLocation.exists() || sequenceLocation.mkpath(sequenceLocation.path())) {
-        QFile dataFile(d->filePath);
+        QFile dataFile(saveToPath);
         if (dataFile.open(QIODevice::WriteOnly) && dataFile.write(data.toUtf8())) {
             dataFile.close();
             if (patternLocation.exists() || patternLocation.mkpath(patternLocation.path())) {

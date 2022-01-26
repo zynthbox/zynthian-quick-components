@@ -29,8 +29,24 @@ class PatternModel;
 class SequenceModel : public QAbstractListModel
 {
     Q_OBJECT
+    /**
+     * \brief The Beats Per Minute set on the song this Sequence was most recently associated with
+     */
+    Q_PROPERTY(int bpm READ bpm WRITE setBpm NOTIFY bpmChanged)
+    /**
+     * \brief The currently selected pattern
+     * This is not functionally important to playback, but important for keeping the state between
+     * saves and whatnot
+     */
     Q_PROPERTY(int activePattern READ activePattern WRITE setActivePattern NOTIFY activePatternChanged)
+    /**
+     * \brief The pattern object at the position of the activePattern property
+     */
     Q_PROPERTY(QObject* activePatternObject READ activePatternObject NOTIFY activePatternChanged)
+    /**
+     * \brief Whether or not the sequence is currently included in playback and playing is running
+     * That is to say, whether or not the sequence is currently playing
+     */
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
     /**
      * \brief Sets a reference to the song this Sequence is associated with
@@ -118,6 +134,10 @@ public:
 
     PlayGridManager *playGridManager() const;
 
+    void setBpm(int bpm);
+    int bpm() const;
+    Q_SIGNAL void bpmChanged();
+
     void setActivePattern(int activePattern);
     int activePattern() const;
     QObject *activePatternObject() const;
@@ -145,9 +165,10 @@ public:
      * @note Passing a filename to this function will reset the filePath property to that name
      * @note Any file in the location WILL be overwritten if it already exists
      * @param fileName An optional filename to be used to perform the operation in place of the automatically chosen one (pass the metadata.seq.json location)
+     * @param exportOnly If set to true, this will make this function only export the information, and not actually touch the internal state of the sequence
      * @return True if successful, false if not
      */
-    Q_INVOKABLE bool save(const QString &fileName = QString());
+    Q_INVOKABLE bool save(const QString &fileName = QString(), bool exportOnly = false);
 
     /**
      * \brief Clear all patterns of all notes
