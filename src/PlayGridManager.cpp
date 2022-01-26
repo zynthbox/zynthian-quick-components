@@ -291,6 +291,14 @@ PlayGridManager::PlayGridManager(QObject* parent)
             }
         }
     });
+    QDir mySequenceLocation{QString("%1/sequences/my-sequences").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR")))};
+    if (!mySequenceLocation.exists()) {
+        mySequenceLocation.mkpath(mySequenceLocation.path());
+    }
+    QDir communitySequenceLocation{QString("%1/sequences/community-sequences").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR")))};
+    if (!communitySequenceLocation.exists()) {
+        communitySequenceLocation.mkpath(communitySequenceLocation.path());
+    }
 }
 
 PlayGridManager::~PlayGridManager()
