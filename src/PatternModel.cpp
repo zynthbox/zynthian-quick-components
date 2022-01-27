@@ -23,6 +23,7 @@
 #include "Note.h"
 
 #include <QDebug>
+#include <QFile>
 
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -260,6 +261,18 @@ void PatternModel::setWidth(int width)
             setRowData(row, rowNotes, rowMetadata);
         }
     }
+}
+
+bool PatternModel::exportToFile(const QString &fileName) const
+{
+    bool success{false};
+    QFile patternFile(fileName);
+    if (patternFile.open(QIODevice::WriteOnly)) {
+        patternFile.write(playGridManager()->modelToJson(this).toUtf8());
+        patternFile.close();
+        success = true;
+    }
+    return success;
 }
 
 QObject* PatternModel::sequence() const

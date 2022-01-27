@@ -374,11 +374,8 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
                 int i{0};
                 const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
                 for (PatternModel *pattern : d->patternModels) {
-                    QFile patternFile(QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(QString::number(i + 1)));
-                    if (patternFile.open(QIODevice::WriteOnly)) {
-                        patternFile.write(playGridManager()->modelToJson(pattern).toUtf8());
-                        patternFile.close();
-                    }
+                    QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(QString::number(i + 1));
+                    pattern->exportToFile(fileName);
                     ++i;
                 }
             }

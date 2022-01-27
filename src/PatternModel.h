@@ -249,6 +249,14 @@ public:
      */
     Q_INVOKABLE void clearRow(int row);
 
+    /**
+     * \brief This will export a json representation of the pattern to a file with the given filename
+     * @note This will overwrite anything that already exists in that location without warning
+     * @param fileName The file you wish to write the pattern's json representation to
+     * @return True if the file was successfully written, otherwise false
+     */
+    Q_INVOKABLE bool exportToFile(const QString &fileName) const;
+
     QObject* sequence() const;
 
     int width() const;
