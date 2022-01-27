@@ -202,7 +202,7 @@ public:
      * @param model A NotesModel object
      * @return A string containing a representation of the model's notes in JSON form
      */
-    Q_INVOKABLE QString modelToJson(QObject *model) const;
+    Q_INVOKABLE QString modelToJson(const QObject *model) const;
     /**
      * \brief Set the contents of the given model based on the given JSON representation
      *

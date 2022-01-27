@@ -247,7 +247,7 @@ public:
         return note;
     }
 
-    QJsonArray generateModelNotesSection(NotesModel* model) {
+    QJsonArray generateModelNotesSection(const NotesModel* model) {
         QJsonArray modelArray;
         for (int row = 0; row < model->rowCount(); ++row) {
             QJsonArray rowArray;
@@ -622,11 +622,11 @@ Note *PlayGridManager::jsonObjectToNote(const QJsonObject &jsonObject)
     return note;
 }
 
-QString PlayGridManager::modelToJson(QObject* model) const
+QString PlayGridManager::modelToJson(const QObject* model) const
 {
     QJsonDocument json;
-    NotesModel* actualModel = qobject_cast<NotesModel*>(model);
-    PatternModel* patternModel = qobject_cast<PatternModel*>(model);
+    const NotesModel* actualModel = qobject_cast<const NotesModel*>(model);
+    const PatternModel* patternModel = qobject_cast<const PatternModel*>(model);
     if (patternModel) {
         QJsonObject modelObject;
         modelObject["height"] = patternModel->height();
