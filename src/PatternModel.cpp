@@ -242,6 +242,13 @@ void PatternModel::clearRow(int row)
     }
 }
 
+void PatternModel::clearBank(int bank)
+{
+    for (int i = 0; i < bankLength(); ++i) {
+        clearRow((bankLength() * bank) + i);
+    }
+}
+
 void PatternModel::setWidth(int width)
 {
     if (this->width() < width) {

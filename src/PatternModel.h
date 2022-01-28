@@ -250,6 +250,12 @@ public:
     Q_INVOKABLE void clearRow(int row);
 
     /**
+     * \brief Clear all the rows in the given bank
+     * @param bank The index of the bank (being the bank starting at the row bank * bankLength)
+     */
+    Q_INVOKABLE void clearBank(int bank);
+
+    /**
      * \brief This will export a json representation of the pattern to a file with the given filename
      * @note This will overwrite anything that already exists in that location without warning
      * @param fileName The file you wish to write the pattern's json representation to
