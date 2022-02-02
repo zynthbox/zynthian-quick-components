@@ -166,7 +166,7 @@ public:
      * \brief Clear this pattern and replace all contents and settings with those contained in the given pattern
      * @param otherPattern The pattern whose details you want to clone into this one
      */
-    void cloneOther(PatternModel *otherPattern);
+    Q_INVOKABLE void cloneOther(PatternModel *otherPattern);
 
     /**
      * \brief The subnote position of the note with the given midi note value in the requested position in the model
