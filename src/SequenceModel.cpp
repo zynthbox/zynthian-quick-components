@@ -128,7 +128,14 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
         // We might well want to do something more clever with the text later on, so...
         case TextRole:
         case NameRole:
-            result.setValue(model->objectName());
+        {
+            // To ensure we can have orphaned models, we can't assume an associated sequence
+            int parentNameLength{0};
+            if (model->sequence()) {
+                parentNameLength = model->sequence()->objectName().length();
+            }
+            result.setValue(model->objectName().left(model->objectName().length() - (parentNameLength + 3)));
+        }
             break;
         case LayerRole:
             result.setValue(model->midiChannel());
@@ -314,18 +321,18 @@ void SequenceModel::load(const QString &fileName)
     if (jsonDoc.isObject()) {
         QJsonObject obj = jsonDoc.object();
         // Load the patterns from disk
-        const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
+//         const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
         for (int i = 0; i < PATTERN_COUNT; ++i) {
-            QFile patternFile(QString("%1/patterns/%2-%3.pattern.json").arg(d->filePath.left(d->filePath.lastIndexOf("/"))).arg(sequenceNameForFiles).arg(QString::number(i + 1)));
+            // TODO Not awesome... We need to fix this, that should not be called global :P .arg(sequenceNameForFiles)
+            QFile patternFile(QString("%1/patterns/global-%2.pattern.json").arg(d->filePath.left(d->filePath.lastIndexOf("/"))).arg(QString::number(i + 1)));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(i + 1)).arg(objectName()), objectName()));
+            model->clear();
             if (patternFile.exists()) {
                 if (patternFile.open(QIODevice::ReadOnly)) {
                     QString patternData = QString::fromUtf8(patternFile.readAll());
                     patternFile.close();
-                    PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(i + 1)), objectName()));
                     playGridManager()->setModelFromJson(model, patternData);
                 }
-            } else {
-                playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(i + 1)), objectName());
             }
         }
         setActivePattern(obj.value("activePattern").toInt());
@@ -334,7 +341,8 @@ void SequenceModel::load(const QString &fileName)
     // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
     if (d->patternModels.count() < PATTERN_COUNT) {
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
-            playGridManager()->getPatternModel(QString("Pattern %1").arg(QString::number(i + 1)), objectName());
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(i + 1)).arg(objectName()), objectName()));
+            model->clear();
         }
     }
     if (activePattern() == -1) {
