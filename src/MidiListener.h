@@ -28,14 +28,25 @@
 
 void handleRtMidiMessage(double, std::vector< unsigned char >*, void*);
 
+struct NoteMessage {
+    bool setOn{false};
+    int midiNote{0};
+    int midiChannel{0};
+    int velocity{0};
+};
+
 class MidiListener : public QThread {
     Q_OBJECT
 public:
     explicit MidiListener(int rtMidiInPort);
     ~MidiListener() override;
+    void run() override;
     Q_SLOT void markAsDone();
     Q_SIGNAL void noteChanged(int midiNote, int midiChannel, int velocity, bool setOn);
+    void addMessage(int midiNote, int midiChannel, int velocity, bool setOn);
 private:
+    int lastRelevantMessage{-1};
+    QList<NoteMessage*> messages;
     bool done{false};
     int midiInPort{-1};
     RtMidiIn *midiin{nullptr};
