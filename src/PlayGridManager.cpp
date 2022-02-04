@@ -116,12 +116,16 @@ public:
         unsigned int nPorts = midiin->getPortCount();
         if ( nPorts > 0 ) {
             std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n" << std::endl;
+            const char* zynMidiRouterOutName{"ZynMidiRouter:ch"};
             for (unsigned int i = 0; i < nPorts; ++i) {
-                MidiListener *midiListener = new MidiListener(i);
-                QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn){ updateNoteState(midiNote, midiChannel, velocity, setOn); }, Qt::QueuedConnection);
-                midiListener->start();
-                midiListeners << midiListener;
+                const std::string portName = midiin->getPortName(i);
+                if (portName.rfind(zynMidiRouterOutName, 0) == 0) {
+                    MidiListener *midiListener = new MidiListener(i);
+                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn){ updateNoteState(midiNote, midiChannel, velocity, setOn); }, Qt::QueuedConnection);
+                    midiListener->start();
+                    midiListeners << midiListener;
+                }
             }
         }
     }
