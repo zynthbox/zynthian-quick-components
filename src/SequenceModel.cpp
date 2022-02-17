@@ -504,7 +504,7 @@ void SequenceModel::prepareSequencePlayback()
         // pre-fill the first beat with notes - the first beat will also call the function,
         // but will do so for +1, not current cumulativeBeat, so we need to prefill things a bit.
         for (PatternModel *pattern : d->patternModels) {
-            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() - 1, 8);
+            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() - 1, 6);
         }
     }
     playGridManager()->hookUpTimer();
@@ -553,7 +553,9 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    int sequenceProgressionLength{8};
+    /// TODO Optimally, this duration wants to be 1 plus the number of notes that would fit inside the Jack buffers we're supposed to be dealing with.
+    /// Logic for calculating this can be found in SyncTimer. For now, 6 does us ok
+    int sequenceProgressionLength{6};
     if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
         PatternModel *pattern = d->patternModels[d->soloPattern];
         if (pattern) {
