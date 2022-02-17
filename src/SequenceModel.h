@@ -224,7 +224,15 @@ public:
      */
     Q_INVOKABLE void startSequencePlayback();
     /**
-     * \brief Stops the playback of the sequence
+     * \brief Disconnects the sequence from the global timer (stops playback of only this Sequence)
+     * This function will also attempt to clean up any notes scheduled into the future for this sequence,
+     * which means you will want to call this function /before/ starting others, to avoid potential
+     * add/remove clashes.
+     * @note If the sequence is not playing, this function is safe to call
+     */
+    Q_INVOKABLE void disconnectSequencePlayback();
+    /**
+     * \brief Disconnects the sequence from the global timer and stops the global timer
      */
     Q_INVOKABLE void stopSequencePlayback();
     /**

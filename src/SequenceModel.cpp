@@ -516,14 +516,13 @@ void SequenceModel::startSequencePlayback()
     playGridManager()->startMetronome();
 }
 
-void SequenceModel::stopSequencePlayback()
+void SequenceModel::disconnectSequencePlayback()
 {
     if (d->isPlaying) {
         disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
         disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
         d->isPlaying = false;
         Q_EMIT isPlayingChanged();
-        playGridManager()->stopMetronome();
     }
     for (QObject *noteObject : d->queuedForOffNotes) {
         Note *note = qobject_cast<Note*>(noteObject);
@@ -533,6 +532,14 @@ void SequenceModel::stopSequencePlayback()
         pattern->handleSequenceStop();
     }
     d->queuedForOffNotes.clear();
+}
+
+void SequenceModel::stopSequencePlayback()
+{
+    if (d->isPlaying) {
+        disconnectSequencePlayback();
+        playGridManager()->stopMetronome();
+    }
 }
 
 void SequenceModel::resetSequence()
