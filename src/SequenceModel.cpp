@@ -63,7 +63,7 @@ public:
         if (filePath.isEmpty()) {
             if (song) {
                 QString sketchFolder = song->property("sketchFolder").toString();
-                q->setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(QString::number(version)));
+                q->setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(q->objectName()));
             } else {
                 q->setFilePath(QString("%1/%2.sequence.json").arg(getDataLocation()).arg(QString::number(version)));
             }
@@ -424,7 +424,7 @@ void SequenceModel::setSong(QObject* song)
         d->song = song;
         if (d->song) {
             QString sketchFolder = d->song->property("sketchFolder").toString();
-            setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(QString::number(d->version)));
+            setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(objectName()));
         }
         load();
         Q_EMIT songChanged();
