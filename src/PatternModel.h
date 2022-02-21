@@ -43,6 +43,13 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(QObject* sequence READ sequence CONSTANT)
     /**
+     * \brief The destination for notes in this pattern (currently either synth or sample)
+     * This controls whether this pattern fires notes into the midi world, or whether it uses
+     * the pattern to control samples being fired.
+     * @default PatternModel::NoteDestination::SynthDestination
+     */
+    Q_PROPERTY(PatternModel::NoteDestination noteDestination READ noteDestination WRITE setNoteDestination NOTIFY noteDestinationChanged)
+    /**
      * \brief The length of each row in the model (similar to column count, but for all rows)
      * @note Setting this to a value smaller than the current state will remove any notes set in the overflow columns
      * @default 16
@@ -162,6 +169,12 @@ public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
 
+    enum NoteDestination {
+        SynthDestination = 0,
+        SampleDestination = 1,
+    };
+    Q_ENUM(NoteDestination)
+
     /**
      * \brief Clear this pattern and replace all contents and settings with those contained in the given pattern
      * @param otherPattern The pattern whose details you want to clone into this one
@@ -265,6 +278,10 @@ public:
 
     QObject* sequence() const;
 
+    PatternModel::NoteDestination noteDestination() const;
+    void setNoteDestination(const PatternModel::NoteDestination &noteDestination);
+    Q_SIGNAL void noteDestinationChanged();
+
     int width() const;
     void setWidth(int width);
     Q_SIGNAL void widthChanged();
@@ -358,5 +375,6 @@ private:
     class Private;
     Private *d;
 };
+Q_DECLARE_METATYPE(PatternModel::NoteDestination)
 
 #endif//PATTERNMODEL_H

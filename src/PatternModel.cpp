@@ -34,6 +34,7 @@ class PatternModel::Private {
 public:
     Private() {}
     int width{16};
+    PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
     int midiChannel{15};
     QString layerData;
     int noteLength{3};
@@ -78,6 +79,9 @@ PatternModel::PatternModel(SequenceModel* parent)
     }
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
+
+    static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
+    Q_UNUSED(noteDestinationTypeId)
 }
 
 PatternModel::~PatternModel()
@@ -285,6 +289,19 @@ bool PatternModel::exportToFile(const QString &fileName) const
 QObject* PatternModel::sequence() const
 {
     return d->sequence;
+}
+
+PatternModel::NoteDestination PatternModel::noteDestination() const
+{
+    return d->noteDestination;
+}
+
+void PatternModel::setNoteDestination(const PatternModel::NoteDestination &noteDestination)
+{
+    if (d->noteDestination != noteDestination) {
+        d->noteDestination = noteDestination;
+        Q_EMIT noteDestinationChanged();
+    }
 }
 
 int PatternModel::width() const
@@ -708,12 +725,19 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 if (!d->syncTimer) {
                     d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
                 }
-                // If sequencePosition is -1, that means we're on the prefilling step and need to
-                // adjust the delay so we're scheduling the notes onto the right position, otherwise
-                // we're just posting messages for the next step
-                const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
-                d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
-                d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
+                switch (d->noteDestination) {
+                    case PatternModel::SampleDestination:
+                        break;
+                    case PatternModel::SynthDestination:
+                    default:
+                        // If sequencePosition is -1, that means we're on the prefilling step and need to
+                        // adjust the delay so we're scheduling the notes onto the right position, otherwise
+                        // we're just posting messages for the next step
+                        const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
+                        d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
+                        d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
+                        break;
+                }
             }
         }
     }
@@ -780,4 +804,5 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
 
 void PatternModel::handleSequenceStop()
 {
+    // Unschedule any notes we've previously scheduled, to try and alleviate troublesome situations
 }

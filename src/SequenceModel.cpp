@@ -194,6 +194,7 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     connect(pattern, &PatternModel::bankOffsetChanged, this, updatePattern);
     connect(pattern, &PatternModel::playingColumnChanged, this, updatePattern);
     connect(pattern, &PatternModel::layerDataChanged, this, updatePattern);
+    connect(pattern, &PatternModel::noteDestinationChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::midiChannelChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::layerDataChanged, this, &SequenceModel::setDirty);
     connect(pattern, &PatternModel::noteLengthChanged, this, &SequenceModel::setDirty);

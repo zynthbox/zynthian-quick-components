@@ -639,6 +639,7 @@ QString PlayGridManager::modelToJson(const QObject* model) const
         QJsonObject modelObject;
         modelObject["height"] = patternModel->height();
         modelObject["width"] = patternModel->width();
+        modelObject["noteDestination"] = int(patternModel->noteDestination());
         modelObject["midiChannel"] = patternModel->midiChannel();
         modelObject["noteLength"] = patternModel->noteLength();
         modelObject["availableBars"] = patternModel->availableBars();
@@ -702,6 +703,11 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
                 pattern->setLayerData(patternObject.value("layerData").toString());
             } else {
                 pattern->setLayerData("");
+            }
+            if (patternObject.contains("noteDestination")) {
+                pattern->setNoteDestination(PatternModel::NoteDestination(patternObject.value("noteDestination").toInt()));
+            } else {
+                pattern->setNoteDestination(PatternModel::SynthDestination);
             }
         }
     }
