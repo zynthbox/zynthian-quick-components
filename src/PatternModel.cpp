@@ -29,6 +29,7 @@
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <SyncTimer.h>
+#include <ClipAudioSource.h>
 
 class PatternModel::Private {
 public:
@@ -56,6 +57,9 @@ public:
     QHash<int, juce::MidiBuffer> offBuffers;
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
+
+    // A clip used for playing when using SampleDestination
+    ClipAudioSource *clip{nullptr};
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -501,6 +505,31 @@ bool PatternModel::enabled() const
     return d->enabled;
 }
 
+void PatternModel::setSampleFilename(const QString &sampleFilename)
+{
+    bool hasChanged{false};
+    if (d->clip && d->clip->getFileName() != sampleFilename) {
+        delete d->clip;
+        d->clip = nullptr;
+        hasChanged = true;
+    }
+    if (!sampleFilename.isEmpty()) {
+        d->clip = new ClipAudioSource(d->syncTimer, sampleFilename.toUtf8());
+        hasChanged = true;
+    }
+    if (hasChanged) {
+        Q_EMIT sampleFilenameChanged();
+    }
+}
+
+QString PatternModel::sampleFilename() const
+{
+    if (d->clip) {
+        return QString::fromUtf8(d->clip->getFileName());
+    }
+    return {};
+}
+
 int PatternModel::playingRow() const
 {
     return d->playingRow;
@@ -725,15 +754,27 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 if (!d->syncTimer) {
                     d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
                 }
+                // If sequencePosition is -1, that means we're on the prefilling step and need to
+                // adjust the delay so we're scheduling the notes onto the right position, otherwise
+                // we're just posting messages for the next step
+                const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
                 switch (d->noteDestination) {
                     case PatternModel::SampleDestination:
+                    {
+                        if (d->clip) {
+                            const juce::MidiBuffer &onBuffer = d->onBuffers[nextPosition + (d->bankOffset * d->width)];
+                            const juce::MidiBuffer &offBuffer = d->offBuffers[nextPosition + (d->bankOffset * d->width)];
+                            if (!onBuffer.isEmpty()) {
+                                d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement - 1);
+                            }
+                            if (!offBuffer.isEmpty()) {
+                                d->syncTimer->scheduleClipToStop(d->clip, progressionIncrement + noteDuration - delayAdjustment);
+                            }
+                        }
                         break;
+                    }
                     case PatternModel::SynthDestination:
                     default:
-                        // If sequencePosition is -1, that means we're on the prefilling step and need to
-                        // adjust the delay so we're scheduling the notes onto the right position, otherwise
-                        // we're just posting messages for the next step
-                        const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
                         d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
                         d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
                         break;

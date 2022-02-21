@@ -130,6 +130,11 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
     /**
+     * \brief The filename of the sample used for playback in SampleDestination mode
+     * @note This is potentially very expensive, as the soundfile is loaded into memory and set up for playback
+     */
+    Q_PROPERTY(QString sampleFilename READ sampleFilename WRITE setSampleFilename NOTIFY sampleFilenameChanged)
+    /**
      * \brief The row which most recently had a note scheduled to be played
      * @default 0
      */
@@ -337,6 +342,10 @@ public:
     void setEnabled(bool enabled);
     bool enabled() const;
     Q_SIGNAL void enabledChanged();
+
+    void setSampleFilename(const QString &sampleFilename);
+    QString sampleFilename() const;
+    Q_SIGNAL void sampleFilenameChanged();
 
     int playingRow() const;
     Q_SIGNAL void playingRowChanged();
