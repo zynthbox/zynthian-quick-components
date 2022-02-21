@@ -765,10 +765,19 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             const juce::MidiBuffer &onBuffer = d->onBuffers[nextPosition + (d->bankOffset * d->width)];
                             const juce::MidiBuffer &offBuffer = d->offBuffers[nextPosition + (d->bankOffset * d->width)];
                             if (!onBuffer.isEmpty()) {
-                                d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement - 1);
+                                for (const juce::MidiMessageMetadata &meta : onBuffer) {
+                                    if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
+                                        d->clip->setVolume(float(meta.data[2]) / float(128));
+                                        d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement - 1);
+                                    }
+                                }
                             }
                             if (!offBuffer.isEmpty()) {
-                                d->syncTimer->scheduleClipToStop(d->clip, progressionIncrement + noteDuration - delayAdjustment);
+                                for (const juce::MidiMessageMetadata &meta : offBuffer) {
+                                    if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
+                                        d->syncTimer->scheduleClipToStop(d->clip, progressionIncrement + noteDuration - delayAdjustment);
+                                    }
+                                }
                             }
                         }
                         break;
