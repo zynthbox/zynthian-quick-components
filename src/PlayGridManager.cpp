@@ -66,6 +66,10 @@ public:
         });
         ensureMidiOutput();
         listenToEverything();
+        currentPlaygrids = {
+            {"minigrid", 1}, // As these are sorted alphabetically, notesgrid for minigrid and
+            {"playgrid", 0}, // drumatique for playgrid
+        };
     }
     ~Private() {
         if (midiout) {
