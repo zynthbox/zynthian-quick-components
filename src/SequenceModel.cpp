@@ -32,7 +32,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
-#define PATTERN_COUNT 5
+#define PATTERN_COUNT 10
 
 class SequenceModel::Private {
 public:
