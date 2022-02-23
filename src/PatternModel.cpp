@@ -84,6 +84,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
 
+    connect(this, &QObject::objectNameChanged, this, &PatternModel::nameChanged);
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
 }
@@ -293,6 +294,16 @@ bool PatternModel::exportToFile(const QString &fileName) const
 QObject* PatternModel::sequence() const
 {
     return d->sequence;
+}
+
+QString PatternModel::name() const
+{
+    // To ensure we can have orphaned models, we can't assume an associated sequence
+    int parentNameLength{0};
+    if (d->sequence) {
+        parentNameLength = d->sequence->objectName().length();
+    }
+    return objectName().left(objectName().length() - (parentNameLength + 3));
 }
 
 PatternModel::NoteDestination PatternModel::noteDestination() const

@@ -43,6 +43,10 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(QObject* sequence READ sequence CONSTANT)
     /**
+     * \brief A human-readable name for this pattern (removes the parent sequence's name from the objectName if one is set)
+     */
+    Q_PROPERTY(QString name READ name NOTIFY nameChanged)
+    /**
      * \brief The destination for notes in this pattern (currently either synth or sample)
      * This controls whether this pattern fires notes into the midi world, or whether it uses
      * the pattern to control samples being fired.
@@ -282,6 +286,9 @@ public:
     Q_INVOKABLE bool exportToFile(const QString &fileName) const;
 
     QObject* sequence() const;
+
+    QString name() const;
+    Q_SIGNAL void nameChanged();
 
     PatternModel::NoteDestination noteDestination() const;
     void setNoteDestination(const PatternModel::NoteDestination &noteDestination);

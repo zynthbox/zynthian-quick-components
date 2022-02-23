@@ -129,14 +129,7 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
         // We might well want to do something more clever with the text later on, so...
         case TextRole:
         case NameRole:
-        {
-            // To ensure we can have orphaned models, we can't assume an associated sequence
-            int parentNameLength{0};
-            if (model->sequence()) {
-                parentNameLength = model->sequence()->objectName().length();
-            }
-            result.setValue(model->objectName().left(model->objectName().length() - (parentNameLength + 3)));
-        }
+            result.setValue(model->name());
             break;
         case LayerRole:
             result.setValue(model->midiChannel());
