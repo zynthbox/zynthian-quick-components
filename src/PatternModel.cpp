@@ -34,6 +34,9 @@
 class PatternModel::Private {
 public:
     Private() {}
+    ~Private() {
+        qDeleteAll(previouslyLoadedClips);
+    }
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
     int midiChannel{15};
@@ -60,6 +63,7 @@ public:
 
     // A clip used for playing when using SampleDestination
     ClipAudioSource *clip{nullptr};
+    QList<ClipAudioSource *> previouslyLoadedClips;
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -519,13 +523,22 @@ bool PatternModel::enabled() const
 void PatternModel::setSampleFilename(const QString &sampleFilename)
 {
     bool hasChanged{false};
-    if (d->clip && d->clip->getFileName() != sampleFilename) {
+    if (d->clip && d->clip->getFilePath() != sampleFilename) {
         delete d->clip;
         d->clip = nullptr;
         hasChanged = true;
     }
     if (!sampleFilename.isEmpty()) {
-        d->clip = new ClipAudioSource(d->syncTimer, sampleFilename.toUtf8());
+        for (ClipAudioSource *clip : d->previouslyLoadedClips) {
+            if (clip->getFilePath() == sampleFilename) {
+                d->clip = clip;
+                break;
+            }
+        }
+        if (!d->clip) {
+            d->clip = new ClipAudioSource(d->syncTimer, sampleFilename.toUtf8());
+            d->previouslyLoadedClips << d->clip;
+        }
         hasChanged = true;
     }
     if (hasChanged) {
@@ -536,7 +549,7 @@ void PatternModel::setSampleFilename(const QString &sampleFilename)
 QString PatternModel::sampleFilename() const
 {
     if (d->clip) {
-        return QString::fromUtf8(d->clip->getFileName());
+        return QString::fromUtf8(d->clip->getFilePath());
     }
     return {};
 }
@@ -772,14 +785,17 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 switch (d->noteDestination) {
                     case PatternModel::SampleDestination:
                     {
-                        if (d->clip) {
+                        // Only actually schedule notes for the next tick, not for the far-ahead...
+                        if (d->clip && progressionIncrement == 1) {
                             const juce::MidiBuffer &onBuffer = d->onBuffers[nextPosition + (d->bankOffset * d->width)];
                             const juce::MidiBuffer &offBuffer = d->offBuffers[nextPosition + (d->bankOffset * d->width)];
                             if (!onBuffer.isEmpty()) {
                                 for (const juce::MidiMessageMetadata &meta : onBuffer) {
                                     if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
                                         d->clip->setVolume(float(meta.data[2]) / float(128));
-                                        d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement - 1);
+                                        // Alright, this breaks playback apparently... not really what we're after
+                                        // d->clip->setSpeedRatio(float(meta.data[1]) / float(64)); // Treating note 64 as the base speed
+                                        d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement);
                                     }
                                 }
                             }
