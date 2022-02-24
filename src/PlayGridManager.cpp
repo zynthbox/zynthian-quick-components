@@ -136,7 +136,7 @@ public:
     void ensureMidiOutput() {
         // RtMidiOut constructor
         try {
-            midiout = new RtMidiOut();
+            midiout = new RtMidiOut(RtMidi::UNIX_JACK);
         }
         catch ( RtMidiError &error ) {
             error.printMessage();
@@ -150,10 +150,11 @@ public:
             for (unsigned int i = 0; i < nPorts; ++i) {
                 try {
                     portName = midiout->getPortName(i);
-                    if (portName.rfind("Midi Through:Midi Through Port", 0) == 0) {
+                    if (portName.rfind("ZynMidiRouter:main_in", 0) == 0) {
                         std::cout << "Using output port " << i << " named " << portName << std::endl;
                         midiout->openPort(i);
-                        break;
+                    } else {
+                        std::cout << "Not using output port " << i << " named " << portName << std::endl;
                     }
                 }
                 catch (RtMidiError &error) {
@@ -1001,7 +1002,17 @@ bool PlayGridManager::metronomeActive() const
 
 void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn)
 {
-    if (d->syncTimer) {
-        d->syncTimer->sendNoteImmediately(midiNote, channel, setOn, velocity);
+    if (!d->midiout) {
+        d->ensureMidiOutput();
+    }
+    if (d->midiout) {
+        if (setOn) {
+            d->midiMessage[0] = 0x90 + channel;
+        } else {
+            d->midiMessage[0] = 0x80 + channel;
+        }
+        d->midiMessage[1] = midiNote;
+        d->midiMessage[2] = velocity;
+        d->midiout->sendMessage(&d->midiMessage);
     }
 }
