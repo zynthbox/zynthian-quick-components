@@ -520,6 +520,10 @@ bool PatternModel::enabled() const
     return d->enabled;
 }
 
+void progressCallback(float position) {
+    qDebug() << "Progress is now at" << position;
+}
+
 void PatternModel::setSampleFilename(const QString &sampleFilename)
 {
     bool hasChanged{false};
@@ -537,8 +541,10 @@ void PatternModel::setSampleFilename(const QString &sampleFilename)
         }
         if (!d->clip) {
             d->clip = new ClipAudioSource(d->syncTimer, sampleFilename.toUtf8());
+            d->clip->setProgressCallback(&progressCallback);
             d->previouslyLoadedClips << d->clip;
         }
+        d->clip->setLooping(false);
         hasChanged = true;
     }
     if (hasChanged) {
@@ -792,7 +798,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             if (!onBuffer.isEmpty()) {
                                 for (const juce::MidiMessageMetadata &meta : onBuffer) {
                                     if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
-                                        d->clip->setVolume(float(meta.data[2]) / float(128));
+                                        // d->clip->setVolume(float(meta.data[2]) / float(128));
                                         // Alright, this breaks playback apparently... not really what we're after
                                         // d->clip->setSpeedRatio(float(meta.data[1]) / float(64)); // Treating note 64 as the base speed
                                         d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement);
