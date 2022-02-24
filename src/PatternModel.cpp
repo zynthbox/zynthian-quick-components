@@ -544,7 +544,6 @@ void PatternModel::setSampleFilename(const QString &sampleFilename)
             d->clip->setProgressCallback(&progressCallback);
             d->previouslyLoadedClips << d->clip;
         }
-        d->clip->setLooping(false);
         hasChanged = true;
     }
     if (hasChanged) {
