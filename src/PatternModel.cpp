@@ -788,7 +788,10 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 // we're just posting messages for the next step
                 const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
                 switch (d->noteDestination) {
-                    case PatternModel::SampleDestination:
+                    case PatternModel::SampleLoopedDestination:
+                        // If this track is supposed to loop its sample, we are not supposed to be making patterny sounds
+                        break;
+                    case PatternModel::SampleTriggerDestination:
                     {
                         // Only actually schedule notes for the next tick, not for the far-ahead...
                         if (d->clip && progressionIncrement == 1) {

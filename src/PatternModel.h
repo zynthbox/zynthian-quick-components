@@ -180,7 +180,8 @@ public:
 
     enum NoteDestination {
         SynthDestination = 0,
-        SampleDestination = 1,
+        SampleTriggerDestination = 1,
+        SampleLoopedDestination = 2,
     };
     Q_ENUM(NoteDestination)
 
