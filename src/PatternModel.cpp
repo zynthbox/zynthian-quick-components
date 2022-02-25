@@ -28,6 +28,7 @@
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 #include <juce_audio_formats/juce_audio_formats.h>
+#include <libzl.h>
 #include <SyncTimer.h>
 #include <ClipAudioSource.h>
 
@@ -520,43 +521,21 @@ bool PatternModel::enabled() const
     return d->enabled;
 }
 
-void progressCallback(float position) {
-    qDebug() << "Progress is now at" << position;
-}
-
-void PatternModel::setSampleFilename(const QString &sampleFilename)
+void PatternModel::setClipId(int clipId)
 {
-    bool hasChanged{false};
-    if (d->clip && d->clip->getFilePath() != sampleFilename) {
-        delete d->clip;
-        d->clip = nullptr;
-        hasChanged = true;
-    }
-    if (!sampleFilename.isEmpty()) {
-        for (ClipAudioSource *clip : d->previouslyLoadedClips) {
-            if (clip->getFilePath() == sampleFilename) {
-                d->clip = clip;
-                break;
-            }
-        }
-        if (!d->clip) {
-            d->clip = new ClipAudioSource(d->syncTimer, sampleFilename.toUtf8());
-            d->clip->setProgressCallback(&progressCallback);
-            d->previouslyLoadedClips << d->clip;
-        }
-        hasChanged = true;
-    }
-    if (hasChanged) {
-        Q_EMIT sampleFilenameChanged();
+    ClipAudioSource *newClip = ClipAudioSource_byID(clipId);
+    if (d->clip != newClip) {
+        d->clip = newClip;
+        Q_EMIT clipIdChanged();
     }
 }
 
-QString PatternModel::sampleFilename() const
+int PatternModel::clipId() const
 {
     if (d->clip) {
-        return QString::fromUtf8(d->clip->getFilePath());
+        return d->clip->id();
     }
-    return {};
+    return -1;
 }
 
 int PatternModel::playingRow() const
