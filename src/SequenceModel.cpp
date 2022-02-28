@@ -54,6 +54,7 @@ public:
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
     bool isPlaying{false};
+    bool shouldMakeSounds{true};
     bool isLoading{false};
 
     void ensureFilePath(const QString &explicitFile) {
@@ -289,6 +290,19 @@ void SequenceModel::setIsDirty(bool isDirty)
     if (d->isDirty != isDirty) {
         d->isDirty = isDirty;
         Q_EMIT isDirtyChanged();
+    }
+}
+
+bool SequenceModel::shouldMakeSounds() const
+{
+    return d->shouldMakeSounds;
+}
+
+void SequenceModel::setShouldMakeSounds(bool shouldMakeSounds)
+{
+    if (d->shouldMakeSounds != shouldMakeSounds) {
+        d->shouldMakeSounds = shouldMakeSounds;
+        Q_EMIT shouldMakeSoundsChanged();
     }
 }
 

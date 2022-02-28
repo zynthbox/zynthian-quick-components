@@ -86,6 +86,12 @@ class SequenceModel : public QAbstractListModel
     Q_PROPERTY(QString filePath READ filePath WRITE setFilePath NOTIFY filePathChanged)
 
     /**
+     * \brief Whether or not this sequence's patterns are supposed to be making any sounds
+     * @default True
+     */
+    Q_PROPERTY(bool shouldMakeSounds READ shouldMakeSounds WRITE setShouldMakeSounds NOTIFY shouldMakeSoundsChanged)
+
+    /**
      * \brief Whether there are unsaved changes in the sequence
      * This will automatically be reset to false when loading and saving
      */
@@ -151,6 +157,10 @@ public:
     Q_INVOKABLE void setIsDirty(bool isDirty);
     Q_INVOKABLE void setDirty() { setIsDirty(true); };
     Q_SIGNAL void isDirtyChanged();
+
+    Q_INVOKABLE bool shouldMakeSounds() const;
+    Q_INVOKABLE void setShouldMakeSounds(bool shouldMakeSounds);
+    Q_SIGNAL void shouldMakeSoundsChanged();
 
     /**
      * \brief Load the data for this Sequence (and all Patterns contained within it) from the location indicated by filePath if none is given
