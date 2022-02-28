@@ -181,6 +181,7 @@ public:
         SynthDestination = 0,
         SampleTriggerDestination = 1,
         SampleLoopedDestination = 2,
+        SampleSlicedDestination = 3,
     };
     Q_ENUM(NoteDestination)
 

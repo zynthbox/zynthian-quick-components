@@ -774,6 +774,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         // If this track is supposed to loop its sample, we are not supposed to be making patterny sounds
                         break;
                     case PatternModel::SampleTriggerDestination:
+                    case PatternModel::SampleSlicedDestination:
                     {
                         // Only actually schedule notes for the next tick, not for the far-ahead...
                         if (d->clip && progressionIncrement == 1) {
@@ -877,8 +878,8 @@ void PatternModel::handleSequenceStop()
 void PatternModel::handleNotesChanging()
 {
     // If orphaned, or the sequence is asking for sounds to happen, make sounds
-    // But also, don't make sounds unless we're sample-triggering (otherwise the synths will handle it)
-    if ((!d->sequence || d->sequence->shouldMakeSounds()) && d->noteDestination == SampleTriggerDestination) {
+    // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
+    if ((!d->sequence || d->sequence->shouldMakeSounds()) && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
         const QVariantList &mrcn{d->playGridManager->mostRecentlyChangedNotes()};
         const QVariantMap &metadata{mrcn.constLast().toMap()};
 
