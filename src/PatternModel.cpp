@@ -24,6 +24,7 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QPointer>
 
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -34,10 +35,10 @@
 
 class PatternModel::Private {
 public:
-    Private() {}
-    ~Private() {
-        qDeleteAll(previouslyLoadedClips);
+    Private() {
+        playGridManager = PlayGridManager::instance();
     }
+    ~Private() {}
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
     int midiChannel{15};
@@ -62,9 +63,9 @@ public:
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
 
+    PlayGridManager *playGridManager{nullptr};
     // A clip used for playing when using SampleDestination
-    ClipAudioSource *clip{nullptr};
-    QList<ClipAudioSource *> previouslyLoadedClips;
+    QPointer<ClipAudioSource> clip;
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -92,6 +93,8 @@ PatternModel::PatternModel(SequenceModel* parent)
     connect(this, &QObject::objectNameChanged, this, &PatternModel::nameChanged);
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
+
+    connect(d->playGridManager, &PlayGridManager::mostRecentlyChangedNotesChanged, this, &PatternModel::handleNotesChanging);
 }
 
 PatternModel::~PatternModel()
@@ -646,8 +649,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 {
     static const QLatin1String velocityString{"velocity"};
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if (isPlaying() && (d->midiChannel != 15 || d->sequence->playGridManager()->currentMidiChannel() > -1)) {
-        const int overrideChannel{(d->midiChannel == 15) ? d->sequence->playGridManager()->currentMidiChannel() : -1};
+    if (isPlaying() && (d->midiChannel != 15 || d->playGridManager->currentMidiChannel() > -1)) {
+        const int overrideChannel{(d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1};
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -810,7 +813,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if ((isPlaying() && (d->midiChannel != 15 || d->sequence->playGridManager()->currentMidiChannel() > -1)) || sequencePosition == 0) {
+    if ((isPlaying() && (d->midiChannel != 15 || d->playGridManager->currentMidiChannel() > -1)) || sequencePosition == 0) {
         bool relevantToUs{false};
         quint64 nextPosition = sequencePosition;
         // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
@@ -869,4 +872,29 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
 void PatternModel::handleSequenceStop()
 {
     // Unschedule any notes we've previously scheduled, to try and alleviate troublesome situations
+}
+
+void PatternModel::handleNotesChanging()
+{
+    // If orphaned, or the sequence is asking for sounds to happen, make sounds
+    // But also, don't make sounds unless we're sample-triggering (otherwise the synths will handle it)
+    if ((!d->sequence || d->sequence->shouldMakeSounds()) && d->noteDestination == SampleTriggerDestination) {
+        const QVariantList &mrcn{d->playGridManager->mostRecentlyChangedNotes()};
+        const QVariantMap &metadata{mrcn.constLast().toMap()};
+
+        static const QLatin1String note_on{"note_on"};
+        static const QLatin1String note_off{"note_off"};
+        const int midiChannel = metadata.value("channel").toInt();
+        if (midiChannel == d->midiChannel && d->clip) {
+            const QString messageType = metadata.value("type").toString();
+            // Not handling these yet...
+//             const int midiNote = metadata.value("note").toInt();
+//             const int velocity = metadata.value("velocity").toInt();
+            if (messageType == note_on) {
+                d->clip->play();
+            } else if (messageType == note_off) {
+                d->clip->stop();
+            }
+        }
+    }
 }

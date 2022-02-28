@@ -387,6 +387,8 @@ public:
      * \brief When turning off playback, this function will turn off any notes that are waiting to be turned off
      */
     void handleSequenceStop();
+
+    Q_SLOT void handleNotesChanging();
 private:
     class Private;
     Private *d;
