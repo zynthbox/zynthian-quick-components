@@ -94,7 +94,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
 
-    connect(d->playGridManager, &PlayGridManager::mostRecentlyChangedNotesChanged, this, &PatternModel::handleNotesChanging);
+    connect(d->playGridManager, &PlayGridManager::mostRecentlyChangedNotesChanged, this, &PatternModel::handleNotesChanging, Qt::DirectConnection);
 }
 
 PatternModel::~PatternModel()
@@ -783,10 +783,14 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             if (!onBuffer.isEmpty()) {
                                 for (const juce::MidiMessageMetadata &meta : onBuffer) {
                                     if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
-                                        // d->clip->setVolume(float(meta.data[2]) / float(128));
-                                        // Alright, this breaks playback apparently... not really what we're after
-                                        // d->clip->setSpeedRatio(float(meta.data[1]) / float(64)); // Treating note 64 as the base speed
-                                        d->syncTimer->scheduleClipToStart(d->clip, progressionIncrement);
+                                        ClipCommand *clipCommand{new ClipCommand};
+                                        clipCommand->clip = d->clip;
+                                        clipCommand->startPlayback = true;
+                                        clipCommand->changePitch = true;
+                                        clipCommand->pitchChange = float(meta.data[1]) - 60;
+                                        clipCommand->changeVolume = true;
+                                        clipCommand->volume = float(meta.data[2]) / float(128);
+                                        d->syncTimer->scheduleClipCommand(clipCommand, progressionIncrement);
                                     }
                                 }
                             }
@@ -881,20 +885,24 @@ void PatternModel::handleNotesChanging()
     // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
     if ((!d->sequence || d->sequence->shouldMakeSounds()) && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
         const QVariantList &mrcn{d->playGridManager->mostRecentlyChangedNotes()};
-        const QVariantMap &metadata{mrcn.constLast().toMap()};
+        if (mrcn.count() > 0) {
+            const QVariantMap &metadata{mrcn.constLast().toMap()};
 
-        static const QLatin1String note_on{"note_on"};
-        static const QLatin1String note_off{"note_off"};
-        const int midiChannel = metadata.value("channel").toInt();
-        if (midiChannel == d->midiChannel && d->clip) {
-            const QString messageType = metadata.value("type").toString();
-            // Not handling these yet...
-//             const int midiNote = metadata.value("note").toInt();
-//             const int velocity = metadata.value("velocity").toInt();
-            if (messageType == note_on) {
-                d->clip->play();
-            } else if (messageType == note_off) {
-                d->clip->stop();
+            static const QLatin1String note_on{"note_on"};
+            static const QLatin1String note_off{"note_off"};
+            const int midiChannel = metadata.value("channel").toInt();
+            if (midiChannel == d->midiChannel && d->clip) {
+                const QString messageType = metadata.value("type").toString();
+                // Not handling these yet...
+                const float midiNote = metadata.value("note").toFloat();
+                const float velocity = metadata.value("velocity").toFloat();
+                if (messageType == note_on) {
+                    d->clip->setPitch(midiNote - 60, true);
+                    d->clip->setVolumeAbsolute(velocity / float(128));
+                    d->clip->play();
+                } else if (messageType == note_off) {
+                    d->clip->stop();
+                }
             }
         }
     }
