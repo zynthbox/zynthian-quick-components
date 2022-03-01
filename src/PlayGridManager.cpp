@@ -172,38 +172,39 @@ public:
     void updateNoteState(int midiNote, int midiChannel, int velocity, bool setOn) {
         static const QLatin1String note_on{"note_on"};
         static const QLatin1String note_off{"note_off"};
+
+        bool shouldAdd{true};
+        const qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+        for (int i = mostRecentlyChangedNotes.count() - 1; i >= 0; --i) {
+            const QVariantMap &previousMostRecent = mostRecentlyChangedNotes.at(i).toMap();
+            if (currentTime - previousMostRecent["timestamp"].value<qint64>() > 10) {
+                break;
+            }
+            if (previousMostRecent["note"] == midiNote && previousMostRecent["channel"] == midiChannel && previousMostRecent["velocity"] == velocity && previousMostRecent["type"] == (setOn ? note_on : note_off)) {
+                shouldAdd = false;
+                break;
+            }
+        }
+        if (shouldAdd) {
+            QVariantMap metadata;
+            metadata["note"] = midiNote;
+            metadata["channel"] = midiChannel;
+            metadata["velocity"] = velocity;
+            metadata["type"] = setOn ? note_on : note_off;
+            metadata.insert("timestamp", QVariant::fromValue<qint64>(currentTime));
+            mostRecentlyChangedNotes << metadata;
+            while (mostRecentlyChangedNotes.count() > 100) {
+                mostRecentlyChangedNotes.removeFirst();
+            }
+            Q_EMIT q->mostRecentlyChangedNotesChanged();
+        }
+
         Note *note = findExistingNote(midiNote, midiChannel);
         if (note) {
             if (setOn) {
                 note->setIsPlaying(true);
             } else {
                 note->setIsPlaying(false);
-            }
-
-            bool shouldAdd{true};
-            const qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-            for (int i = mostRecentlyChangedNotes.count() - 1; i >= 0; --i) {
-                const QVariantMap &previousMostRecent = mostRecentlyChangedNotes.at(i).toMap();
-                if (currentTime - previousMostRecent["timestamp"].value<qint64>() > 10) {
-                    break;
-                }
-                if (previousMostRecent["note"] == midiNote && previousMostRecent["channel"] == midiChannel && previousMostRecent["velocity"] == velocity && previousMostRecent["type"] == (setOn ? note_on : note_off)) {
-                    shouldAdd = false;
-                    break;
-                }
-            }
-            if (shouldAdd) {
-                QVariantMap metadata;
-                metadata["note"] = midiNote;
-                metadata["channel"] = midiChannel;
-                metadata["velocity"] = velocity;
-                metadata["type"] = setOn ? note_on : note_off;
-                metadata.insert("timestamp", QVariant::fromValue<qint64>(currentTime));
-                mostRecentlyChangedNotes << metadata;
-                while (mostRecentlyChangedNotes.count() > 100) {
-                    mostRecentlyChangedNotes.removeFirst();
-                }
-                Q_EMIT q->mostRecentlyChangedNotesChanged();
             }
         }
     }
