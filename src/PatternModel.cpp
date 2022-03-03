@@ -31,12 +31,14 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <libzl.h>
 #include <SyncTimer.h>
+#include <SamplerSynth.h>
 #include <ClipAudioSource.h>
 
 class PatternModel::Private {
 public:
     Private() {
         playGridManager = PlayGridManager::instance();
+        samplerSynth = SamplerSynth::instance();
     }
     ~Private() {}
     int width{16};
@@ -64,6 +66,7 @@ public:
     SequenceModel *sequence;
 
     PlayGridManager *playGridManager{nullptr};
+    SamplerSynth *samplerSynth{nullptr};
     // A clip used for playing when using SampleDestination
     QPointer<ClipAudioSource> clip;
 };
@@ -785,9 +788,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                     if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
                                         ClipCommand *clipCommand{new ClipCommand};
                                         clipCommand->clip = d->clip;
+                                        clipCommand->midiNote = meta.data[1];
                                         clipCommand->startPlayback = true;
-                                        clipCommand->changePitch = true;
-                                        clipCommand->pitchChange = float(meta.data[1]) - 60;
                                         clipCommand->changeVolume = true;
                                         clipCommand->volume = float(meta.data[2]) / float(128);
                                         d->syncTimer->scheduleClipCommand(clipCommand, progressionIncrement);
@@ -797,7 +799,11 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             if (!offBuffer.isEmpty()) {
                                 for (const juce::MidiMessageMetadata &meta : offBuffer) {
                                     if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
-                                        d->syncTimer->scheduleClipToStop(d->clip, progressionIncrement + noteDuration - delayAdjustment);
+                                        ClipCommand *clipCommand{new ClipCommand};
+                                        clipCommand->clip = d->clip;
+                                        clipCommand->midiNote = meta.data[1];
+                                        clipCommand->stopPlayback = true;
+                                        d->syncTimer->scheduleClipCommand(clipCommand, progressionIncrement + noteDuration - delayAdjustment);
                                     }
                                 }
                             }
@@ -897,11 +903,19 @@ void PatternModel::handleNotesChanging()
                 const float midiNote = metadata.value("note").toFloat();
                 const float velocity = metadata.value("velocity").toFloat();
                 if (messageType == note_on) {
-                    d->clip->setPitch(midiNote - 60, true);
-                    d->clip->setVolumeAbsolute(velocity / float(128));
-                    d->clip->play();
+                    ClipCommand *clipCommand{new ClipCommand};
+                    clipCommand->clip = d->clip;
+                    clipCommand->midiNote = midiNote;
+                    clipCommand->startPlayback = true;
+                    clipCommand->changeVolume = true;
+                    clipCommand->volume = velocity / float(128);
+                    d->samplerSynth->handleClipCommand(clipCommand);
                 } else if (messageType == note_off) {
-                    d->clip->stop();
+                    ClipCommand *clipCommand{new ClipCommand};
+                    clipCommand->clip = d->clip;
+                    clipCommand->midiNote = midiNote;
+                    clipCommand->stopPlayback = true;
+                    d->samplerSynth->handleClipCommand(clipCommand);
                 }
             }
         }
