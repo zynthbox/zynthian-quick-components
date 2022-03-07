@@ -34,11 +34,16 @@
 #include <SamplerSynth.h>
 #include <ClipAudioSource.h>
 
+#define CLIP_COUNT 5
+
 class PatternModel::Private {
 public:
     Private() {
         playGridManager = PlayGridManager::instance();
         samplerSynth = SamplerSynth::instance();
+        for (int i = 0; i < CLIP_COUNT; ++i) {
+            clips << nullptr;
+        }
     }
     ~Private() {}
     int width{16};
@@ -67,8 +72,33 @@ public:
 
     PlayGridManager *playGridManager{nullptr};
     SamplerSynth *samplerSynth{nullptr};
-    // A clip used for playing when using SampleDestination
-    QPointer<ClipAudioSource> clip;
+
+    QList< QPointer<ClipAudioSource> > clips;
+    /**
+     * This function will return the last clip in the list which has a
+     * sliceBaseMidiNote higher or equal to the given midi note
+     * @param midiNote The midi note to find a clip for
+     * @return The clip audio source that best matches the given midi note (or nullptr if the list is empty)
+     */
+    ClipAudioSource *clipForMidiNote(int midiNote) {
+        ClipAudioSource *clip{nullptr};
+        for (int i = CLIP_COUNT - 1; i > -1; --i) {
+            ClipAudioSource *needle = clips[i];
+            if (needle && needle->sliceBaseMidiNote() >= midiNote) {
+                clip = needle;
+                break;
+            }
+        }
+        // Otherwise, get the first and best clip and use that
+        if (!clip) {
+            for (const QPointer<ClipAudioSource> &needle : clips) {
+                if (needle) {
+                    clip = needle;
+                }
+            }
+        }
+        return clip;
+    }
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -527,21 +557,35 @@ bool PatternModel::enabled() const
     return d->enabled;
 }
 
-void PatternModel::setClipId(int clipId)
+void PatternModel::setClipIds(const QVariantList &clipIds)
 {
-    ClipAudioSource *newClip = ClipAudioSource_byID(clipId);
-    if (d->clip != newClip) {
-        d->clip = newClip;
-        Q_EMIT clipIdChanged();
+    bool changed{false};
+    int i{0};
+    for (const QVariant &clipId : clipIds) {
+        ClipAudioSource *newClip = ClipAudioSource_byID(clipId.toInt());
+        if (d->clips[i] != newClip) {
+            d->clips[i] = newClip;
+            changed = true;
+        }
+        ++i;
+    }
+    if (changed) {
+        Q_EMIT clipIdsChanged();
     }
 }
 
-int PatternModel::clipId() const
+QVariantList PatternModel::clipIds() const
 {
-    if (d->clip) {
-        return d->clip->id();
+    QVariantList ids;
+    for (int i = 0; i < CLIP_COUNT; ++i) {
+        ClipAudioSource *clip = d->clips[i];
+        if (clip) {
+            ids << clip->id();
+        } else {
+            ids << -1;
+        }
     }
-    return -1;
+    return ids;
 }
 
 int PatternModel::playingRow() const
@@ -780,15 +824,22 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                     case PatternModel::SampleSlicedDestination:
                     {
                         // Only actually schedule notes for the next tick, not for the far-ahead...
-                        if (d->clip && progressionIncrement == 1) {
+                        if (progressionIncrement == 1) {
                             const juce::MidiBuffer &onBuffer = d->onBuffers[nextPosition + (d->bankOffset * d->width)];
                             const juce::MidiBuffer &offBuffer = d->offBuffers[nextPosition + (d->bankOffset * d->width)];
                             if (!onBuffer.isEmpty()) {
                                 for (const juce::MidiMessageMetadata &meta : onBuffer) {
-                                    if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
+                                    ClipAudioSource *clip = d->clipForMidiNote(meta.data[1]);
+                                    if (clip && (0x7F < meta.data[0] && meta.data[0] < 0xA0)) {
                                         ClipCommand *clipCommand{new ClipCommand};
-                                        clipCommand->clip = d->clip;
-                                        clipCommand->midiNote = meta.data[1];
+                                        clipCommand->clip = clip;
+                                        if (d->noteDestination == SampleSlicedDestination) {
+                                            clipCommand->changeSlice = true;
+                                            clipCommand->slice = (clip->sliceBaseMidiNote() + meta.data[1]) % clip->slices();
+                                            clipCommand->midiNote = 60;
+                                        } else {
+                                            clipCommand->midiNote = meta.data[1];
+                                        }
                                         clipCommand->startPlayback = true;
                                         clipCommand->changeVolume = true;
                                         clipCommand->volume = float(meta.data[2]) / float(128);
@@ -798,10 +849,16 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             }
                             if (!offBuffer.isEmpty()) {
                                 for (const juce::MidiMessageMetadata &meta : offBuffer) {
-                                    if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
+                                    ClipAudioSource *clip = d->clipForMidiNote(meta.data[1]);
+                                    if (clip && (0x7F < meta.data[0] && meta.data[0] < 0xA0)) {
                                         ClipCommand *clipCommand{new ClipCommand};
-                                        clipCommand->clip = d->clip;
-                                        clipCommand->midiNote = meta.data[1];
+                                        clipCommand->clip = clip;
+                                        if (d->noteDestination == SampleSlicedDestination) {
+                                            clipCommand->changeSlice = true;
+                                            clipCommand->slice = (clip->sliceBaseMidiNote() + meta.data[1]) % clip->slices();
+                                        } else {
+                                            clipCommand->midiNote = meta.data[1];
+                                        }
                                         clipCommand->stopPlayback = true;
                                         d->syncTimer->scheduleClipCommand(clipCommand, progressionIncrement + noteDuration - delayAdjustment);
                                     }
@@ -897,23 +954,37 @@ void PatternModel::handleNotesChanging()
             static const QLatin1String note_on{"note_on"};
             static const QLatin1String note_off{"note_off"};
             const int midiChannel = metadata.value("channel").toInt();
-            if (midiChannel == d->midiChannel && d->clip) {
+            int midiNote = metadata.value("note").toInt();
+            ClipAudioSource *clip = d->clipForMidiNote(midiNote);
+            if (midiChannel == d->midiChannel && clip) {
                 const QString messageType = metadata.value("type").toString();
                 // Not handling these yet...
-                const float midiNote = metadata.value("note").toFloat();
                 const float velocity = metadata.value("velocity").toFloat();
+                int slice{-1};
+                if (d->noteDestination == SampleSlicedDestination) {
+                    slice = (clip->sliceBaseMidiNote() + midiNote) % clip->slices();
+                    midiNote = 60;
+                }
                 if (messageType == note_on) {
                     ClipCommand *clipCommand{new ClipCommand};
-                    clipCommand->clip = d->clip;
+                    clipCommand->clip = clip;
                     clipCommand->midiNote = midiNote;
                     clipCommand->startPlayback = true;
                     clipCommand->changeVolume = true;
                     clipCommand->volume = velocity / float(128);
+                    if (slice > -1) {
+                        clipCommand->changeSlice = true;
+                        clipCommand->slice = slice;
+                    }
                     d->samplerSynth->handleClipCommand(clipCommand);
                 } else if (messageType == note_off) {
                     ClipCommand *clipCommand{new ClipCommand};
-                    clipCommand->clip = d->clip;
+                    clipCommand->clip = clip;
                     clipCommand->midiNote = midiNote;
+                    if (slice > -1) {
+                        clipCommand->changeSlice = true;
+                        clipCommand->slice = slice;
+                    }
                     clipCommand->stopPlayback = true;
                     d->samplerSynth->handleClipCommand(clipCommand);
                 }

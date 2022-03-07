@@ -134,9 +134,9 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(bool enabled READ enabled WRITE setEnabled NOTIFY enabledChanged)
     /**
-     * \brief The ID of the clip being used for the sample trigger note destination mode
+     * \brief The IDs of the clips being used for the sample trigger and slice note destination modes
      */
-    Q_PROPERTY(int clipId READ clipId WRITE setClipId NOTIFY clipIdChanged)
+    Q_PROPERTY(QVariantList clipIds READ clipIds WRITE setClipIds NOTIFY clipIdsChanged)
     /**
      * \brief The row which most recently had a note scheduled to be played
      * @default 0
@@ -351,9 +351,9 @@ public:
     bool enabled() const;
     Q_SIGNAL void enabledChanged();
 
-    void setClipId(int id);
-    int clipId() const;
-    Q_SIGNAL void clipIdChanged();
+    void setClipIds(const QVariantList &ids);
+    QVariantList clipIds() const;
+    Q_SIGNAL void clipIdsChanged();
 
     int playingRow() const;
     Q_SIGNAL void playingRowChanged();
