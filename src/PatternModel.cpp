@@ -75,6 +75,7 @@ public:
     PlayGridManager *playGridManager{nullptr};
     SamplerSynth *samplerSynth{nullptr};
 
+    NotesModel *clipSliceNotes{nullptr};
     QList< QPointer<ClipAudioSource> > clips;
     /**
      * This function will return the last clip in the list which has a
@@ -588,6 +589,63 @@ QVariantList PatternModel::clipIds() const
         }
     }
     return ids;
+}
+
+QObject *PatternModel::clipSliceNotes() const
+{
+    if (!d->clipSliceNotes) {
+        d->clipSliceNotes = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " Clip Slice Notes"));
+        auto fillClipSliceNotes = [this](){
+            QList<int> notesToFit;
+            QList<QString> noteTitles;
+            ClipAudioSource *previousClip{nullptr};
+            for (int i = 0; i < d->clips.count(); ++i) {
+                ClipAudioSource *clip = d->clips[i];
+                if (clip) {
+                    int sliceStart{clip->sliceBaseMidiNote()};
+                    int nextClipStart{129};
+                    for (int j = i + 1; j < d->clips.count(); ++j) {
+                        ClipAudioSource *nextClip = d->clips[j];
+                        if (nextClip) {
+                            nextClipStart = nextClip->sliceBaseMidiNote();
+                            break;
+                        }
+                    }
+                    // Let's see if we can push it /back/ a bit, and still get a full thing... less lovely, but it gives a full spread
+                    if (nextClipStart - clip->slices() < sliceStart) {
+                        sliceStart = qMax(previousClip ? previousClip->sliceBaseMidiNote() + previousClip->slices(): 0, nextClipStart - clip->slices());
+                    }
+                    // Now let's add as many notes as we need, or have space for, whichever is smaller
+                    int addedNotes{0};
+                    for (int note = sliceStart; note < nextClipStart && addedNotes < clip->slices(); ++note) {
+                        notesToFit << note;
+                        noteTitles << QString("Sample %1\nSlice %2").arg(QString::number(i + 1)).arg(QString::number(clip->sliceForMidiNote(note) + 1));
+                        ++addedNotes;
+                    }
+                    previousClip = clip;
+                }
+            }
+            int howManyRows{int(sqrt(notesToFit.length()))};
+            int i{0};
+            for (int row = 0; row < howManyRows; ++row) {
+                QVariantList notes;
+                QVariantList metadata;
+                for (int column = 0; column < notesToFit.count() / howManyRows; ++column) {
+                    if (i == notesToFit.count()) {
+                        break;
+                    }
+                    notes << QVariant::fromValue<QObject*>(PlayGridManager::instance()->getNote(notesToFit[i], d->midiChannel));
+                    metadata << QVariantMap{{"displayText", QVariant::fromValue<QString>(noteTitles[i])}};
+                    ++i;
+                }
+                d->clipSliceNotes->appendRow(notes, metadata);
+            }
+        };
+        connect(this, &PatternModel::clipIdsChanged, this, fillClipSliceNotes);
+        connect(this, &PatternModel::midiChannelChanged, this, fillClipSliceNotes);
+        fillClipSliceNotes();
+    }
+    return d->clipSliceNotes;
 }
 
 int PatternModel::playingRow() const

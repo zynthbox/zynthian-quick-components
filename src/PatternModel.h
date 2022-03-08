@@ -173,6 +173,11 @@ class PatternModel : public NotesModel
      * if one is set, and if none is set then whether the pattern is enabled.
      */
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
+
+    /**
+     * \brief A NotesModel instance which shows appropriate entries for the slices in the clips associated with this pattern
+     */
+    Q_PROPERTY(QObject* clipSliceNotes READ clipSliceNotes CONSTANT)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -354,6 +359,7 @@ public:
     void setClipIds(const QVariantList &ids);
     QVariantList clipIds() const;
     Q_SIGNAL void clipIdsChanged();
+    QObject *clipSliceNotes() const;
 
     int playingRow() const;
     Q_SIGNAL void playingRowChanged();
