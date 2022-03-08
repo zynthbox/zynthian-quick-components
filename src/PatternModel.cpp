@@ -29,10 +29,12 @@
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 #include <juce_audio_formats/juce_audio_formats.h>
+
 #include <libzl.h>
-#include <SyncTimer.h>
-#include <SamplerSynth.h>
+#include <ClipCommand.h>
 #include <ClipAudioSource.h>
+#include <SamplerSynth.h>
+#include <SyncTimer.h>
 
 #define CLIP_COUNT 5
 
@@ -834,9 +836,9 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                         ClipCommand *clipCommand{new ClipCommand};
                                         clipCommand->clip = clip;
                                         if (d->noteDestination == SampleSlicedDestination) {
+                                            clipCommand->midiNote = 60;
                                             clipCommand->changeSlice = true;
                                             clipCommand->slice = (clip->sliceBaseMidiNote() + meta.data[1]) % clip->slices();
-                                            clipCommand->midiNote = 60;
                                         } else {
                                             clipCommand->midiNote = meta.data[1];
                                         }
@@ -854,6 +856,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                         ClipCommand *clipCommand{new ClipCommand};
                                         clipCommand->clip = clip;
                                         if (d->noteDestination == SampleSlicedDestination) {
+                                            clipCommand->midiNote = 60;
                                             clipCommand->changeSlice = true;
                                             clipCommand->slice = (clip->sliceBaseMidiNote() + meta.data[1]) % clip->slices();
                                         } else {
