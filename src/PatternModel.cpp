@@ -838,7 +838,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                         if (d->noteDestination == SampleSlicedDestination) {
                                             clipCommand->midiNote = 60;
                                             clipCommand->changeSlice = true;
-                                            clipCommand->slice = (clip->sliceBaseMidiNote() + meta.data[1]) % clip->slices();
+                                            clipCommand->slice = clip->sliceForMidiNote(meta.data[1]);
                                         } else {
                                             clipCommand->midiNote = meta.data[1];
                                         }
@@ -858,7 +858,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                         if (d->noteDestination == SampleSlicedDestination) {
                                             clipCommand->midiNote = 60;
                                             clipCommand->changeSlice = true;
-                                            clipCommand->slice = (clip->sliceBaseMidiNote() + meta.data[1]) % clip->slices();
+                                            clipCommand->slice = clip->sliceForMidiNote(meta.data[1]);
                                         } else {
                                             clipCommand->midiNote = meta.data[1];
                                         }
@@ -965,7 +965,7 @@ void PatternModel::handleNotesChanging()
                 const float velocity = metadata.value("velocity").toFloat();
                 int slice{-1};
                 if (d->noteDestination == SampleSlicedDestination) {
-                    slice = (clip->sliceBaseMidiNote() + midiNote) % clip->slices();
+                    slice = clip->sliceForMidiNote(midiNote);
                     midiNote = 60;
                 }
                 if (messageType == note_on) {
