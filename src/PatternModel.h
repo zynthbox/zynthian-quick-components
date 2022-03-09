@@ -175,6 +175,18 @@ class PatternModel : public NotesModel
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
 
     /**
+     * \brief The first note used to fill out the grid model
+     */
+    Q_PROPERTY(int gridModelStartNote READ gridModelStartNote WRITE setGridModelStartNote NOTIFY gridModelStartNoteChanged)
+    /**
+     * \brief The last note used to fill out the grid model
+     */
+    Q_PROPERTY(int gridModelEndNote READ gridModelEndNote WRITE setGridModelEndNote NOTIFY gridModelEndNoteChanged)
+    /**
+     * \brief A NotesModel instance which shows a set of rows of notes based on the start and end note properties (in a comfortable spread)
+     */
+    Q_PROPERTY(QObject* gridModel READ gridModel CONSTANT)
+    /**
      * \brief A NotesModel instance which shows appropriate entries for the slices in the clips associated with this pattern
      */
     Q_PROPERTY(QObject* clipSliceNotes READ clipSliceNotes CONSTANT)
@@ -360,6 +372,14 @@ public:
     QVariantList clipIds() const;
     Q_SIGNAL void clipIdsChanged();
     QObject *clipSliceNotes() const;
+
+    int gridModelStartNote() const;
+    void setGridModelStartNote(int gridModelStartNote);
+    Q_SIGNAL void gridModelStartNoteChanged();
+    int gridModelEndNote() const;
+    void setGridModelEndNote(int gridModelEndNote);
+    Q_SIGNAL void gridModelEndNoteChanged();
+    QObject *gridModel() const;
 
     int playingRow() const;
     Q_SIGNAL void playingRowChanged();

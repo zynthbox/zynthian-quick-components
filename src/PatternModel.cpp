@@ -25,6 +25,7 @@
 #include <QDebug>
 #include <QFile>
 #include <QPointer>
+#include <QTimer>
 
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -75,6 +76,9 @@ public:
     PlayGridManager *playGridManager{nullptr};
     SamplerSynth *samplerSynth{nullptr};
 
+    int gridModelStartNote{36};
+    int gridModelEndNote{52};
+    NotesModel *gridModel{nullptr};
     NotesModel *clipSliceNotes{nullptr};
     QList< QPointer<ClipAudioSource> > clips;
     /**
@@ -594,7 +598,7 @@ QVariantList PatternModel::clipIds() const
 QObject *PatternModel::clipSliceNotes() const
 {
     if (!d->clipSliceNotes) {
-        d->clipSliceNotes = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " Clip Slice Notes"));
+        d->clipSliceNotes = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " - Clip Slice Notes Model"));
         auto fillClipSliceNotes = [this](){
             QList<int> notesToFit;
             QList<QString> noteTitles;
@@ -646,6 +650,69 @@ QObject *PatternModel::clipSliceNotes() const
         fillClipSliceNotes();
     }
     return d->clipSliceNotes;
+}
+
+int PatternModel::gridModelStartNote() const
+{
+    return d->gridModelStartNote;
+}
+
+void PatternModel::setGridModelStartNote(int gridModelStartNote)
+{
+    if (d->gridModelStartNote != gridModelStartNote) {
+        d->gridModelStartNote = gridModelStartNote;
+        Q_EMIT gridModelStartNoteChanged();
+    }
+}
+
+int PatternModel::gridModelEndNote() const
+{
+    return d->gridModelEndNote;
+}
+
+void PatternModel::setGridModelEndNote(int gridModelEndNote)
+{
+    if (d->gridModelEndNote != gridModelEndNote) {
+        d->gridModelEndNote = gridModelEndNote;
+        Q_EMIT gridModelEndNoteChanged();
+    }
+}
+
+QObject *PatternModel::gridModel() const
+{
+    if (!d->gridModel) {
+        d->gridModel = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " - Grid Model"));
+        auto rebuildGridModel = [this](){
+            qDebug() << "Rebuilding" << d->gridModel;
+            QList<int> notesToFit;
+            for (int note = d->gridModelStartNote; note <= d->gridModelEndNote; ++note) {
+                notesToFit << note;
+            }
+            int howManyRows{int(sqrt(notesToFit.length()))};
+            int i{0};
+            d->gridModel->clear();
+            for (int row = 0; row < howManyRows; ++row) {
+                QVariantList notes;
+                for (int column = 0; column < notesToFit.count() / howManyRows; ++column) {
+                    if (i == notesToFit.count()) {
+                        break;
+                    }
+                    notes << QVariant::fromValue<QObject*>(PlayGridManager::instance()->getNote(notesToFit[i], d->midiChannel));
+                    ++i;
+                }
+                d->gridModel->addRow(notes);
+            }
+        };
+        QTimer *refilTimer = new QTimer(d->gridModel);
+        refilTimer->setInterval(1);
+        refilTimer->setSingleShot(true);
+        connect(refilTimer, &QTimer::timeout, d->gridModel, rebuildGridModel);
+        connect(this, &PatternModel::midiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        connect(this, &PatternModel::gridModelStartNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        connect(this, &PatternModel::gridModelEndNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        rebuildGridModel();
+    }
+    return d->gridModel;
 }
 
 int PatternModel::playingRow() const
