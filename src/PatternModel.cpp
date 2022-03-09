@@ -76,8 +76,8 @@ public:
     PlayGridManager *playGridManager{nullptr};
     SamplerSynth *samplerSynth{nullptr};
 
-    int gridModelStartNote{36};
-    int gridModelEndNote{52};
+    int gridModelStartNote{48};
+    int gridModelEndNote{64};
     NotesModel *gridModel{nullptr};
     NotesModel *clipSliceNotes{nullptr};
     QList< QPointer<ClipAudioSource> > clips;
