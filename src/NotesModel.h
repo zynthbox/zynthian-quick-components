@@ -185,6 +185,14 @@ public:
     Q_INVOKABLE void removeRow(int row);
 
     /**
+     * \brief Changes all notes in the model to switch to the given midi channel
+     * This is a convenience function, useful for when nothing else changes (say the global midi
+     * channel changes and you still want to be able to use this model for handling notes on that
+     * channel, such as in the basic Notes playground module)
+     * @param midiChannel The midi channel (0 through 15) that all notes and subnotes (etc) in the model should use
+     */
+    Q_INVOKABLE void changeMidiChannel(int midiChannel);
+    /**
      * \brief Get the PlayGridManager instance associated with this model
      * @return The PlayGridManager associated with this model (either the immediate parent, or the one from the parent model)
      */

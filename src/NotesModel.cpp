@@ -528,6 +528,35 @@ void NotesModel::removeRow(int row)
     }
 }
 
+Note *switchNoteMidiChannel(Note *note, int newMidiChannel) {
+    Note *newNote{nullptr};
+    if (note) {
+        if (note->subnotes().count() > 0) {
+            QVariantList subnotes;
+            for (const QVariant &variantNote : note->subnotes()) {
+                subnotes << QVariant::fromValue<QObject*>(switchNoteMidiChannel(variantNote.value<Note*>(), newMidiChannel));
+            }
+            newNote = qobject_cast<Note*>(PlayGridManager::instance()->getCompoundNote(subnotes));
+        } else {
+            newNote = qobject_cast<Note*>(PlayGridManager::instance()->getNote(note->midiNote(), newMidiChannel));
+        }
+    }
+    return newNote;
+}
+
+void NotesModel::changeMidiChannel(int midiChannel)
+{
+    qDebug() << this << "Changing midi to" << midiChannel;
+    int longestRow{0};
+    for (QList<Entry> &entries : d->entries) {
+        for (int i = 0; i < entries.count(); ++i) {
+            entries[i].note = switchNoteMidiChannel(entries[i].note, midiChannel);
+        }
+        longestRow = qMax(longestRow, entries.count());
+    }
+    dataChanged(createIndex(0, 0), createIndex(d->entries.count(), longestRow));
+}
+
 PlayGridManager* NotesModel::playGridManager() const
 {
     if (d->parentModel) {
