@@ -27,8 +27,12 @@
 #include "MidiListener.h"
 
 // ZynthiLoops library
+// Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
+#define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+#include <juce_audio_formats/juce_audio_formats.h>
 #include <libzl.h>
-#include <libzl/SyncTimer.h>
+#include <ClipAudioSource.h>
+#include <SyncTimer.h>
 
 #include <QQmlEngine>
 #include <QDebug>
@@ -1018,4 +1022,9 @@ void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char
         d->midiMessage[2] = velocity;
         d->midiout->sendMessage(&d->midiMessage);
     }
+}
+
+QObject *PlayGridManager::getClipById(int clipID) const
+{
+    return ClipAudioSource_byID(clipID);
 }

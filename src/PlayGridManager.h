@@ -306,6 +306,9 @@ public:
 
     // TODO This is a temporary thing while we get the c++ side integrated properly
     Q_INVOKABLE void sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn);
+
+    // TODO This really probably wants to be in libzl or something... but, yeah, this'll do
+    Q_INVOKABLE QObject *getClipById(int clipID) const;
 private:
     class Private;
     Private *d;
