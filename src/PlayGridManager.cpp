@@ -1038,5 +1038,9 @@ void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char
 
 QObject *PlayGridManager::getClipById(int clipID) const
 {
-    return ClipAudioSource_byID(clipID);
+    QObject *clip{ClipAudioSource_byID(clipID)};
+    if (clip) {
+        QQmlEngine::setObjectOwnership(clip, QQmlEngine::CppOwnership);
+    }
+    return clip;
 }
