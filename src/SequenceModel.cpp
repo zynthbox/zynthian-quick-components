@@ -26,8 +26,10 @@
 #include <libzl.h>
 #include <SyncTimer.h>
 
+#include <QCollator>
 #include <QDebug>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -328,22 +330,42 @@ void SequenceModel::load(const QString &fileName)
     }
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data.toUtf8());
     if (jsonDoc.isObject()) {
-        QJsonObject obj = jsonDoc.object();
-        // Load the patterns from disk
-//         const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
-        for (int i = 0; i < PATTERN_COUNT; ++i) {
-            // TODO Not awesome... We need to fix this, that should not be called global :P .arg(sequenceNameForFiles)
-            QFile patternFile(QString("%1/patterns/global-%2.pattern.json").arg(d->filePath.left(d->filePath.lastIndexOf("/"))).arg(QString::number(i + 1)));
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(i + 1)).arg(objectName()), objectName()));
+        // First, load the patterns from disk
+        QDir dir(QString("%1/patterns").arg(d->filePath.left(d->filePath.lastIndexOf("/"))));
+        QFileInfoList entries = dir.entryInfoList({"*.pattern.json"}, QDir::Files, QDir::NoSort);
+        QCollator collator;
+        collator.setNumericMode(true);
+        std::sort(entries.begin(), entries.end(), [&](const QFileInfo &file1, const QFileInfo &file2){ return collator.compare(file1.absoluteFilePath(), file2.absoluteFilePath()) < 0; });
+        // Now we have a list of all the entries in the patterns directory that has the pattern
+        // file suffix, sorted naturally (so 10 is at the end, not after 1, which is just silly)
+        int actualIndex{1};
+        for (const QFileInfo &entry : entries) {
+            const QString absolutePath{entry.absoluteFilePath()};
+            const int startPos{absolutePath.lastIndexOf('-')};
+            const int length{absolutePath.length() - startPos - 14}; // 14 is the length+1 of the string .pattern.json, our pattern file suffix
+            int patternIndex{absolutePath.midRef(startPos + 1, length).toInt()};
+            // qDebug() << "Loading pattern" << patternIndex << "for sequence" << this << "from file" << absolutePath;
+            while (actualIndex < patternIndex - 1) {
+                // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
+                qWarning() << "Found a missing pattern while loading sequence, adding an empty one to compensate";
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(actualIndex)).arg(objectName()), objectName()));
+                model->clear();
+                ++actualIndex;
+            }
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(patternIndex)).arg(objectName()), objectName()));
             model->clear();
-            if (patternFile.exists()) {
+            if (entry.exists()) {
+                QFile patternFile{absolutePath};
                 if (patternFile.open(QIODevice::ReadOnly)) {
                     QString patternData = QString::fromUtf8(patternFile.readAll());
                     patternFile.close();
                     playGridManager()->setModelFromJson(model, patternData);
                 }
             }
+            ++actualIndex;
         }
+        // Then set the values on the sequence
+        QJsonObject obj = jsonDoc.object();
         setActivePattern(obj.value("activePattern").toInt());
         setBpm(obj.value("bpm").toInt());
     }
