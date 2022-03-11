@@ -654,6 +654,8 @@ QString PlayGridManager::modelToJson(const QObject* model) const
         modelObject["bankLength"] = patternModel->bankLength();
         modelObject["enabled"] = patternModel->enabled();
         modelObject["layerData"] = patternModel->layerData();
+        modelObject["gridModelStartNote"] = patternModel->gridModelStartNote();
+        modelObject["gridModelEndNote"] = patternModel->gridModelEndNote();
         QJsonDocument notesDoc;
         notesDoc.setArray(d->generateModelNotesSection(patternModel));
         modelObject["notes"] = QString::fromUtf8(notesDoc.toJson());
@@ -714,6 +716,16 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
                 pattern->setNoteDestination(PatternModel::NoteDestination(patternObject.value("noteDestination").toInt()));
             } else {
                 pattern->setNoteDestination(PatternModel::SynthDestination);
+            }
+            if (patternObject.contains("gridModelStartNote")) {
+                pattern->setGridModelStartNote(patternObject.value("gridModelStartNote").toInt());
+            } else {
+                pattern->setGridModelStartNote(48);
+            }
+            if (patternObject.contains("gridModelEndNote")) {
+                pattern->setGridModelEndNote(patternObject.value("gridModelEndNote").toInt());
+            } else {
+                pattern->setGridModelEndNote(64);
             }
         }
     }

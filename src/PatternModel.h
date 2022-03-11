@@ -176,10 +176,12 @@ class PatternModel : public NotesModel
 
     /**
      * \brief The first note used to fill out the grid model
+     * @default 48
      */
     Q_PROPERTY(int gridModelStartNote READ gridModelStartNote WRITE setGridModelStartNote NOTIFY gridModelStartNoteChanged)
     /**
      * \brief The last note used to fill out the grid model
+     * @default 64
      */
     Q_PROPERTY(int gridModelEndNote READ gridModelEndNote WRITE setGridModelEndNote NOTIFY gridModelEndNoteChanged)
     /**
