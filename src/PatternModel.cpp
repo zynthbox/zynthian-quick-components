@@ -394,7 +394,7 @@ int PatternModel::height() const
 
 void PatternModel::setMidiChannel(int midiChannel)
 {
-    int actualChannel = qMin(qMax(0, midiChannel), 15);
+    int actualChannel = qMin(qMax(-1, midiChannel), 15);
     if (d->midiChannel != actualChannel) {
         d->midiChannel = actualChannel;
         for (int row = 0; row < rowCount(); ++row) {
@@ -807,23 +807,25 @@ QObjectList PatternModel::setPositionOn(int row, int column) const
 }
 
 void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned char velocity, bool setOn, int overrideChannel) {
-    unsigned char note[3];
-    if (setOn) {
-        note[0] = 0x90 + (overrideChannel > -1 ? overrideChannel : theNote->midiChannel());
-    } else {
-        note[0] = 0x80 + (overrideChannel > -1 ? overrideChannel : theNote->midiChannel());
+    if ((overrideChannel > -1 ? overrideChannel : theNote->midiChannel()) >= -1 && (overrideChannel > -1 ? overrideChannel : theNote->midiChannel()) <= 15) {
+        unsigned char note[3];
+        if (setOn) {
+            note[0] = 0x90 + (overrideChannel > -1 ? overrideChannel : theNote->midiChannel());
+        } else {
+            note[0] = 0x80 + (overrideChannel > -1 ? overrideChannel : theNote->midiChannel());
+        }
+        note[1] = theNote->midiNote();
+        note[2] = velocity;
+        const int onOrOff = setOn ? 1 : 0;
+        buffer.addEvent(note, 3, onOrOff);
     }
-    note[1] = theNote->midiNote();
-    note[2] = velocity;
-    const int onOrOff = setOn ? 1 : 0;
-    buffer.addEvent(note, 3, onOrOff);
 }
 
 void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
     static const QLatin1String velocityString{"velocity"};
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if (isPlaying() && (d->midiChannel != 15 || d->playGridManager->currentMidiChannel() > -1)) {
+    if (isPlaying() && ((d->midiChannel > -1 && d->midiChannel < 15) || d->playGridManager->currentMidiChannel() > -1)) {
         const int overrideChannel{(d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1};
         quint64 noteDuration{0};
         bool relevantToUs{false};
@@ -1009,7 +1011,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
 void PatternModel::updateSequencePosition(quint64 sequencePosition)
 {
     // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-    if ((isPlaying() && (d->midiChannel != 15 || d->playGridManager->currentMidiChannel() > -1)) || sequencePosition == 0) {
+    if ((isPlaying() && ((d->midiChannel > -1 && d->midiChannel < 15) || d->playGridManager->currentMidiChannel() > -1)) || sequencePosition == 0) {
         bool relevantToUs{false};
         quint64 nextPosition = sequencePosition;
         // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,

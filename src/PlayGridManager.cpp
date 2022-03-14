@@ -499,7 +499,8 @@ QObject* PlayGridManager::getNotesModel(const QString& name)
 QObject* PlayGridManager::getNote(int midiNote, int midiChannel)
 {
     Note *note{nullptr};
-    if (0 <= midiNote && midiNote <= 127 && 0 <= midiChannel && midiChannel <= 15) {
+    // The channel numbers here /are/ invalid - however, we need them to distinguish "invalid" notes while still having a Note to operate with
+    if (0 <= midiNote && midiNote <= 127 && -1 <= midiChannel && midiChannel <= 16) {
         for (Note *aNote : d->notes) {
             if (aNote->midiNote() == midiNote && aNote->midiChannel() == midiChannel) {
                 note = aNote;
@@ -887,7 +888,7 @@ int PlayGridManager::currentMidiChannel() const
 
 void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiChannel, bool setOn, unsigned char velocity, quint64 duration, quint64 delay)
 {
-    if (d->syncTimer) {
+    if (d->syncTimer && midiChannel >= 0 && midiChannel <= 15) {
         d->syncTimer->scheduleNote(midiNote, midiChannel, setOn, velocity, duration, delay);
     }
 }
@@ -1024,7 +1025,7 @@ void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char
     if (!d->midiout) {
         d->ensureMidiOutput();
     }
-    if (d->midiout) {
+    if (d->midiout && channel >= 0 && channel <= 15) {
         if (setOn) {
             d->midiMessage[0] = 0x90 + channel;
         } else {

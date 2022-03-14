@@ -189,6 +189,7 @@ public:
      * This is a convenience function, useful for when nothing else changes (say the global midi
      * channel changes and you still want to be able to use this model for handling notes on that
      * channel, such as in the basic Notes playground module)
+     * @note If this is called with an invalid midi channel, it will be clamped to -1 and 16 (still invalid, but don't use this for information storage outside of "invalid")
      * @param midiChannel The midi channel (0 through 15) that all notes and subnotes (etc) in the model should use
      */
     Q_INVOKABLE void changeMidiChannel(int midiChannel);

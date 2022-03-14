@@ -550,7 +550,7 @@ void NotesModel::changeMidiChannel(int midiChannel)
     int longestRow{0};
     for (QList<Entry> &entries : d->entries) {
         for (int i = 0; i < entries.count(); ++i) {
-            entries[i].note = switchNoteMidiChannel(entries[i].note, midiChannel);
+            entries[i].note = switchNoteMidiChannel(entries[i].note, qBound(-1, midiChannel, 16));
         }
         longestRow = qMax(longestRow, entries.count());
     }
