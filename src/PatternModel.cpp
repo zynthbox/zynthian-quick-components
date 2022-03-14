@@ -70,6 +70,17 @@ public:
     // contains. So, remember your pattern hygiene and clean your buffers!
     QHash<int, juce::MidiBuffer> onBuffers;
     QHash<int, juce::MidiBuffer> offBuffers;
+    // This bunch of lists is equivalent to the data found in each note, and is
+    // stored per-position (index in the outer is row * width + column). The
+    // must be cleared on any change of the notes (which should always be done
+    // through setNote and setMetadata to ensure this). If they are not cleared
+    // on changes, what ends up sent to SyncTimer during playback will not match
+    // what the model contains. So, remember your pattern hygiene and clean your
+    // buffers!
+    // The inner hash contains commands for the given position, with the key being
+    // the on-position delay (so that iterating over the hash gives the scheduling
+    // delay for that buffer, and the buffer).
+    QHash<int, QHash<int, juce::MidiBuffer> > positionBuffers;
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
 
@@ -106,6 +117,28 @@ public:
         }
         return clip;
     }
+    ClipCommand *midiMessageToClipCommand(const juce::MidiMessageMetadata &meta) {
+        ClipCommand *command{nullptr};
+        ClipAudioSource *clip = clipForMidiNote(meta.data[1]);
+        if (clip) {
+            command = new ClipCommand;
+            command->clip = clip;
+            command->startPlayback = meta.data[0] > 0x8F;
+            command->stopPlayback = meta.data[0] < 0x90;
+            if (command->startPlayback) {
+                command->changeVolume = true;
+                command->volume = float(meta.data[2]) / float(128);
+            }
+            if (noteDestination == SampleSlicedDestination) {
+                command->midiNote = 60;
+                command->changeSlice = true;
+                command->slice = clip->sliceForMidiNote(meta.data[1]);
+            } else {
+                command->midiNote = meta.data[1];
+            }
+        }
+        return command;
+    }
 };
 
 PatternModel::PatternModel(SequenceModel* parent)
@@ -124,6 +157,7 @@ PatternModel::PatternModel(SequenceModel* parent)
             if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
                 d->onBuffers.clear();
                 d->offBuffers.clear();
+                d->positionBuffers.clear();
             }
         });
     }
@@ -272,6 +306,7 @@ void PatternModel::setNote(int row, int column, QObject* note)
 {
     d->onBuffers.remove((row * d->width) + column);
     d->offBuffers.remove((row * d->width) + column);
+    d->positionBuffers.remove((row * d->width) + column);
     NotesModel::setNote(row, column, note);
 }
 
@@ -279,6 +314,7 @@ void PatternModel::setMetadata(int row, int column, QVariant metadata)
 {
     d->onBuffers.remove((row * d->width) + column);
     d->offBuffers.remove((row * d->width) + column);
+    d->positionBuffers.remove((row * d->width) + column);
     NotesModel::setMetadata(row, column, metadata);
 }
 
@@ -418,6 +454,7 @@ void PatternModel::setMidiChannel(int midiChannel)
         }
         d->onBuffers.clear();
         d->offBuffers.clear();
+        d->positionBuffers.clear();
         Q_EMIT midiChannelChanged();
     }
 }
@@ -446,6 +483,7 @@ void PatternModel::setNoteLength(int noteLength)
         d->noteLength = noteLength;
         d->onBuffers.clear();
         d->offBuffers.clear();
+        d->positionBuffers.clear();
         Q_EMIT noteLengthChanged();
     }
 }
@@ -900,7 +938,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 int row = (nextPosition / d->width) % d->availableBars;
                 int column = nextPosition - (row * d->width);
 
-                if (!d->onBuffers.contains(nextPosition + (d->bankOffset * d->width))) {
+                if (!d->positionBuffers.contains(nextPosition + (d->bankOffset * d->width))) {
                     juce::MidiBuffer onBuffer;
                     juce::MidiBuffer offBuffer;
                     const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
@@ -935,6 +973,10 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             addNoteToBuffer(offBuffer, note, 64, false, overrideChannel);
                         }
                     }
+                    QHash<int, juce::MidiBuffer> positionBuffers;
+                    positionBuffers[0] = onBuffer;
+                    positionBuffers[noteDuration] = offBuffer;
+                    d->positionBuffers[nextPosition + (d->bankOffset * d->width)] = positionBuffers;
                     d->onBuffers[nextPosition + (d->bankOffset * d->width)] = onBuffer;
                     d->offBuffers[nextPosition + (d->bankOffset * d->width)] = offBuffer;
                 }
@@ -954,43 +996,15 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                     {
                         // Only actually schedule notes for the next tick, not for the far-ahead...
                         if (progressionIncrement == 1) {
-                            const juce::MidiBuffer &onBuffer = d->onBuffers[nextPosition + (d->bankOffset * d->width)];
-                            const juce::MidiBuffer &offBuffer = d->offBuffers[nextPosition + (d->bankOffset * d->width)];
-                            if (!onBuffer.isEmpty()) {
-                                for (const juce::MidiMessageMetadata &meta : onBuffer) {
-                                    ClipAudioSource *clip = d->clipForMidiNote(meta.data[1]);
-                                    if (clip && (0x7F < meta.data[0] && meta.data[0] < 0xA0)) {
-                                        ClipCommand *clipCommand{new ClipCommand};
-                                        clipCommand->clip = clip;
-                                        if (d->noteDestination == SampleSlicedDestination) {
-                                            clipCommand->midiNote = 60;
-                                            clipCommand->changeSlice = true;
-                                            clipCommand->slice = clip->sliceForMidiNote(meta.data[1]);
-                                        } else {
-                                            clipCommand->midiNote = meta.data[1];
+                            const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];
+                            QHash<int, juce::MidiBuffer>::const_iterator position;
+                            for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
+                                for (const juce::MidiMessageMetadata &meta : position.value()) {
+                                    if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
+                                        ClipCommand *command = d->midiMessageToClipCommand(meta);
+                                        if (command) {
+                                            d->syncTimer->scheduleClipCommand(command, progressionIncrement + position.key());
                                         }
-                                        clipCommand->startPlayback = true;
-                                        clipCommand->changeVolume = true;
-                                        clipCommand->volume = float(meta.data[2]) / float(128);
-                                        d->syncTimer->scheduleClipCommand(clipCommand, progressionIncrement);
-                                    }
-                                }
-                            }
-                            if (!offBuffer.isEmpty()) {
-                                for (const juce::MidiMessageMetadata &meta : offBuffer) {
-                                    ClipAudioSource *clip = d->clipForMidiNote(meta.data[1]);
-                                    if (clip && (0x7F < meta.data[0] && meta.data[0] < 0xA0)) {
-                                        ClipCommand *clipCommand{new ClipCommand};
-                                        clipCommand->clip = clip;
-                                        if (d->noteDestination == SampleSlicedDestination) {
-                                            clipCommand->midiNote = 60;
-                                            clipCommand->changeSlice = true;
-                                            clipCommand->slice = clip->sliceForMidiNote(meta.data[1]);
-                                        } else {
-                                            clipCommand->midiNote = meta.data[1];
-                                        }
-                                        clipCommand->stopPlayback = true;
-                                        d->syncTimer->scheduleClipCommand(clipCommand, progressionIncrement + noteDuration - delayAdjustment);
                                     }
                                 }
                             }
@@ -999,8 +1013,13 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                     }
                     case PatternModel::SynthDestination:
                     default:
-                        d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
-                        d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
+                        const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];
+                        QHash<int, juce::MidiBuffer>::const_iterator position;
+                        for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
+                            d->syncTimer->scheduleMidiBuffer(position.value(), progressionIncrement - 1 + position.key());
+                        }
+//                         d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
+//                         d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
                         break;
                 }
             }
