@@ -168,7 +168,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
 
-    connect(d->playGridManager, &PlayGridManager::mostRecentlyChangedNotesChanged, this, &PatternModel::handleNotesChanging, Qt::DirectConnection);
+    connect(d->playGridManager, &PlayGridManager::midiMessage, this, &PatternModel::handleMidiMessage, Qt::DirectConnection);
 }
 
 PatternModel::~PatternModel()
@@ -1102,51 +1102,19 @@ void PatternModel::handleSequenceStop()
     // Unschedule any notes we've previously scheduled, to try and alleviate troublesome situations
 }
 
-void PatternModel::handleNotesChanging()
+void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3)
 {
     // If orphaned, or the sequence is asking for sounds to happen, make sounds
     // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
     if ((!d->sequence || d->sequence->shouldMakeSounds()) && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
-        const QVariantList &mrcn{d->playGridManager->mostRecentlyChangedNotes()};
-        if (mrcn.count() > 0) {
-            const QVariantMap &metadata{mrcn.constLast().toMap()};
-
-            static const QLatin1String note_on{"note_on"};
-            static const QLatin1String note_off{"note_off"};
-            const int midiChannel = metadata.value("channel").toInt();
-            int midiNote = metadata.value("note").toInt();
-            ClipAudioSource *clip = d->clipForMidiNote(midiNote);
-            if (midiChannel == d->midiChannel && clip) {
-                const QString messageType = metadata.value("type").toString();
-                // Not handling these yet...
-                const float velocity = metadata.value("velocity").toFloat();
-                int slice{-1};
-                if (d->noteDestination == SampleSlicedDestination) {
-                    slice = clip->sliceForMidiNote(midiNote);
-                    midiNote = 60;
-                }
-                if (messageType == note_on) {
-                    ClipCommand *clipCommand{new ClipCommand};
-                    clipCommand->clip = clip;
-                    clipCommand->midiNote = midiNote;
-                    clipCommand->startPlayback = true;
-                    clipCommand->changeVolume = true;
-                    clipCommand->volume = velocity / float(128);
-                    if (slice > -1) {
-                        clipCommand->changeSlice = true;
-                        clipCommand->slice = slice;
-                    }
-                    d->samplerSynth->handleClipCommand(clipCommand);
-                } else if (messageType == note_off) {
-                    ClipCommand *clipCommand{new ClipCommand};
-                    clipCommand->clip = clip;
-                    clipCommand->midiNote = midiNote;
-                    if (slice > -1) {
-                        clipCommand->changeSlice = true;
-                        clipCommand->slice = slice;
-                    }
-                    clipCommand->stopPlayback = true;
-                    d->samplerSynth->handleClipCommand(clipCommand);
+        if (0x7F < byte1 && byte1 < 0xA0) {
+            juce::MidiMessage message(byte1, byte2, byte3);
+            juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
+            // Always remember, juce thinks channels are 1-indexed
+            if (message.isForChannel(d->midiChannel + 1)) {
+                ClipCommand *command = d->midiMessageToClipCommand(meta);
+                if (command) {
+                    d->samplerSynth->handleClipCommand(command);
                 }
             }
         }
