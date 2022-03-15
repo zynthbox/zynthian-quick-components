@@ -62,14 +62,6 @@ public:
     int playingRow{0};
     int playingColumn{0};
 
-    // These two are equivalent to the data found in each note, and is stored
-    // per-position (the index is row * width + column). These must be cleared
-    // on any change of the notes (which should always be done through setNote
-    // and setMetadata to ensure this). If they are not cleared on changes, what
-    // ends up sent to SyncTimer during playback will not match what the model
-    // contains. So, remember your pattern hygiene and clean your buffers!
-    QHash<int, juce::MidiBuffer> onBuffers;
-    QHash<int, juce::MidiBuffer> offBuffers;
     // This bunch of lists is equivalent to the data found in each note, and is
     // stored per-position (index in the outer is row * width + column). The
     // must be cleared on any change of the notes (which should always be done
@@ -155,8 +147,6 @@ PatternModel::PatternModel(SequenceModel* parent)
         // the notes that are expected of us
         connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
             if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
-                d->onBuffers.clear();
-                d->offBuffers.clear();
                 d->positionBuffers.clear();
             }
         });
@@ -304,16 +294,12 @@ QVariant PatternModel::subnoteMetadata(int row, int column, int subnote, const Q
 
 void PatternModel::setNote(int row, int column, QObject* note)
 {
-    d->onBuffers.remove((row * d->width) + column);
-    d->offBuffers.remove((row * d->width) + column);
     d->positionBuffers.remove((row * d->width) + column);
     NotesModel::setNote(row, column, note);
 }
 
 void PatternModel::setMetadata(int row, int column, QVariant metadata)
 {
-    d->onBuffers.remove((row * d->width) + column);
-    d->offBuffers.remove((row * d->width) + column);
     d->positionBuffers.remove((row * d->width) + column);
     NotesModel::setMetadata(row, column, metadata);
 }
@@ -452,8 +438,6 @@ void PatternModel::setMidiChannel(int midiChannel)
                 setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
             }
         }
-        d->onBuffers.clear();
-        d->offBuffers.clear();
         d->positionBuffers.clear();
         Q_EMIT midiChannelChanged();
     }
@@ -481,8 +465,6 @@ void PatternModel::setNoteLength(int noteLength)
 {
     if (d->noteLength != noteLength) {
         d->noteLength = noteLength;
-        d->onBuffers.clear();
-        d->offBuffers.clear();
         d->positionBuffers.clear();
         Q_EMIT noteLengthChanged();
     }
@@ -859,9 +841,18 @@ void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned cha
     }
 }
 
+inline juce::MidiBuffer &getOrCreateBuffer(QHash<int, juce::MidiBuffer> &collection, int position) {
+    if (!collection.contains(position)) {
+        collection[position] = juce::MidiBuffer();
+    }
+    return collection[position];
+}
+
 void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
     static const QLatin1String velocityString{"velocity"};
+    static const QLatin1String delayString{"delay"};
+    static const QLatin1String durationString{"duration"};
     if (isPlaying()
         // Play any note if the pattern is set to sliced or trigger destination, since then it's not sending things through the midi graph
         && (d->noteDestination == PatternModel::SampleSlicedDestination || d->noteDestination == PatternModel ::SampleTriggerDestination
@@ -945,8 +936,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 int column = nextPosition - (row * d->width);
 
                 if (!d->positionBuffers.contains(nextPosition + (d->bankOffset * d->width))) {
-                    juce::MidiBuffer onBuffer;
-                    juce::MidiBuffer offBuffer;
+                    QHash<int, juce::MidiBuffer> positionBuffers;
                     const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
                     if (note) {
                         const QVariantList &subnotes = note->subnotes();
@@ -957,12 +947,14 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                 const QVariantHash &metaHash = meta[i].toHash();
                                 if (subnote) {
                                     if (metaHash.isEmpty()) {
-                                        addNoteToBuffer(onBuffer, subnote, 64, true, overrideChannel);
-                                        addNoteToBuffer(offBuffer, subnote, 64, false, overrideChannel);
+                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
+                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
                                     } else {
                                         const int velocity{metaHash.value(velocityString, 64).toInt()};
-                                        addNoteToBuffer(onBuffer, subnote, velocity, true, overrideChannel);
-                                        addNoteToBuffer(offBuffer, subnote, velocity, false, overrideChannel);
+                                        const int delay{metaHash.value(delayString, 0).toInt()};
+                                        const int duration{metaHash.value(durationString, noteDuration).toInt()};
+                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay), subnote, velocity, true, overrideChannel);
+                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay + duration), subnote, velocity, false, overrideChannel);
                                     }
                                 }
                             }
@@ -970,21 +962,16 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             for (const QVariant &subnoteVar : subnotes) {
                                 const Note *subnote = subnoteVar.value<Note*>();
                                 if (subnote) {
-                                    addNoteToBuffer(onBuffer, subnote, 64, true, overrideChannel);
-                                    addNoteToBuffer(offBuffer, subnote, 64, false, overrideChannel);
+                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
+                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
                                 }
                             }
                         } else {
-                            addNoteToBuffer(onBuffer, note, 64, true, overrideChannel);
-                            addNoteToBuffer(offBuffer, note, 64, false, overrideChannel);
+                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), note, 64, true, overrideChannel);
+                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), note, 64, false, overrideChannel);
                         }
                     }
-                    QHash<int, juce::MidiBuffer> positionBuffers;
-                    positionBuffers[0] = onBuffer;
-                    positionBuffers[noteDuration] = offBuffer;
                     d->positionBuffers[nextPosition + (d->bankOffset * d->width)] = positionBuffers;
-                    d->onBuffers[nextPosition + (d->bankOffset * d->width)] = onBuffer;
-                    d->offBuffers[nextPosition + (d->bankOffset * d->width)] = offBuffer;
                 }
                 if (!d->syncTimer) {
                     d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
@@ -1024,8 +1011,6 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
                             d->syncTimer->scheduleMidiBuffer(position.value(), progressionIncrement - 1 + position.key());
                         }
-//                         d->syncTimer->scheduleMidiBuffer(d->onBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement - 1);
-//                         d->syncTimer->scheduleMidiBuffer(d->offBuffers[nextPosition + (d->bankOffset * d->width)], progressionIncrement + noteDuration - delayAdjustment);
                         break;
                 }
             }
