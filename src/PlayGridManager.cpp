@@ -130,7 +130,7 @@ public:
                 if (portName.rfind(zynMidiRouterOutName, 0) == 0) {
                     MidiListener *midiListener = new MidiListener(i);
                     QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn){ updateNoteState(midiNote, midiChannel, velocity, setOn); }, Qt::QueuedConnection);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ updateNoteState(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
                     midiListener->start();
                     midiListeners << midiListener;
                 }
@@ -173,7 +173,7 @@ public:
         }
     }
 
-    void updateNoteState(int midiNote, int midiChannel, int velocity, bool setOn) {
+    void updateNoteState(int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
         static const QLatin1String note_on{"note_on"};
         static const QLatin1String note_off{"note_off"};
 
@@ -190,6 +190,8 @@ public:
             }
         }
         if (shouldAdd) {
+            // First notify all our friends of the thing (because they might like to know very quickly)
+            Q_EMIT q->midiMessage(byte1, byte2, byte3);
             QVariantMap metadata;
             metadata["note"] = midiNote;
             metadata["channel"] = midiChannel;

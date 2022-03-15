@@ -73,7 +73,7 @@ void MidiListener::run() {
                 if (i > lastRelevantMessage || i >= MAX_MESSAGES) {
                     break;
                 }
-                Q_EMIT noteChanged(message->midiNote, message->midiChannel, message->velocity, message->setOn);
+                Q_EMIT noteChanged(message->midiNote, message->midiChannel, message->velocity, message->setOn, message->byte1, message->byte2, message->byte3);
                 ++i;
             }
             lastRelevantMessage = -1;
@@ -86,7 +86,7 @@ void MidiListener::markAsDone() {
     done = true;
 }
 
-void MidiListener::addMessage(int midiNote, int midiChannel, int velocity, bool setOn)
+void MidiListener::addMessage(int midiNote, int midiChannel, int velocity, bool setOn, std::vector< unsigned char > *data)
 {
     if (lastRelevantMessage >= MAX_MESSAGES) {
         qWarning() << "Too many messages in a single run before we could report back - we only expected" << MAX_MESSAGES;
@@ -97,6 +97,13 @@ void MidiListener::addMessage(int midiNote, int midiChannel, int velocity, bool 
         message->midiChannel = midiChannel;
         message->velocity = velocity;
         message->setOn = setOn;
+        message->byte1 = data->at(0);
+        if (data->size() > 1) {
+            message->byte2 = data->at(1);
+        }
+        if (data->size() > 2) {
+            message->byte3 = data->at(2);
+        }
     }
 }
 
@@ -109,7 +116,7 @@ void handleRtMidiMessage(double /*timeStamp*/, std::vector< unsigned char > *mes
             const int midiChannel = byte1 - (setOn ? 0x90 : 0x80);
             const int &midiNote = message->at(1);
             const int &velocity = message->at(2);
-            listener->addMessage(midiNote, midiChannel, velocity, setOn);
+            listener->addMessage(midiNote, midiChannel, velocity, setOn, message);
         } else {
 //            // Spit out the unknown thing onto the cli - this should come in handy later on
 //            for ( i=0; i<nBytes; i++ ) {

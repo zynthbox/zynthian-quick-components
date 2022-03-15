@@ -33,6 +33,9 @@ struct NoteMessage {
     int midiNote{0};
     int midiChannel{0};
     int velocity{0};
+    unsigned char byte1{0};
+    unsigned char byte2{0};
+    unsigned char byte3{0};
 };
 
 class MidiListener : public QThread {
@@ -42,8 +45,8 @@ public:
     ~MidiListener() override;
     void run() override;
     Q_SLOT void markAsDone();
-    Q_SIGNAL void noteChanged(int midiNote, int midiChannel, int velocity, bool setOn);
-    void addMessage(int midiNote, int midiChannel, int velocity, bool setOn);
+    Q_SIGNAL void noteChanged(int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3);
+    void addMessage(int midiNote, int midiChannel, int velocity, bool setOn, std::vector< unsigned char > *data);
 private:
     int lastRelevantMessage{-1};
     QList<NoteMessage*> messages;
