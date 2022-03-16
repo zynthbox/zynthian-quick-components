@@ -536,7 +536,7 @@ void SequenceModel::prepareSequencePlayback()
         // pre-fill the first beat with notes - the first beat will also call the function,
         // but will do so for +1, not current cumulativeBeat, so we need to prefill things a bit.
         for (PatternModel *pattern : d->patternModels) {
-            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat() - 1, 6);
+            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), 6, 0);
         }
     }
     playGridManager()->hookUpTimer();
