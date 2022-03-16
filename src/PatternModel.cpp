@@ -841,14 +841,75 @@ void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned cha
     }
 }
 
-inline juce::MidiBuffer &getOrCreateBuffer(QHash<int, juce::MidiBuffer> &collection, int position) {
+inline juce::MidiBuffer &getOrCreateBuffer(QHash<int, juce::MidiBuffer> &collection, int position)
+{
     if (!collection.contains(position)) {
         collection[position] = juce::MidiBuffer();
     }
     return collection[position];
 }
 
-void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
+inline void noteLengthDetails(int noteLength, quint64 &nextPosition, bool &relevantToUs, quint64 &noteDuration)
+{
+    // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
+    // but GCC already does that for you at -O2, so don't bother :)
+    switch (noteLength) {
+    case 1:
+        if (nextPosition % 32 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 32;
+            noteDuration = 32;
+        } else {
+            relevantToUs = false;
+        }
+        break;
+    case 2:
+        if (nextPosition % 16 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 16;
+            noteDuration = 16;
+        } else {
+            relevantToUs = false;
+        }
+        break;
+    case 3:
+        if (nextPosition % 8 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 8;
+            noteDuration = 8;
+        } else {
+            relevantToUs = false;
+        }
+        break;
+    case 4:
+        if (nextPosition % 4 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 4;
+            noteDuration = 4;
+        } else {
+            relevantToUs = false;
+        }
+        break;
+    case 5:
+        if (nextPosition % 2 == 0) {
+            relevantToUs = true;
+            nextPosition = nextPosition / 2;
+            noteDuration = 2;
+        } else {
+            relevantToUs = false;
+        }
+        break;
+    case 6:
+        relevantToUs = true;
+        noteDuration = 1;
+        break;
+    default:
+        qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever";
+        break;
+    }
+}
+
+void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength, int initialProgression) const
 {
     static const QLatin1String velocityString{"velocity"};
     static const QLatin1String delayString{"delay"};
@@ -867,65 +928,10 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
         // beat, not the current one. That is to say, prepare the next frame, not the current one (since those notes
         // have already been played).
-        for (int progressionIncrement = 1; progressionIncrement <= progressionLength; ++progressionIncrement) {
+        for (int progressionIncrement = initialProgression; progressionIncrement <= progressionLength; ++progressionIncrement) {
             // check whether the sequencePosition + progressionIncrement matches our note length
             quint64 nextPosition = sequencePosition + progressionIncrement;
-            // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
-            // but GCC already does that for you at -O2, so don't bother :)
-            switch (d->noteLength) {
-            case 1:
-                if (nextPosition % 32 == 0) {
-                    relevantToUs = true;
-                    nextPosition = nextPosition / 32;
-                    noteDuration = 32;
-                } else {
-                    relevantToUs = false;
-                }
-                break;
-            case 2:
-                if (nextPosition % 16 == 0) {
-                    relevantToUs = true;
-                    nextPosition = nextPosition / 16;
-                    noteDuration = 16;
-                } else {
-                    relevantToUs = false;
-                }
-                break;
-            case 3:
-                if (nextPosition % 8 == 0) {
-                    relevantToUs = true;
-                    nextPosition = nextPosition / 8;
-                    noteDuration = 8;
-                } else {
-                    relevantToUs = false;
-                }
-                break;
-            case 4:
-                if (nextPosition % 4 == 0) {
-                    relevantToUs = true;
-                    nextPosition = nextPosition / 4;
-                    noteDuration = 4;
-                } else {
-                    relevantToUs = false;
-                }
-                break;
-            case 5:
-                if (nextPosition % 2 == 0) {
-                    relevantToUs = true;
-                    nextPosition = nextPosition / 2;
-                    noteDuration = 2;
-                } else {
-                    relevantToUs = false;
-                }
-                break;
-            case 6:
-                relevantToUs = true;
-                noteDuration = 1;
-                break;
-            default:
-                qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
-                break;
-            }
+            noteLengthDetails(d->noteLength, nextPosition, relevantToUs, noteDuration);
 
             if (relevantToUs) {
                 // Get the next row/column combination, and schedule the previous one off, and the next one on
@@ -976,10 +982,6 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 if (!d->syncTimer) {
                     d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
                 }
-                // If sequencePosition is -1, that means we're on the prefilling step and need to
-                // adjust the delay so we're scheduling the notes onto the right position, otherwise
-                // we're just posting messages for the next step
-                const int delayAdjustment = (sequencePosition == -1) ? 2 : 1;
                 switch (d->noteDestination) {
                     case PatternModel::SampleLoopedDestination:
                         // If this track is supposed to loop its sample, we are not supposed to be making patterny sounds
@@ -1009,7 +1011,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];
                         QHash<int, juce::MidiBuffer>::const_iterator position;
                         for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
-                            d->syncTimer->scheduleMidiBuffer(position.value(), progressionIncrement - 1 + position.key());
+                            d->syncTimer->scheduleMidiBuffer(position.value(), qMax(0, progressionIncrement + position.key()));
                         }
                         break;
                 }
@@ -1028,47 +1030,9 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
         || sequencePosition == 0
     ) {
         bool relevantToUs{false};
-        quint64 nextPosition = sequencePosition;
-        // Potentially it'd be tempting to try and optimise this manually to use bitwise operators,
-        // but GCC already does that for you at -O2, so don't bother :)
-        switch (d->noteLength) {
-        case 1:
-            if (nextPosition % 32 == 0) {
-                relevantToUs = true;
-                nextPosition = nextPosition / 32;
-            }
-            break;
-        case 2:
-            if (nextPosition % 16 == 0) {
-                relevantToUs = true;
-                nextPosition = nextPosition / 16;
-            }
-            break;
-        case 3:
-            if (nextPosition % 8 == 0) {
-                relevantToUs = true;
-                nextPosition = nextPosition / 8;
-            }
-            break;
-        case 4:
-            if (nextPosition % 4 == 0) {
-                relevantToUs = true;
-                nextPosition = nextPosition / 4;
-            }
-            break;
-        case 5:
-            if (nextPosition % 2 == 0) {
-                relevantToUs = true;
-                nextPosition = nextPosition / 2;
-            }
-            break;
-        case 6:
-            relevantToUs = true;
-            break;
-        default:
-            qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever" << objectName();
-            break;
-        }
+        quint64 nextPosition{sequencePosition};
+        quint64 noteDuration{0};
+        noteLengthDetails(d->noteLength, nextPosition, relevantToUs, noteDuration);
 
         if (relevantToUs) {
             nextPosition = nextPosition % (d->availableBars * d->width);
