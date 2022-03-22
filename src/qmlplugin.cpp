@@ -26,6 +26,7 @@
 #include <QQmlContext>
 
 #include "FilterProxy.h"
+#include "MidiRecorder.h"
 #include "Note.h"
 #include "NotesModel.h"
 #include "PatternImageProvider.h"
@@ -52,5 +53,11 @@ void QmlPlugins::registerTypes(const char *uri)
         playGridManager->setEngine(engine);
         QQmlEngine::setObjectOwnership(playGridManager, QQmlEngine::CppOwnership);
         return playGridManager;
+    });
+    qmlRegisterSingletonType<MidiRecorder>(uri, 1, 0, "MidiRecorder", [](QQmlEngine */*engine*/, QJSEngine *scriptEngine) -> QObject * {
+        Q_UNUSED(scriptEngine)
+        MidiRecorder *midiRecorder = MidiRecorder::instance();
+        QQmlEngine::setObjectOwnership(midiRecorder, QQmlEngine::CppOwnership);
+        return midiRecorder;
     });
 }
