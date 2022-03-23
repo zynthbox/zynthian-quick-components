@@ -24,7 +24,10 @@
 #include "PlayGridManager.h"
 #include "PatternModel.h"
 
-#include <chrono>
+#include <libzl.h>
+#include <SyncTimer.h>
+
+#include <QDebug>
 
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -38,18 +41,17 @@ public:
     bool isRecording{false};
     QList<int> channels;
     juce::MidiMessageSequence midiMessageSequence;
-    frame_clock::time_point mostRecentEventTime;
+    frame_clock::time_point recordingStartTime;
     void handleMidiMessage(const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3) {
         if (isRecording) {
             if (0x7F < byte1 && byte1 < 0xA0) {
-                const std::chrono::duration<double, std::micro> timestamp = frame_clock::now() - mostRecentEventTime;
-                // We're using decimal seconds with microsecond precision as timestamp intervals (since that's the
-                // precision midi operates at, but our time-to-beat calculator functions are double precision seconds)
-                juce::MidiMessage message(byte1, byte2, byte3, (double)timestamp.count() / (double)1000000);
+                // Using microseconds for timestamps (midi is commonly that anyway)
+                // and juce expects ongoing timestamps, not intervals (it will create those when saving)
+                const std::chrono::duration<double, std::micro> timestamp = frame_clock::now() - recordingStartTime;
+                juce::MidiMessage message(byte1, byte2, byte3, timestamp.count());
                 // Always remember, juce thinks channels are 1-indexed
                 if (channels.contains(message.getChannel() - 1)) {
                     midiMessageSequence.addEvent(message);
-                    mostRecentEventTime = frame_clock::now();
                 }
             }
         }
@@ -72,7 +74,7 @@ void MidiRecorder::startRecording(int channel, bool clear)
     }
     d->channels << channel;
     if (!d->isRecording) {
-        d->mostRecentEventTime = frame_clock::now();
+        d->recordingStartTime = frame_clock::now();
         d->isRecording = true;
     }
 }
@@ -91,7 +93,6 @@ void MidiRecorder::stopRecording(int channel)
 
 void MidiRecorder::clearRecording()
 {
-    d->channels.clear();
     d->midiMessageSequence.clear();
 }
 
@@ -99,13 +100,16 @@ bool MidiRecorder::loadFromMidi(const QByteArray &midiData)
 {
     bool success{false};
 
-    juce::MemoryInputStream in(midiData.data(), midiData.size(), false);
+    juce::MemoryBlock block(midiData.data(), midiData.size());
+    juce::MemoryInputStream in(block, false);
     juce::MidiFile file;
     if (file.readFrom(in, true)) {
         if (file.getNumTracks() > 0) {
             d->midiMessageSequence = juce::MidiMessageSequence(*file.getTrack(0));
             success = true;
         }
+    } else {
+        qDebug() << "Failed to read midi from data " << midiData << "of size" << block.getSize();
     }
 
     return success;
@@ -123,17 +127,16 @@ QByteArray MidiRecorder::midi() const
         out.flush();
 
         juce::MemoryBlock block = out.getMemoryBlock();
-        data.reserve(out.getDataSize());
-        for (const char *i = block.begin(); i != block.end(); ++i) {
-            data.append(i);
-        }
+        data.append((char*)block.getData(), block.getSize());
+    } else {
+        qWarning() << "Failed to write midi to memory output stream";
     }
     return data;
 }
 
 bool MidiRecorder::loadFromBase64Midi(const QString &data)
 {
-    return loadFromMidi(QByteArray::fromBase64(data.toUtf8()));
+    return loadFromMidi(QByteArray::fromBase64(data.toLatin1()));
 }
 
 QString MidiRecorder::base64Midi() const
@@ -153,6 +156,35 @@ QString MidiRecorder::ascii() const
     QString data;
     qWarning() << Q_FUNC_INFO << "NO ACTION TAKEN - UNIMPLEMENTED!";
     return data;
+}
+
+void MidiRecorder::playRecording() const
+{
+    qDebug() << Q_FUNC_INFO;
+    SyncTimer *syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
+    juce::MidiBuffer midiBuffer;
+    double mostRecentTimestamp{-1};
+    for (const juce::MidiMessageSequence::MidiEventHolder *holder : d->midiMessageSequence) {
+        qDebug() << "Investimagating" << QString::fromStdString(holder->message.getDescription().toStdString());
+        if (holder->message.getTimeStamp() != mostRecentTimestamp) {
+            if (midiBuffer.getNumEvents() > 0) {
+                qDebug() << "Hey, things in the buffer, let's schedule those" << midiBuffer.getNumEvents() << "things, this far into the future:" << syncTimer->secondsToSubbeatCount(syncTimer->getBpm(), mostRecentTimestamp / (double)1000000);
+                syncTimer->scheduleMidiBuffer(midiBuffer, syncTimer->secondsToSubbeatCount(syncTimer->getBpm(), mostRecentTimestamp / (double)1000000));
+            }
+            mostRecentTimestamp = holder->message.getTimeStamp();
+            qDebug() << "New timestamp, clear the buffer, timestamp is now" << mostRecentTimestamp;
+            midiBuffer.clear();
+        }
+        midiBuffer.addEvent(holder->message, midiBuffer.getNumEvents());
+    }
+    qDebug() << "Unblocking, lets go!";
+    syncTimer->start(syncTimer->getBpm());
+}
+
+void MidiRecorder::stopPlayback() const
+{
+    SyncTimer *syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
+    syncTimer->stop();
 }
 
 bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorder::ApplicatorSetting> settings) const
