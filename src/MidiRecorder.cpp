@@ -182,6 +182,13 @@ QString MidiRecorder::ascii() const
     return data;
 }
 
+void MidiRecorder::forceToChannel(int channel)
+{
+    for (juce::MidiMessageSequence::MidiEventHolder *holder : d->midiMessageSequence) {
+        holder->message.setChannel(channel + 1);
+    }
+}
+
 void MidiRecorder::playRecording()
 {
 //     qDebug() << Q_FUNC_INFO;

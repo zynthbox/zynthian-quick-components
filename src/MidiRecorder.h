@@ -89,6 +89,14 @@ public:
     Q_INVOKABLE bool loadFromBase64Midi (const QString& data);
 
     /**
+     * \brief Force all recorded notes onto the given channel
+     * Prior to playing a recording, you may need to move the notes onto a different channel,
+     * so they play on the correct instrument
+     * @param channel The channel all notes should be forced onto
+     */
+    Q_INVOKABLE void forceToChannel(int channel);
+
+    /**
      * \brief Play the midi contained in the recorder from start to end and then stop
      */
     Q_INVOKABLE void playRecording();
