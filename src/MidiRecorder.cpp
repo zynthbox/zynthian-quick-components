@@ -28,6 +28,7 @@
 #include <SyncTimer.h>
 
 #include <QDebug>
+#include <QTimer>
 
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
@@ -39,6 +40,7 @@ class MidiRecorderPrivate {
 public:
     MidiRecorderPrivate() {}
     bool isRecording{false};
+    bool isPlaying{false};
     QList<int> channels;
     juce::MidiMessageSequence midiMessageSequence;
     frame_clock::time_point recordingStartTime;
@@ -62,7 +64,27 @@ MidiRecorder::MidiRecorder(QObject *parent)
     : QObject(parent)
     , d(new MidiRecorderPrivate)
 {
-    connect(PlayGridManager::instance(), &PlayGridManager::midiMessage, this, [this](const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ d->handleMidiMessage(byte1, byte2, byte3); });
+    SyncTimer *syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
+    connect(syncTimer, &SyncTimer::timerRunningChanged,
+            this, [this, syncTimer]()
+            {
+                if (!syncTimer->timerRunning()) {
+                    if (d->isPlaying) {
+                        d->isPlaying = false;
+                        Q_EMIT isPlayingChanged();
+                    }
+                    if (d->isRecording) {
+                        stopRecording();
+                    }
+                }
+            }
+    );
+    connect(PlayGridManager::instance(), &PlayGridManager::midiMessage,
+            this, [this](const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3)
+            {
+                d->handleMidiMessage(byte1, byte2, byte3);
+            }
+    );
 }
 
 MidiRecorder::~MidiRecorder() = default;
@@ -76,6 +98,7 @@ void MidiRecorder::startRecording(int channel, bool clear)
     if (!d->isRecording) {
         d->recordingStartTime = frame_clock::now();
         d->isRecording = true;
+        Q_EMIT isRecordingChanged();
     }
 }
 
@@ -88,6 +111,7 @@ void MidiRecorder::stopRecording(int channel)
     }
     if (d->channels.isEmpty()) {
         d->isRecording = false;
+        Q_EMIT isRecordingChanged();
     }
 }
 
@@ -158,30 +182,33 @@ QString MidiRecorder::ascii() const
     return data;
 }
 
-void MidiRecorder::playRecording() const
+void MidiRecorder::playRecording()
 {
-    qDebug() << Q_FUNC_INFO;
+//     qDebug() << Q_FUNC_INFO;
     SyncTimer *syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
     juce::MidiBuffer midiBuffer;
     double mostRecentTimestamp{-1};
     for (const juce::MidiMessageSequence::MidiEventHolder *holder : d->midiMessageSequence) {
-        qDebug() << "Investimagating" << QString::fromStdString(holder->message.getDescription().toStdString());
+//         qDebug() << "Investimagating" << QString::fromStdString(holder->message.getDescription().toStdString());
         if (holder->message.getTimeStamp() != mostRecentTimestamp) {
             if (midiBuffer.getNumEvents() > 0) {
-                qDebug() << "Hey, things in the buffer, let's schedule those" << midiBuffer.getNumEvents() << "things, this far into the future:" << syncTimer->secondsToSubbeatCount(syncTimer->getBpm(), mostRecentTimestamp / (double)1000000);
+//                 qDebug() << "Hey, things in the buffer, let's schedule those" << midiBuffer.getNumEvents() << "things, this far into the future:" << syncTimer->secondsToSubbeatCount(syncTimer->getBpm(), mostRecentTimestamp / (double)1000000);
                 syncTimer->scheduleMidiBuffer(midiBuffer, syncTimer->secondsToSubbeatCount(syncTimer->getBpm(), mostRecentTimestamp / (double)1000000));
             }
             mostRecentTimestamp = holder->message.getTimeStamp();
-            qDebug() << "New timestamp, clear the buffer, timestamp is now" << mostRecentTimestamp;
+//             qDebug() << "New timestamp, clear the buffer, timestamp is now" << mostRecentTimestamp;
             midiBuffer.clear();
         }
         midiBuffer.addEvent(holder->message, midiBuffer.getNumEvents());
     }
-    qDebug() << "Unblocking, lets go!";
+//     qDebug() << "Unblocking, lets go!";
     syncTimer->start(syncTimer->getBpm());
+    d->isPlaying = true;
+    Q_EMIT isPlayingChanged();
+    QTimer::singleShot(100 + mostRecentTimestamp / 1000, syncTimer, &SyncTimer::stop);
 }
 
-void MidiRecorder::stopPlayback() const
+void MidiRecorder::stopPlayback()
 {
     SyncTimer *syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
     syncTimer->stop();
@@ -248,4 +275,14 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
     }
     qWarning() << Q_FUNC_INFO << "NO ACTION TAKEN - UNIMPLEMENTED!";
     return success;
+}
+
+bool MidiRecorder::isPlaying() const
+{
+    return d->isPlaying;
+}
+
+bool MidiRecorder::isRecording() const
+{
+    return d->isRecording;
 }
