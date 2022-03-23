@@ -35,6 +35,8 @@ class MidiRecorderPrivate;
 class MidiRecorder : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
+    Q_PROPERTY(bool isRecording READ isRecording NOTIFY isRecordingChanged)
 public:
     static MidiRecorder* instance() {
         static MidiRecorder* instance{nullptr};
@@ -89,11 +91,11 @@ public:
     /**
      * \brief Play the midi contained in the recorder from start to end and then stop
      */
-    Q_INVOKABLE void playRecording() const;
+    Q_INVOKABLE void playRecording();
     /**
      * \brief Stops playback if it is currently running
      */
-    Q_INVOKABLE void stopPlayback() const;
+    Q_INVOKABLE void stopPlayback();
 
     // TODO This should probably use a "proper" ascii midi representation, perhaps asc2mid from http://www.archduke.org/midi/ ?
     Q_INVOKABLE bool loadFromAscii(const QString &asciiRepresentation);
@@ -129,6 +131,11 @@ public:
      * @param settings A set of flags you can use to control the behaviour of the function
      */
     Q_INVOKABLE bool applyToPattern(PatternModel *patternModel, QFlags<ApplicatorSetting> settings = NoFlags) const;
+
+    bool isPlaying() const;
+    Q_SIGNAL void isPlayingChanged();
+    bool isRecording() const;
+    Q_SIGNAL void isRecordingChanged();
 private:
     std::unique_ptr<MidiRecorderPrivate> d;
 };
