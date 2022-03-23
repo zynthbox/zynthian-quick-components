@@ -34,6 +34,7 @@ class MidiRecorderPrivate;
  */
 class MidiRecorder : public QObject
 {
+    Q_OBJECT
 public:
     static MidiRecorder* instance() {
         static MidiRecorder* instance{nullptr};
@@ -50,45 +51,53 @@ public:
      * @param channel The midi channel to start recording on
      * @param clear Whether or not to clear the current recording before starting the recording (the same as stopping, clearing, and starting)
      */
-    void startRecording(int channel, bool clear = false);
+    Q_INVOKABLE void startRecording(int channel, bool clear = false);
     /**
      * \brief Stop recording
      * @param channel The midi channel you want to stop recording from (if -1, all recording is stopped)
      */
-    void stopRecording(int channel = -1);
+    Q_INVOKABLE void stopRecording(int channel = -1);
     /**
      * \brief Clears any previously recorded data
      * Clearing will also reset the timestamp. Any events recorded during the next recording session will be started at time 0
      */
-    void clearRecording();
+    Q_INVOKABLE void clearRecording();
 
     /**
      * \brief Clears the current recording and replaces it with track 0 from the midi file contained in the given data
      * @param midiData The binary contents of a midi file
      * @return True if successfully loaded, false if not
      */
-    bool loadFromMidi(const QByteArray &midiData);
+    Q_INVOKABLE bool loadFromMidi(const QByteArray &midiData);
     /**
      * \brief A midi file containing the currently recorded midi data in a single track of a type 1 midi file
      * @return The rendered midi file (or empty if the process failed)
      */
-    QByteArray midi() const;
-
+    Q_INVOKABLE QByteArray midi() const;
     /**
      * \brief Convenience function to return a base64 encoded version of the data retrieved by the midi() function
      * @return The base64 data, or an empty string if unsuccessful
      */
-    QString base64Midi() const;
+    Q_INVOKABLE QString base64Midi() const;
     /**
      * \brief Convenience function to load from a base64 encoded version of a midi file using the loadFromMidi() function
      * @param data The base64 representation of the midi file you wish to load
      * @return True if successfully loaded, false if not
      */
-    bool loadFromBase64Midi (const QString& data);
+    Q_INVOKABLE bool loadFromBase64Midi (const QString& data);
+
+    /**
+     * \brief Play the midi contained in the recorder from start to end and then stop
+     */
+    Q_INVOKABLE void playRecording() const;
+    /**
+     * \brief Stops playback if it is currently running
+     */
+    Q_INVOKABLE void stopPlayback() const;
 
     // TODO This should probably use a "proper" ascii midi representation, perhaps asc2mid from http://www.archduke.org/midi/ ?
-    bool loadFromAscii(const QString &asciiRepresentation);
-    QString ascii() const;
+    Q_INVOKABLE bool loadFromAscii(const QString &asciiRepresentation);
+    Q_INVOKABLE QString ascii() const;
 
     enum ApplicatorSetting {
         NoFlags = 0x0,
@@ -119,7 +128,7 @@ public:
      * @param PatternModel The model to apply the recorder's midi data to
      * @param settings A set of flags you can use to control the behaviour of the function
      */
-    bool applyToPattern(PatternModel *patternModel, QFlags<ApplicatorSetting> settings = NoFlags) const;
+    Q_INVOKABLE bool applyToPattern(PatternModel *patternModel, QFlags<ApplicatorSetting> settings = NoFlags) const;
 private:
     std::unique_ptr<MidiRecorderPrivate> d;
 };
