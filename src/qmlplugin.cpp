@@ -54,7 +54,8 @@ void QmlPlugins::registerTypes(const char *uri)
         QQmlEngine::setObjectOwnership(playGridManager, QQmlEngine::CppOwnership);
         return playGridManager;
     });
-    qmlRegisterSingletonType<MidiRecorder>(uri, 1, 0, "MidiRecorder", [](QQmlEngine */*engine*/, QJSEngine *scriptEngine) -> QObject * {
+    qmlRegisterSingletonType<MidiRecorder>(uri, 1, 0, "MidiRecorder", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
+        Q_UNUSED(engine)
         Q_UNUSED(scriptEngine)
         MidiRecorder *midiRecorder = MidiRecorder::instance();
         QQmlEngine::setObjectOwnership(midiRecorder, QQmlEngine::CppOwnership);
