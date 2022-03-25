@@ -990,7 +990,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                     case PatternModel::SampleSlicedDestination:
                     {
                         // Only actually schedule notes for the next tick, not for the far-ahead...
-                        if (progressionIncrement == 1) {
+                        if (progressionIncrement == initialProgression) {
                             const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];
                             QHash<int, juce::MidiBuffer>::const_iterator position;
                             for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
