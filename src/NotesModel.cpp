@@ -319,6 +319,39 @@ QVariantList NotesModel::getRow(int row) const
     return list;
 }
 
+QVariantList NotesModel::uniqueRowNotes(int row) const
+{
+    QVariantList notes;
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            std::function<void(Note*)> addNotesIfNotThere;
+            addNotesIfNotThere = [&notes,&addNotesIfNotThere](Note *note) {
+                if (note && note->subnotes().count() > 0) {
+                    for (const QVariant &subnote : note->subnotes()) {
+                        addNotesIfNotThere(subnote.value<Note*>());
+                    }
+                } else if (note) {
+                    bool foundNote{false};
+                    for (const QVariant &val : notes) {
+                        if (val.value<Note*>() == note) {
+                            foundNote = true;
+                            break;
+                        }
+                    }
+                    if (!foundNote) {
+                        notes << QVariant::fromValue<QObject*>(note);
+                    }
+                }
+            };
+            const QList<Entry> &entries = d->entries.at(row);
+            for (const Entry &entry : entries) {
+                addNotesIfNotThere(entry.note);
+            }
+        }
+    }
+    return notes;
+}
+
 QObject* NotesModel::getNote(int row, int column) const
 {
     QObject *obj{nullptr};

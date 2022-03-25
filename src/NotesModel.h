@@ -87,6 +87,14 @@ public:
      * @return A list containing all the notes for a specific row
      */
     Q_INVOKABLE QVariantList getRow(int row) const;
+
+    /**
+     * \brief Get a list of all unique notes in the given row
+     * @note Not valid on child models (see parentModel())
+     * @param row The row to get notes from
+     */
+    Q_INVOKABLE QVariantList uniqueRowNotes(int row) const;
+
     /**
      * \brief Get the note object stored at the specified location
      * @note Not valid on child models (see parentModel())
