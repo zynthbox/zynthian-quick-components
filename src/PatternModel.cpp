@@ -958,7 +958,10 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                     } else {
                                         const int velocity{metaHash.value(velocityString, 64).toInt()};
                                         const int delay{metaHash.value(delayString, 0).toInt()};
-                                        const int duration{metaHash.value(durationString, noteDuration).toInt()};
+                                        int duration{metaHash.value(durationString, noteDuration).toInt()};
+                                        if (duration < 1) {
+                                            duration = noteDuration;
+                                        }
                                         addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay), subnote, velocity, true, overrideChannel);
                                         addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay + duration), subnote, velocity, false, overrideChannel);
                                     }
