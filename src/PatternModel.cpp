@@ -96,7 +96,7 @@ public:
         ClipAudioSource *clip{nullptr};
         for (int i = 0; i < CLIP_COUNT; ++i) {
             ClipAudioSource *needle = clips[i];
-            if (needle && needle->keyZoneStart() >= midiNote && needle->keyZoneEnd() <= midiNote) {
+            if (needle && needle->keyZoneStart() <= midiNote && midiNote <= needle->keyZoneEnd()) {
                 clip = needle;
                 break;
             }
