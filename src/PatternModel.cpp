@@ -85,26 +85,20 @@ public:
     NotesModel *clipSliceNotes{nullptr};
     QList< QPointer<ClipAudioSource> > clips;
     /**
-     * This function will return the last clip in the list which has a
-     * sliceBaseMidiNote higher or equal to the given midi note
+     * This function will return the first clip in the list which has a
+     * keyZoneStart higher or equal to the given midi note and a keyZoneEnd
+     * lower or equal to the given midi note (that is, the first clip for
+     * which the midi note is inside the keyzone).
      * @param midiNote The midi note to find a clip for
-     * @return The clip audio source that best matches the given midi note (or nullptr if the list is empty)
+     * @return The first clip audio source that matches the given midi note (or nullptr if the list is empty or there is no match)
      */
     ClipAudioSource *clipForMidiNote(int midiNote) {
         ClipAudioSource *clip{nullptr};
-        for (int i = CLIP_COUNT - 1; i > -1; --i) {
+        for (int i = 0; i < CLIP_COUNT; ++i) {
             ClipAudioSource *needle = clips[i];
-            if (needle && needle->sliceBaseMidiNote() >= midiNote) {
+            if (needle && needle->keyZoneStart() >= midiNote && needle->keyZoneEnd() <= midiNote) {
                 clip = needle;
                 break;
-            }
-        }
-        // Otherwise, get the first and best clip and use that
-        if (!clip) {
-            for (const QPointer<ClipAudioSource> &needle : clips) {
-                if (needle) {
-                    clip = needle;
-                }
             }
         }
         return clip;
