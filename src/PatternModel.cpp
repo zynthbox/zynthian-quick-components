@@ -153,6 +153,19 @@ PatternModel::PatternModel(SequenceModel* parent)
     Q_UNUSED(noteDestinationTypeId)
 
     connect(d->playGridManager, &PlayGridManager::midiMessage, this, &PatternModel::handleMidiMessage, Qt::DirectConnection);
+    connect(qobject_cast<SyncTimer*>(SyncTimer_instance()), &SyncTimer::clipCommandSent, this, [this](ClipCommand *clipCommand){
+        if (d->clips.contains(clipCommand->clip)) {
+            Note *note = qobject_cast<Note*>(PlayGridManager::instance()->getNote(clipCommand->midiNote, d->midiChannel));
+            if (note) {
+                if (clipCommand->stopPlayback) {
+                    note->setIsPlaying(false);
+                }
+                if (clipCommand->startPlayback) {
+                    note->setIsPlaying(true);
+                }
+            }
+        }
+    });
 }
 
 PatternModel::~PatternModel()
