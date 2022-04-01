@@ -1070,7 +1070,8 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
             juce::MidiMessage message(byte1, byte2, byte3);
             juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
             // Always remember, juce thinks channels are 1-indexed
-            if (message.isForChannel(d->midiChannel + 1)) {
+            // FIXME We've got a problem - why is the "dunno" channel 9? There's a track there, that's going to cause issues...
+            if (message.isForChannel(d->midiChannel + 1) || (d->sequence->activePatternObject() == this && (d->midiChannel < 0 || d->midiChannel > 8) && message.getChannel() == 10)) {
                 ClipCommand *command = d->midiMessageToClipCommand(meta);
                 if (command) {
                     d->samplerSynth->handleClipCommand(command);
