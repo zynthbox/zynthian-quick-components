@@ -578,6 +578,24 @@ bool PatternModel::bankHasNotes(int bankIndex)
     return hasNotes;
 }
 
+bool PatternModel::hasNotes() const
+{
+    bool hasNotes{false};
+    for (int row = 0; row < rowCount(); ++row) {
+        for (int column = 0; column < d->width; ++column) {
+            Note* note = qobject_cast<Note*>(getNote(row , column));
+            if (note && note->subnotes().length() > 0) {
+                hasNotes = true;
+                break;
+            }
+        }
+        if (hasNotes) {
+            break;
+        }
+    }
+    return hasNotes;
+}
+
 void PatternModel::setEnabled(bool enabled)
 {
     if (d->enabled != enabled) {

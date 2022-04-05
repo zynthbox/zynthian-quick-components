@@ -366,6 +366,12 @@ public:
      */
     Q_INVOKABLE bool bankHasNotes(int bankIndex);
 
+    /**
+     * \brief Whether any bank in the model contains notes
+     * @see bankHasNotes(int)
+     */
+    Q_INVOKABLE bool hasNotes() const;
+
     void setEnabled(bool enabled);
     bool enabled() const;
     Q_SIGNAL void enabledChanged();

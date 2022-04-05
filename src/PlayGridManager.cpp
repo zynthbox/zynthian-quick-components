@@ -659,6 +659,7 @@ QString PlayGridManager::modelToJson(const QObject* model) const
         modelObject["layerData"] = patternModel->layerData();
         modelObject["gridModelStartNote"] = patternModel->gridModelStartNote();
         modelObject["gridModelEndNote"] = patternModel->gridModelEndNote();
+        modelObject["hasNotes"] = patternModel->hasNotes();
         QJsonDocument notesDoc;
         notesDoc.setArray(d->generateModelNotesSection(patternModel));
         modelObject["notes"] = QString::fromUtf8(notesDoc.toJson());
