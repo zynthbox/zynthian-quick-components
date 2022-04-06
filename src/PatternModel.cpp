@@ -93,14 +93,13 @@ public:
      * @return The list of clip audio source instances that matches the given midi note (list can be empty)
      */
     QList<ClipAudioSource*> clipsForMidiNote(int midiNote) const {
-        QList<ClipAudioSource*> clips;
-        for (int i = 0; i < CLIP_COUNT; ++i) {
-            ClipAudioSource *needle = clips[i];
+        QList<ClipAudioSource*> found;
+        for (ClipAudioSource *needle : qAsConst(clips)) {
             if (needle && needle->keyZoneStart() <= midiNote && midiNote <= needle->keyZoneEnd()) {
-                clips << needle;
+                found << needle;
             }
         }
-        return clips;
+        return found;
     }
     /**
      * Returns a (potentially empty) list of ClipCommands which match the midi message passed to the function
