@@ -85,29 +85,33 @@ public:
     NotesModel *clipSliceNotes{nullptr};
     QList< QPointer<ClipAudioSource> > clips;
     /**
-     * This function will return the first clip in the list which has a
+     * This function will return all clip sin the list which has a
      * keyZoneStart higher or equal to the given midi note and a keyZoneEnd
-     * lower or equal to the given midi note (that is, the first clip for
+     * lower or equal to the given midi note (that is, all clipa for
      * which the midi note is inside the keyzone).
      * @param midiNote The midi note to find a clip for
-     * @return The first clip audio source that matches the given midi note (or nullptr if the list is empty or there is no match)
+     * @return The list of clip audio source instances that matches the given midi note (list can be empty)
      */
-    ClipAudioSource *clipForMidiNote(int midiNote) {
-        ClipAudioSource *clip{nullptr};
+    QList<ClipAudioSource*> clipsForMidiNote(int midiNote) const {
+        QList<ClipAudioSource*> clips;
         for (int i = 0; i < CLIP_COUNT; ++i) {
             ClipAudioSource *needle = clips[i];
             if (needle && needle->keyZoneStart() <= midiNote && midiNote <= needle->keyZoneEnd()) {
-                clip = needle;
-                break;
+                clips << needle;
             }
         }
-        return clip;
+        return clips;
     }
-    ClipCommand *midiMessageToClipCommand(const juce::MidiMessageMetadata &meta) {
-        ClipCommand *command{nullptr};
-        ClipAudioSource *clip = clipForMidiNote(meta.data[1]);
-        if (clip) {
-            command = new ClipCommand;
+    /**
+     * Returns a (potentially empty) list of ClipCommands which match the midi message passed to the function
+     * @param meta A midi meta message representing a midi event
+     * @return A list of ClipCommand instances matching the midi event (list can be empty)
+     */
+    QList<ClipCommand*> midiMessageToClipCommands(const juce::MidiMessageMetadata &meta) const {
+        QList<ClipCommand*> commands;
+        const QList<ClipAudioSource*> clips = clipsForMidiNote(meta.data[1]);
+        for (ClipAudioSource *clip : clips) {
+            ClipCommand *command = new ClipCommand;
             command->clip = clip;
             command->startPlayback = meta.data[0] > 0x8F;
             command->stopPlayback = meta.data[0] < 0x90;
@@ -122,8 +126,9 @@ public:
             } else {
                 command->midiNote = meta.data[1];
             }
+            commands << command;
         }
-        return command;
+        return commands;
     }
 };
 
@@ -1024,8 +1029,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                             for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
                                 for (const juce::MidiMessageMetadata &meta : position.value()) {
                                     if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
-                                        ClipCommand *command = d->midiMessageToClipCommand(meta);
-                                        if (command) {
+                                        const QList<ClipCommand*> commands = d->midiMessageToClipCommands(meta);
+                                        for (ClipCommand *command : commands) {
                                             d->syncTimer->scheduleClipCommand(command, progressionIncrement + position.key());
                                         }
                                     }
@@ -1090,8 +1095,8 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
             // Always remember, juce thinks channels are 1-indexed
             // FIXME We've got a problem - why is the "dunno" channel 9? There's a track there, that's going to cause issues...
             if (message.isForChannel(d->midiChannel + 1) || (d->sequence->activePatternObject() == this && (d->midiChannel < 0 || d->midiChannel > 8) && message.getChannel() == 10)) {
-                ClipCommand *command = d->midiMessageToClipCommand(meta);
-                if (command) {
+                const QList<ClipCommand*> commands = d->midiMessageToClipCommands(meta);
+                for (ClipCommand *command : commands) {
                     d->samplerSynth->handleClipCommand(command);
                 }
             }
