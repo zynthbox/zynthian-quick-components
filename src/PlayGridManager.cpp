@@ -289,24 +289,6 @@ PlayGridManager::PlayGridManager(QObject* parent)
     , d(new Private(this))
 {
     setSyncTimer(SyncTimer_instance());
-    connect(this, &PlayGridManager::metronomeActiveChanged, [this](){
-        if (d->syncTimer && !d->syncTimer->timerRunning() && d->midiout) {
-            QList<int> channels;
-            for (Note *note : d->notes) {
-                note->setIsPlaying(false);
-                if (!channels.contains(note->midiChannel())) {
-                    channels << note->midiChannel();
-                }
-            }
-            std::vector<unsigned char> message;
-            message.push_back(0xB0);
-            message.push_back(0x7B);
-            for (int i : channels) {
-                message[0] = 0xB0 + i;
-                d->midiout->sendMessage(&message);
-            }
-        }
-    });
     QDir mySequenceLocation{QString("%1/sequences/my-sequences").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR")))};
     if (!mySequenceLocation.exists()) {
         mySequenceLocation.mkpath(mySequenceLocation.path());
