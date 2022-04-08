@@ -45,6 +45,7 @@
 #include <QList>
 #include <QQmlComponent>
 #include <QStandardPaths>
+#include <QSettings>
 
 #include <RtMidi.h>
 
@@ -297,6 +298,15 @@ PlayGridManager::PlayGridManager(QObject* parent)
     if (!communitySequenceLocation.exists()) {
         communitySequenceLocation.mkpath(communitySequenceLocation.path());
     }
+
+    QSettings settings;
+    settings.beginGroup("PlayGridManager");
+    d->preferredSequencer = settings.value("preferredSequencer", "").toString();
+    connect(this, &PlayGridManager::sequenceEditorIndexChanged, [this](){
+        QSettings settings;
+        settings.beginGroup("PlayGridManager");
+        settings.setValue("preferredSequencer", d->preferredSequencer);
+    });
 }
 
 PlayGridManager::~PlayGridManager()
@@ -402,7 +412,7 @@ void PlayGridManager::setModulation(int modulation)
 
 int PlayGridManager::sequenceEditorIndex() const
 {
-    int sequencerIndex{d->playgrids.contains(d->preferredSequencer)};
+    int sequencerIndex{d->playgrids.indexOf(d->preferredSequencer)};
     if (sequencerIndex < 0) {
         for (int i = 0; i < d->playgrids.count(); ++i) {
             if (d->playgrids[i].contains("drumatique")) {
