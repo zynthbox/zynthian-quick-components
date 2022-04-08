@@ -42,6 +42,16 @@ class PlayGrid : public QQuickItem
     Q_PROPERTY(QString name READ name WRITE setName NOTIFY nameChanged)
 
     /**
+     * \brief Whether this playgrid is a sequencer (defaults to no)
+     *
+     * When switching between sequencers in the Playground area of Zynthbox, it will remember which one
+     * you most recently used and switch to that one whenever a sequencer is requested in the UI. For this
+     * to work consistently, if you create a sequencer module, make sure to set this property to true.
+     *
+     * @default false
+     */
+    Q_PROPERTY(bool isSequencer READ isSequencer WRITE setIsSequencer NOTIFY isSequencerChanged)
+    /**
      * \brief If defined, a model which should be used to display items in the Dashboard's Patterns column
      *
      * This model must have at least a role named "text", which is the display text shown as the
@@ -288,6 +298,10 @@ public:
     QString name() const;
     void setName(const QString &name);
     Q_SIGNAL void nameChanged();
+
+    bool isSequencer() const;
+    void setIsSequencer(bool isSequencer);
+    Q_SIGNAL void isSequencerChanged();
 
     QObject *dashboardModel() const;
     void setDashboardModel(QObject *model);

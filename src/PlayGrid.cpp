@@ -32,6 +32,7 @@ public:
     Private() {}
     QString id;
     QString name;
+    bool isSequencer{false};
     QObject *dashboardModel{nullptr};
     bool metronomeOn{false};
     PlayGridManager *playGridManager{nullptr};
@@ -255,6 +256,19 @@ void PlayGrid::setName(const QString& name)
 QString PlayGrid::name() const
 {
     return d->name;
+}
+
+void PlayGrid::setIsSequencer(bool isSequencer)
+{
+    if (d->isSequencer != isSequencer) {
+        d->isSequencer = isSequencer;
+        Q_EMIT isSequencerChanged();
+    }
+}
+
+bool PlayGrid::isSequencer() const
+{
+    return d->isSequencer;
 }
 
 void PlayGrid::setDashboardModel(QObject* model)
