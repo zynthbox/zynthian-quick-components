@@ -223,9 +223,14 @@ void SequenceModel::removePattern(PatternModel* pattern)
     }
 }
 
-bool SequenceModel::contains(QObject* pattern)
+bool SequenceModel::contains(QObject* pattern) const
 {
     return d->patternModels.contains(qobject_cast<PatternModel*>(pattern));
+}
+
+int SequenceModel::indexOf(QObject *pattern) const
+{
+    return d->patternModels.indexOf(qobject_cast<PatternModel*>(pattern));
 }
 
 PlayGridManager* SequenceModel::playGridManager() const

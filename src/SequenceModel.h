@@ -141,7 +141,13 @@ public:
      * \brief Check whether a pattern already exists in this sequence
      * @return True if the pattern is already in the sequence, false if not
      */
-    Q_INVOKABLE bool contains(QObject *pattern);
+    Q_INVOKABLE bool contains(QObject *pattern) const;
+    /**
+     * \brief Gets the index of the given model in this sequence (or -1 if not found)
+     * @param pattern The pattern you wish to find the index of
+     * @return The index of the pattern (or -1 if not found)
+     */
+    Q_INVOKABLE int indexOf(QObject *pattern) const;
 
     PlayGridManager *playGridManager() const;
 
