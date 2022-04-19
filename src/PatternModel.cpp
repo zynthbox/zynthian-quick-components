@@ -1038,6 +1038,9 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         }
                         break;
                     }
+                    case PatternModel::ExternalDestination:
+                        // If this track is supposed to do external work, we should be spitting out midi notes, and we should expect
+                        // that the synths are set up to not make noises (but we still need to fire our notes)
                     case PatternModel::SynthDestination:
                     default:
                         const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];

@@ -201,6 +201,7 @@ public:
         SampleTriggerDestination = 1,
         SampleLoopedDestination = 2,
         SampleSlicedDestination = 3,
+        ExternalDestination = 4,
     };
     Q_ENUM(NoteDestination)
 
