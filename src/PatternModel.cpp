@@ -153,6 +153,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     setHeight(16);
 
     connect(this, &QObject::objectNameChanged, this, &PatternModel::nameChanged);
+    connect(this, &NotesModel::lastModifiedChanged, this, &PatternModel::hasNotesChanged);
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
 
@@ -564,7 +565,7 @@ int PatternModel::bankLength() const
     return d->bankLength;
 }
 
-bool PatternModel::bankHasNotes(int bankIndex)
+bool PatternModel::bankHasNotes(int bankIndex) const
 {
     bool hasNotes{false};
     for (int row = 0; row < d->bankLength; ++row) {
@@ -598,6 +599,11 @@ bool PatternModel::hasNotes() const
         }
     }
     return hasNotes;
+}
+
+bool PatternModel::currentBankHasNotes() const
+{
+    return bankHasNotes(floor(d->bankOffset / d->bankLength));
 }
 
 void PatternModel::setEnabled(bool enabled)

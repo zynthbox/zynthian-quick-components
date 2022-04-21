@@ -129,6 +129,14 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(int bankLength READ bankLength WRITE setBankLength NOTIFY bankLengthChanged)
     /**
+     * \brief Whether or not there are any notes defined in the current bank
+     */
+    Q_PROPERTY(bool currentBankHasNotes READ currentBankHasNotes NOTIFY hasNotesChanged)
+    /**
+     * \brief Whether or not there are any notes defined on any step in any bank
+     */
+    Q_PROPERTY(bool hasNotes READ hasNotes NOTIFY hasNotesChanged)
+    /**
      * \brief A toggle for setting the pattern to an enabled state (primarily used for playback purposes)
      * @default true
      */
@@ -365,13 +373,16 @@ public:
      * @param bankIndex The index of the bank to check for notes
      * @return True if the bank at the given index contains any notes
      */
-    Q_INVOKABLE bool bankHasNotes(int bankIndex);
+    Q_INVOKABLE bool bankHasNotes(int bankIndex) const;
 
     /**
      * \brief Whether any bank in the model contains notes
      * @see bankHasNotes(int)
      */
     Q_INVOKABLE bool hasNotes() const;
+
+    bool currentBankHasNotes() const;
+    Q_SIGNAL void hasNotesChanged();
 
     void setEnabled(bool enabled);
     bool enabled() const;
