@@ -135,13 +135,18 @@ NotesModel::NotesModel(PlayGridManager* parent)
     : QAbstractListModel(parent)
     , d(new Private(this))
 {
-    auto lastChangedModifier = [this](){
-        d->lastModified = QDateTime::currentSecsSinceEpoch();
+    QTimer *lastModifiedChanger = new QTimer(this);
+    lastModifiedChanger->setInterval(1);
+    lastModifiedChanger->setSingleShot(true);
+    connect(lastModifiedChanger, &QTimer::timeout, this, [this](){
+        d->lastModified = QDateTime::currentMSecsSinceEpoch();
         Q_EMIT lastModifiedChanged();
-    };
-    connect(this, &QAbstractItemModel::dataChanged, this, lastChangedModifier, Qt::QueuedConnection);
-    connect(this, &QAbstractItemModel::modelReset, this, lastChangedModifier, Qt::QueuedConnection);
-    connect(this, &NotesModel::rowsChanged, this, lastChangedModifier, Qt::QueuedConnection);
+    });
+    connect(this, &QAbstractItemModel::dataChanged, lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::modelReset, lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::rowsInserted, lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::rowsRemoved, lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &NotesModel::rowsChanged, lastModifiedChanger, QOverload<>::of(&QTimer::start));
 }
 
 NotesModel::NotesModel(NotesModel* parent, int row)
