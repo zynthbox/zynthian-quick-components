@@ -668,6 +668,7 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
     QJsonDocument jsonDoc = QJsonDocument::fromJson(json.toUtf8());
     if (jsonDoc.isArray()) {
         NotesModel* actualModel = qobject_cast<NotesModel*>(model);
+        actualModel->startLongOperation();
         actualModel->clear();
         QJsonArray notesArray = jsonDoc.array();
         int rowPosition{0};
@@ -684,10 +685,12 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             }
             ++rowPosition;
         }
+        actualModel->endLongOperation();
     } else if (jsonDoc.isObject()) {
         PatternModel *pattern = qobject_cast<PatternModel*>(model);
         QJsonObject patternObject = jsonDoc.object();
         if (pattern) {
+            pattern->startLongOperation();
             setModelFromJson(model, patternObject.value("notes").toString());
             pattern->setHeight(patternObject.value("height").toInt());
             pattern->setWidth(patternObject.value("width").toInt());
@@ -723,6 +726,7 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             } else {
                 pattern->setGridModelEndNote(64);
             }
+            pattern->endLongOperation();
         }
     }
 }
