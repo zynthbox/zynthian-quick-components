@@ -208,6 +208,9 @@ public:
     PlayGridManager *playGridManager() const;
 
     Q_SIGNAL void rowsChanged();
+
+    void startLongOperation();
+    void endLongOperation();
 private:
     class Private;
     Private* d;

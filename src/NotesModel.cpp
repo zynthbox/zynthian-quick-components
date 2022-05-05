@@ -67,6 +67,7 @@ public:
     quint64 lastModified{0};
     QList<NotesModel*> childModels;
     bool isEmpty{true};
+    int isWorking{0};
     QList< QList<Entry> > entries;
 
     void ensurePositionExists(int row, int column) {
@@ -97,13 +98,15 @@ public:
     }
     QTimer noteDataChangedEmitter;
     void emitNoteDataChanged() {
-        for (int row = 0; row < entries.count(); ++row) {
-            QList<Entry> rowEntries = entries[row];
-            for (int column = 0; column < rowEntries.count(); ++column) {
-                const Entry &entry = rowEntries.at(column);
-                if (updateNotes.contains(entry.note)) {
-                    QModelIndex idx = q->index(row, column);
-                    q->dataChanged(idx, idx);
+        if (!isWorking) {
+            for (int row = 0; row < entries.count(); ++row) {
+                QList<Entry> rowEntries = entries[row];
+                for (int column = 0; column < rowEntries.count(); ++column) {
+                    const Entry &entry = rowEntries.at(column);
+                    if (updateNotes.contains(entry.note)) {
+                        QModelIndex idx = q->index(row, column);
+                        q->dataChanged(idx, idx);
+                    }
                 }
             }
         }
@@ -379,8 +382,10 @@ void NotesModel::setNote(int row, int column, QObject* note)
         rowList[column].note = qobject_cast<Note*>(note);
         d->entries[row] = rowList;
         d->isEmtpyUpdater.start();
-        QModelIndex changed = createIndex(row, column);
-        dataChanged(changed, changed);
+        if (d->isWorking == 0) {
+            QModelIndex changed = createIndex(row, column);
+            dataChanged(changed, changed);
+        }
     }
 }
 
@@ -426,8 +431,10 @@ void NotesModel::setMetadata(int row, int column, QVariant metadata)
         rowList[column].metaData = actualMeta;
         d->entries[row] = rowList;
         d->isEmtpyUpdater.start();
-        QModelIndex changed = createIndex(row, column);
-        dataChanged(changed, changed);
+        if (d->isWorking == 0) {
+            QModelIndex changed = createIndex(row, column);
+            dataChanged(changed, changed);
+        }
     }
 }
 
@@ -451,7 +458,9 @@ void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata)
             }
             d->entries[row] = rowList;
             d->isEmtpyUpdater.start();
-            dataChanged(createIndex(row, 0), createIndex(row, rowList.count() - 1));
+            if (d->isWorking == 0) {
+                dataChanged(createIndex(row, 0), createIndex(row, rowList.count() - 1));
+            }
         }
     }
 }
@@ -476,17 +485,17 @@ void NotesModel::trim()
                 newList << newRow;
             }
         }
-        beginResetModel();
+        if (d->isWorking == 0) { beginResetModel(); }
         d->entries = newList;
         d->isEmtpyUpdater.start();
-        endResetModel();
+        if (d->isWorking == 0) { endResetModel(); }
     }
 }
 
 void NotesModel::clear()
 {
     if (!d->parentModel) {
-        beginResetModel();
+        if (d->isWorking == 0) { beginResetModel(); }
         for (QList<Entry> &list : d->entries) {
             for (const Entry &entry : list) {
                 if (entry.note) {
@@ -496,7 +505,7 @@ void NotesModel::clear()
         }
         d->entries.clear();
         d->isEmtpyUpdater.start();
-        endResetModel();
+        if (d->isWorking == 0) { endResetModel(); }
         Q_EMIT rowsChanged();
     }
 }
@@ -516,11 +525,11 @@ void NotesModel::addRow(const QVariantList &notes, const QVariantList &metadata)
             actualNotes << entry;
         }
         if (actualNotes.count() > 0) {
-            beginInsertRows(QModelIndex(), 0, 0);
+            if (d->isWorking == 0) {  beginInsertRows(QModelIndex(), 0, 0); }
             d->entries.insert(0, actualNotes);
             d->noteDataChangedUpdater.start();
             d->isEmtpyUpdater.start();
-            endInsertRows();
+            if (d->isWorking == 0) {  endInsertRows(); }
             Q_EMIT rowsChanged();
         }
     }
@@ -546,10 +555,10 @@ void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantL
             actualNotes << entry;
         }
         if (actualNotes.count() > 0) {
-            beginInsertRows(QModelIndex(), index, index);
+            if (d->isWorking == 0) { beginInsertRows(QModelIndex(), index, index); }
             d->entries.insert(index, actualNotes);
             d->noteDataChangedUpdater.start();
-            endInsertRows();
+            if (d->isWorking == 0) { endInsertRows(); }
             d->isEmtpyUpdater.start();
             Q_EMIT rowsChanged();
         }
@@ -559,10 +568,10 @@ void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantL
 void NotesModel::removeRow(int row)
 {
     if (!d->parentModel && row > -1 && row < d->entries.count()) {
-        beginRemoveRows(QModelIndex(), row, row);
+        if (d->isWorking == 0) { beginRemoveRows(QModelIndex(), row, row); }
         d->entries.removeAt(row);
         d->isEmtpyUpdater.start();
-        endRemoveRows();
+        if (d->isWorking == 0) { endRemoveRows(); }
     }
 }
 
@@ -592,7 +601,7 @@ void NotesModel::changeMidiChannel(int midiChannel)
         }
         longestRow = qMax(longestRow, entries.count());
     }
-    dataChanged(createIndex(0, 0), createIndex(d->entries.count(), longestRow));
+    if (d->isWorking == 0) { dataChanged(createIndex(0, 0), createIndex(d->entries.count(), longestRow)); }
 }
 
 PlayGridManager* NotesModel::playGridManager() const
@@ -601,4 +610,20 @@ PlayGridManager* NotesModel::playGridManager() const
         return d->parentModel->playGridManager();
     }
     return PlayGridManager::instance();
+}
+
+void NotesModel::startLongOperation()
+{
+    d->isWorking++;
+    if (d->isWorking == 1) {
+        beginResetModel();
+    }
+}
+
+void NotesModel::endLongOperation()
+{
+    d->isWorking--;
+    if (d->isWorking == 0) {
+        endResetModel();
+    }
 }
