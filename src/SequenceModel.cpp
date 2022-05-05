@@ -34,7 +34,11 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
-#define PATTERN_COUNT 10
+#define TRACK_COUNT 10
+#define PART_COUNT 5
+#define PATTERN_COUNT (TRACK_COUNT * PART_COUNT)
+static const QStringList sceneNames{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
+static const QStringList partNames{"a", "b", "c", "d", "e"};
 
 class SequenceModel::Private {
 public:
@@ -176,6 +180,18 @@ QObject* SequenceModel::get(int patternIndex) const
     return pattern;
 }
 
+QObject *SequenceModel::getByPart(int trackIndex, int partIndex) const
+{
+    QObject *pattern{nullptr};
+    for (PatternModel *needle : d->patternModels) {
+        if (needle->trackIndex() == trackIndex && needle->partIndex() == partIndex) {
+            pattern = needle;
+            break;
+        }
+    }
+    return pattern;
+}
+
 void SequenceModel::insertPattern(PatternModel* pattern, int row)
 {
     auto updatePattern = [this,pattern](){
@@ -261,6 +277,11 @@ void SequenceModel::setActivePattern(int activePattern)
     }
 }
 
+void SequenceModel::setActiveTrack(int trackId, int partId)
+{
+    setActivePattern((trackId * PART_COUNT) + partId);
+}
+
 int SequenceModel::activePattern() const
 {
     return d->activePattern;
@@ -300,6 +321,11 @@ void SequenceModel::setIsDirty(bool isDirty)
     }
 }
 
+bool SequenceModel::isLoading() const
+{
+    return d->isLoading;
+}
+
 bool SequenceModel::shouldMakeSounds() const
 {
     return d->shouldMakeSounds;
@@ -316,6 +342,7 @@ void SequenceModel::setShouldMakeSounds(bool shouldMakeSounds)
 void SequenceModel::load(const QString &fileName)
 {
     d->isLoading = true;
+    Q_EMIT isLoadingChanged();
     beginResetModel();
     QString data;
     d->ensureFilePath(fileName);
@@ -333,6 +360,7 @@ void SequenceModel::load(const QString &fileName)
             file.close();
         }
     }
+    const QString sceneName{sceneNames.contains(objectName().right(1)) ? objectName().right(1) : ""};
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data.toUtf8());
     if (jsonDoc.isObject()) {
         // First, load the patterns from disk
@@ -345,20 +373,31 @@ void SequenceModel::load(const QString &fileName)
         // file suffix, sorted naturally (so 10 is at the end, not after 1, which is just silly)
         int actualIndex{1};
         for (const QFileInfo &entry : entries) {
+            // The filename for patterns is "sequencename-(trackIndex)(partName).pattern.json"
+            // where trackIndex is a number from 1 through 10 and partName is a single lower-case letter
             const QString absolutePath{entry.absoluteFilePath()};
             const int startPos{absolutePath.lastIndexOf('-')};
             const int length{absolutePath.length() - startPos - 14}; // 14 is the length+1 of the string .pattern.json, our pattern file suffix
-            int patternIndex{absolutePath.midRef(startPos + 1, length).toInt()};
-            // qDebug() << "Loading pattern" << patternIndex << "for sequence" << this << "from file" << absolutePath;
-            while (actualIndex < patternIndex - 1) {
+            int trackIndex{absolutePath.midRef(startPos + 1, length - 1).toInt() - 1};
+            const QString partName{absolutePath.mid(startPos + length, 1)};
+            int partIndex = partNames.indexOf(partName);
+//             qDebug() << "Loading pattern" << trackIndex << partName << "for sequence" << this << "from file" << absolutePath;
+            while (actualIndex < (trackIndex * PART_COUNT) + partIndex) {
                 // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
-                qWarning() << "Found a missing pattern while loading sequence, adding an empty one to compensate";
-                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(actualIndex)).arg(objectName()), objectName()));
+//                 qWarning() << "Found a missing pattern while loading sequence, adding an empty one to compensate";
+                const int intermediaryTrackIndex = actualIndex / PART_COUNT;
+                const QString &intermediaryPartName = partNames[actualIndex - (intermediaryTrackIndex * PART_COUNT)];
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), objectName()));
                 model->clear();
+                model->setTrackIndex(intermediaryTrackIndex);
+                model->setPartIndex(actualIndex % PART_COUNT);
                 ++actualIndex;
             }
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(patternIndex)).arg(objectName()), objectName()));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(trackIndex + 1)).arg(partName).arg(objectName()), objectName()));
+            model->startLongOperation();
             model->clear();
+            model->setTrackIndex(trackIndex);
+            model->setPartIndex(partIndex);
             if (entry.exists()) {
                 QFile patternFile{absolutePath};
                 if (patternFile.open(QIODevice::ReadOnly)) {
@@ -367,6 +406,7 @@ void SequenceModel::load(const QString &fileName)
                     playGridManager()->setModelFromJson(model, patternData);
                 }
             }
+            model->endLongOperation();
             ++actualIndex;
         }
         // Then set the values on the sequence
@@ -377,8 +417,13 @@ void SequenceModel::load(const QString &fileName)
     // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
     if (d->patternModels.count() < PATTERN_COUNT) {
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1 - %2").arg(QString::number(i + 1)).arg(objectName()), objectName()));
+            const int intermediaryTrackIndex = i / PART_COUNT;
+            const QString &intermediaryPartName = partNames[i % PART_COUNT];
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), objectName()));
             model->clear();
+            model->setTrackIndex(intermediaryTrackIndex);
+            model->setPartIndex(i % PART_COUNT);
+//             qDebug() << "Added missing model" << intermediaryTrackIndex << intermediaryPartName << "to" << objectName() << model->trackIndex() << model->partIndex();
         }
     }
     if (activePattern() == -1) {
@@ -387,6 +432,7 @@ void SequenceModel::load(const QString &fileName)
     setIsDirty(false);
     endResetModel();
     d->isLoading = false;
+    Q_EMIT isLoadingChanged();
 }
 
 bool SequenceModel::save(const QString &fileName, bool exportOnly)
@@ -418,7 +464,11 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
                 int i{0};
                 const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
                 for (PatternModel *pattern : d->patternModels) {
-                    QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(QString::number(i + 1));
+                    QString patternIdentifier = QString::number(i + 1);
+                    if (pattern->trackIndex() > -1 && pattern->partIndex() > -1) {
+                        patternIdentifier = QString("%1%2").arg(QString::number(pattern->trackIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                    }
+                    QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
                     pattern->exportToFile(fileName);
                     ++i;
                 }

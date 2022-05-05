@@ -101,6 +101,10 @@ class SequenceModel : public QAbstractListModel
      * This will automatically be reset to false when loading and saving
      */
     Q_PROPERTY(bool isDirty READ isDirty WRITE setIsDirty NOTIFY isDirtyChanged)
+    /**
+     * \brief Whether or not the model is currently loading
+     */
+    Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -126,6 +130,17 @@ public:
      * @return The PatternModel at the given index, or null
      */
     Q_INVOKABLE QObject *get(int patternIndex) const;
+    /**
+     * \brief Get the pattern object for the given part in a logical track
+     * The concept here is that each track is a part of a track, and a track can have multiple
+     * patterns associated with it. To be able to operate directly on the track's patterns, you
+     * can use this function to fetch them given their positions by track/part, instead of their
+     * linear position in the Sequence.
+     * @param trackIndex The index of the logical track to fetch a pattern in
+     * @param partIndex The index of the part in the logical track for which the pattern should be fetched
+     * @return A pattern object (or null if none was found at the given position)
+     */
+    Q_INVOKABLE QObject *getByPart(int trackIndex, int partIndex) const;
     /**
      * \brief Insert a pattern into the sequence at the desired location (or at the end if undefined)
      * @param pattern The pattern to insert into the model
@@ -156,6 +171,7 @@ public:
     Q_SIGNAL void bpmChanged();
 
     void setActivePattern(int activePattern);
+    Q_INVOKABLE void setActiveTrack(int trackId, int partId);
     int activePattern() const;
     QObject *activePatternObject() const;
     Q_SIGNAL void activePatternChanged();
@@ -168,6 +184,9 @@ public:
     Q_INVOKABLE void setIsDirty(bool isDirty);
     Q_INVOKABLE void setDirty() { setIsDirty(true); };
     Q_SIGNAL void isDirtyChanged();
+
+    bool isLoading() const;
+    Q_SIGNAL void isLoadingChanged();
 
     Q_INVOKABLE bool shouldMakeSounds() const;
     Q_INVOKABLE void setShouldMakeSounds(bool shouldMakeSounds);
