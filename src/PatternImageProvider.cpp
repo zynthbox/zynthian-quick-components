@@ -146,39 +146,47 @@ void PatternRunnable::run()
     QImage img;
     // In case there's a ? to signify e.g. a timestamp or other trickery to get our thumbnail updated, ignore that section
     QStringList splitId = d->id.split('?').first().split('/');
+    PatternModel *pattern{nullptr};
+    int bank{0};
+    // Using the sequenceName/patternIndex/bankIndex style url
     if (splitId.count() == 3) {
         QString sequenceName{splitId[0]};
         int patternIndex{splitId[1].toInt()};
-        int bank{splitId[2].toInt()};
+        bank = splitId[2].toInt();
         SequenceModel* sequence = qobject_cast<SequenceModel*>(PlayGridManager::instance()->getSequenceModel(sequenceName));
         if (sequence) {
-            PatternModel *pattern = qobject_cast<PatternModel*>(sequence->get(patternIndex));
-            if (pattern) {
-                int height = 12;
-                int width = pattern->width() * pattern->bankLength();
-                img = QImage(width, height, QImage::Format_RGB32);
-                // White dot for "got notes to play"
-                static const QColor white{"white"};
-                // Dark gray dot for "no note, but pattern is enabled"
-                static const QColor gray{160, 160, 160, 128};
-                // Black dot for "bank is not within availableBars
-                static const QColor black{0, 0, 0, 64};
-                img.fill(black);
-                QPainter painter(&img);
-                painter.fillRect(0, 0, pattern->availableBars() * pattern->width(), height, gray);
-                for (int row = 0; row < pattern->bankLength(); ++row) {
-                    for (int column = 0; column < pattern->width(); ++column) {
-                        if (row < pattern->availableBars()) {
-                            const Note *note = qobject_cast<const Note*>(pattern->getNote(row + bank * pattern->bankLength(), column));
-                            if (note) {
-                                const QVariantList &subnotes = note->subnotes();
-                                for (const QVariant &subnoteVar : subnotes) {
-                                    Note *subnote = subnoteVar.value<Note*>();
-                                    // This really shouldn't happen, but let's make sure anyway...
-                                    if (subnote->octave() < 12) {
-                                        img.setPixelColor((row * pattern->width() + column), height - subnote->octave() - 1, white);
-                                    }
-                                }
+            pattern = qobject_cast<PatternModel*>(sequence->get(patternIndex));
+        }
+    }
+    // Using the patternName/bankIndex style url
+    else if (splitId.count() == 2) {
+        pattern = qobject_cast<PatternModel*>(PlayGridManager::instance()->getPatternModel(splitId[0]));
+        bank = splitId[1].toInt();
+    }
+    if (pattern) {
+        int height = 12;
+        int width = pattern->width() * pattern->bankLength();
+        img = QImage(width, height, QImage::Format_RGB32);
+        // White dot for "got notes to play"
+        static const QColor white{"white"};
+        // Dark gray dot for "no note, but pattern is enabled"
+        static const QColor gray{160, 160, 160, 128};
+        // Black dot for "bank is not within availableBars
+        static const QColor black{0, 0, 0, 64};
+        img.fill(black);
+        QPainter painter(&img);
+        painter.fillRect(0, 0, pattern->availableBars() * pattern->width(), height, gray);
+        for (int row = 0; row < pattern->bankLength(); ++row) {
+            for (int column = 0; column < pattern->width(); ++column) {
+                if (row < pattern->availableBars()) {
+                    const Note *note = qobject_cast<const Note*>(pattern->getNote(row + bank * pattern->bankLength(), column));
+                    if (note) {
+                        const QVariantList &subnotes = note->subnotes();
+                        for (const QVariant &subnoteVar : subnotes) {
+                            Note *subnote = subnoteVar.value<Note*>();
+                            // This really shouldn't happen, but let's make sure anyway...
+                            if (subnote->octave() < 12) {
+                                img.setPixelColor((row * pattern->width() + column), height - subnote->octave() - 1, white);
                             }
                         }
                     }
