@@ -43,6 +43,23 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(QObject* sequence READ sequence CONSTANT)
     /**
+     * \brief The index of the track this model is associated with
+     */
+    Q_PROPERTY(int trackIndex READ trackIndex NOTIFY trackIndexChanged)
+    /**
+     * \brief The index of the part inside this pattern's associated track associates this pattern with
+     */
+    Q_PROPERTY(int partIndex READ partIndex NOTIFY partIndexChanged)
+    /**
+     * \brief The name of this pattern's associated part (see partIndex)
+     * This will be a lower-case letter, or an empty string if there's no part set
+     */
+    Q_PROPERTY(QString partName READ partName NOTIFY partIndexChanged)
+    /**
+     * \brief A URL that you can pass to an Image item to display an up-to-date thumbnail of the pattern's current bank
+     */
+    Q_PROPERTY(QString thumbnailUrl READ thumbnailUrl NOTIFY thumbnailUrlChanged)
+    /**
      * \brief A human-readable name for this pattern (removes the parent sequence's name from the objectName if one is set)
      */
     Q_PROPERTY(QString name READ name NOTIFY nameChanged)
@@ -315,6 +332,34 @@ public:
     Q_INVOKABLE bool exportToFile(const QString &fileName) const;
 
     QObject* sequence() const;
+    /**
+     * \brief The index of the logical track this pattern belongs to
+     * @return The index of the logical track this pattern belongs to (-1 if not assigned)
+     */
+    int trackIndex() const;
+    /**
+     * \brief Set the index of the logical track this pattern belongs to
+     * @note This value is not checked, and multiple pattern objects might have the same value (though usually won't)
+     * @param trackIndex The index of the logical track this pattern belongs to
+     */
+    void setTrackIndex(int trackIndex);
+    Q_SIGNAL void trackIndexChanged();
+    /**
+     * \brief The index of the part of the logical track this pattern belongs to
+     * @return The index of the part of the logical track this pattern belongs to (-1 if note assigned)
+     */
+    int partIndex() const;
+    QString partName() const;
+    /**
+     * \brief Set the index of the part of the logical track this pattern belongs to
+     * @note This value is not checked and multiple patterns in the same track can carry the same index (though usually won't)
+     * @param The index of the part of the logical track this pattern belongs to
+     */
+    void setPartIndex(int partIndex);
+    Q_SIGNAL void partIndexChanged();
+
+    QString thumbnailUrl() const;
+    Q_SIGNAL void thumbnailUrlChanged();
 
     QString name() const;
     Q_SIGNAL void nameChanged();

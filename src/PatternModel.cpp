@@ -75,6 +75,8 @@ public:
     QHash<int, QHash<int, juce::MidiBuffer> > positionBuffers;
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
+    int trackIndex{-1};
+    int partIndex{-1};
 
     PlayGridManager *playGridManager{nullptr};
     SamplerSynth *samplerSynth{nullptr};
@@ -148,12 +150,20 @@ PatternModel::PatternModel(SequenceModel* parent)
                 d->positionBuffers.clear();
             }
         });
+        connect(d->sequence, &SequenceModel::isLoadingChanged, this, [=](){
+            beginResetModel();
+            endResetModel();
+        });
     }
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
 
     connect(this, &QObject::objectNameChanged, this, &PatternModel::nameChanged);
+    connect(this, &QObject::objectNameChanged, this, &PatternModel::thumbnailUrlChanged);
     connect(this, &NotesModel::lastModifiedChanged, this, &PatternModel::hasNotesChanged);
+    connect(this, &NotesModel::lastModifiedChanged, this, &PatternModel::thumbnailUrlChanged);
+    connect(this, &PatternModel::bankOffsetChanged, this, &PatternModel::thumbnailUrlChanged);
+    connect(this, &PatternModel::bankLengthChanged, this, &PatternModel::thumbnailUrlChanged);
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
 
@@ -321,30 +331,37 @@ void PatternModel::setMetadata(int row, int column, QVariant metadata)
 
 void PatternModel::clear()
 {
-    beginResetModel();
+    if (!d->sequence || !d->sequence->isLoading()) { beginResetModel(); };
+    startLongOperation();
     for (int row = 0; row < rowCount(); ++row) {
         clearRow(row);
     }
-    endResetModel();
+    endLongOperation();
+    if (!d->sequence || !d->sequence->isLoading()) { endResetModel(); };
 }
 
 void PatternModel::clearRow(int row)
 {
+    startLongOperation();
     for (int column = 0; column < d->width; ++column) {
         setNote(row, column, nullptr);
         setMetadata(row, column, QVariantList());
     }
+    endLongOperation();
 }
 
 void PatternModel::clearBank(int bank)
 {
+    startLongOperation();
     for (int i = 0; i < bankLength(); ++i) {
         clearRow((bankLength() * bank) + i);
     }
+    endLongOperation();
 }
 
 void PatternModel::setWidth(int width)
 {
+    startLongOperation();
     if (this->width() < width) {
         // Force these to exist if wider than current
         for (int row = 0; row < height(); ++row) {
@@ -362,6 +379,7 @@ void PatternModel::setWidth(int width)
             setRowData(row, rowNotes, rowMetadata);
         }
     }
+    endLongOperation();
 }
 
 bool PatternModel::exportToFile(const QString &fileName) const
@@ -379,6 +397,43 @@ bool PatternModel::exportToFile(const QString &fileName) const
 QObject* PatternModel::sequence() const
 {
     return d->sequence;
+}
+
+int PatternModel::trackIndex() const
+{
+    return d->trackIndex;
+}
+
+void PatternModel::setTrackIndex(int trackIndex)
+{
+    if (d->trackIndex != trackIndex) {
+        d->trackIndex = trackIndex;
+        Q_EMIT trackIndexChanged();
+    }
+}
+
+int PatternModel::partIndex() const
+{
+    return d->partIndex;
+}
+
+QString PatternModel::partName() const
+{
+    static const QStringList partNames{"a", "b", "c", "d", "e"};
+    return (d->partIndex > -1 && partNames.length() < d->partIndex) ? partNames[d->partIndex] : "";
+}
+
+void PatternModel::setPartIndex(int partIndex)
+{
+    if (d->partIndex != partIndex) {
+        d->partIndex = partIndex;
+        Q_EMIT partIndexChanged();
+    }
+}
+
+QString PatternModel::thumbnailUrl() const
+{
+    return QString("image://pattern/%1/%2?%3").arg(objectName()).arg(QString::number(int(d->bankOffset / d->bankLength))).arg(lastModified());
 }
 
 QString PatternModel::name() const
