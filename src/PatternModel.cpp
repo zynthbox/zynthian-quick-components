@@ -22,6 +22,7 @@
 #include "PatternModel.h"
 #include "Note.h"
 
+#include <QDateTime>
 #include <QDebug>
 #include <QFile>
 #include <QPointer>
@@ -49,6 +50,7 @@ public:
         }
     }
     ~Private() {}
+    QHash<QString, qint64> lastSavedTimes;
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
     int midiChannel{15};
@@ -386,10 +388,13 @@ bool PatternModel::exportToFile(const QString &fileName) const
 {
     bool success{false};
     QFile patternFile(fileName);
-    if (patternFile.open(QIODevice::WriteOnly)) {
-        patternFile.write(playGridManager()->modelToJson(this).toUtf8());
-        patternFile.close();
-        success = true;
+    if (!d->lastSavedTimes.contains(fileName) || d->lastSavedTimes[fileName] < lastModified()) {
+        if (patternFile.open(QIODevice::WriteOnly)) {
+            patternFile.write(playGridManager()->modelToJson(this).toUtf8());
+            patternFile.close();
+            success = true;
+            d->lastSavedTimes[fileName] = QDateTime::currentMSecsSinceEpoch();
+        }
     }
     return success;
 }
@@ -420,7 +425,7 @@ int PatternModel::partIndex() const
 QString PatternModel::partName() const
 {
     static const QStringList partNames{"a", "b", "c", "d", "e"};
-    return (d->partIndex > -1 && partNames.length() < d->partIndex) ? partNames[d->partIndex] : "";
+    return (d->partIndex > -1 && d->partIndex < partNames.length()) ? partNames[d->partIndex] : "";
 }
 
 void PatternModel::setPartIndex(int partIndex)
