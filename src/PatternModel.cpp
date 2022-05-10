@@ -64,6 +64,7 @@ public:
     bool enabled{true};
     int playingRow{0};
     int playingColumn{0};
+    int previouslyUpdatedMidiChannel{-1};
 
     // This bunch of lists is equivalent to the data found in each note, and is
     // stored per-position (index in the outer is row * width + column). The
@@ -171,6 +172,41 @@ PatternModel::PatternModel(SequenceModel* parent)
     connect(this, &PatternModel::bankLengthChanged, this, &PatternModel::thumbnailUrlChanged);
     static const int noteDestinationTypeId = qRegisterMetaType<NoteDestination>();
     Q_UNUSED(noteDestinationTypeId)
+
+    // Called whenever the effective midi channel changes (so both the midi channel and the external midi channel)
+    QTimer* midiChannelUpdater = new QTimer(this);
+    midiChannelUpdater->setInterval(100);
+    midiChannelUpdater->setSingleShot(true);
+    connect(midiChannelUpdater, &QTimer::timeout, this, [this](){
+        int actualChannel = d->noteDestination == PatternModel::ExternalDestination && d->externalMidiChannel > -1 ? d->externalMidiChannel : d->midiChannel;
+        if (d->previouslyUpdatedMidiChannel != actualChannel) {
+            for (int row = 0; row < rowCount(); ++row) {
+                for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
+                    Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+                    QVariantList newSubnotes;
+                    if (oldCompound) {
+                        for (const QVariant &subnote :oldCompound->subnotes()) {
+                            Note *oldNote = subnote.value<Note*>();
+                            if (oldNote) {
+                                newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), actualChannel));
+                            } else {
+                                // This really shouldn't happen - spit out a warning and slap in something unknown so we keep the order intact
+                                newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(0, actualChannel));
+                                qWarning() << "Failed to convert a subnote value which must be a Note object to a Note object - something clearly isn't right.";
+                            }
+                        }
+                    }
+                    setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
+                }
+            }
+            d->positionBuffers.clear();
+            d->externalPositionBuffers.clear();
+            d->previouslyUpdatedMidiChannel = actualChannel;
+        }
+    });
+    connect(this, &PatternModel::midiChannelChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
+    connect(this, &PatternModel::externalMidiChannelChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
+    connect(this, &PatternModel::noteDestinationChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
 
     connect(d->playGridManager, &PlayGridManager::midiMessage, this, &PatternModel::handleMidiMessage, Qt::DirectConnection);
     connect(qobject_cast<SyncTimer*>(SyncTimer_instance()), &SyncTimer::clipCommandSent, this, [this](ClipCommand *clipCommand){
@@ -499,27 +535,6 @@ void PatternModel::setMidiChannel(int midiChannel)
     int actualChannel = qMin(qMax(-1, midiChannel), 15);
     if (d->midiChannel != actualChannel) {
         d->midiChannel = actualChannel;
-        for (int row = 0; row < rowCount(); ++row) {
-            for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
-                Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
-                QVariantList newSubnotes;
-                if (oldCompound) {
-                    for (const QVariant &subnote :oldCompound->subnotes()) {
-                        Note *oldNote = subnote.value<Note*>();
-                        if (oldNote) {
-                            newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), actualChannel));
-                        } else {
-                            // This really shouldn't happen - spit out a warning and slap in something unknown so we keep the order intact
-                            newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(0, actualChannel));
-                            qWarning() << "Failed to convert a subnote value which must be a Note object to a Note object - something clearly isn't right.";
-                        }
-                    }
-                }
-                setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
-            }
-        }
-        d->positionBuffers.clear();
-        d->externalPositionBuffers.clear();
         Q_EMIT midiChannelChanged();
     }
 }
@@ -533,8 +548,6 @@ void PatternModel::setExternalMidiChannel(int externalMidiChannel)
 {
     if (d->externalMidiChannel != externalMidiChannel) {
         d->externalMidiChannel = externalMidiChannel;
-        d->positionBuffers.clear();
-        d->externalPositionBuffers.clear();
         Q_EMIT externalMidiChannelChanged();
     }
 }
