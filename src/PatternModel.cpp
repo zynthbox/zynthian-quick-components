@@ -54,6 +54,7 @@ public:
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
     int midiChannel{15};
+    int externalMidiChannel{-1};
     QString layerData;
     int noteLength{3};
     int availableBars{1};
@@ -75,6 +76,7 @@ public:
     // the on-position delay (so that iterating over the hash gives the scheduling
     // delay for that buffer, and the buffer).
     QHash<int, QHash<int, juce::MidiBuffer> > positionBuffers;
+    QHash<int, QHash<int, juce::MidiBuffer> > externalPositionBuffers;
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
     int trackIndex{-1};
@@ -150,6 +152,7 @@ PatternModel::PatternModel(SequenceModel* parent)
         connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
             if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
                 d->positionBuffers.clear();
+                d->externalPositionBuffers.clear();
             }
         });
         connect(d->sequence, &SequenceModel::isLoadingChanged, this, [=](){
@@ -322,12 +325,14 @@ QVariant PatternModel::subnoteMetadata(int row, int column, int subnote, const Q
 void PatternModel::setNote(int row, int column, QObject* note)
 {
     d->positionBuffers.remove((row * d->width) + column);
+    d->externalPositionBuffers.remove((row * d->width) + column);
     NotesModel::setNote(row, column, note);
 }
 
 void PatternModel::setMetadata(int row, int column, QVariant metadata)
 {
     d->positionBuffers.remove((row * d->width) + column);
+    d->externalPositionBuffers.remove((row * d->width) + column);
     NotesModel::setMetadata(row, column, metadata);
 }
 
@@ -514,6 +519,7 @@ void PatternModel::setMidiChannel(int midiChannel)
             }
         }
         d->positionBuffers.clear();
+        d->externalPositionBuffers.clear();
         Q_EMIT midiChannelChanged();
     }
 }
@@ -521,6 +527,21 @@ void PatternModel::setMidiChannel(int midiChannel)
 int PatternModel::midiChannel() const
 {
     return d->midiChannel;
+}
+
+void PatternModel::setExternalMidiChannel(int externalMidiChannel)
+{
+    if (d->externalMidiChannel != externalMidiChannel) {
+        d->externalMidiChannel = externalMidiChannel;
+        d->positionBuffers.clear();
+        d->externalPositionBuffers.clear();
+        Q_EMIT externalMidiChannelChanged();
+    }
+}
+
+int PatternModel::externalMidiChannel() const
+{
+    return d->externalMidiChannel;
 }
 
 void PatternModel::setLayerData(const QString &layerData)
@@ -541,6 +562,7 @@ void PatternModel::setNoteLength(int noteLength)
     if (d->noteLength != noteLength) {
         d->noteLength = noteLength;
         d->positionBuffers.clear();
+        d->externalPositionBuffers.clear();
         Q_EMIT noteLengthChanged();
     }
 }
@@ -801,7 +823,7 @@ QObject *PatternModel::gridModel() const
     if (!d->gridModel) {
         d->gridModel = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " - Grid Model"));
         auto rebuildGridModel = [this](){
-            qDebug() << "Rebuilding" << d->gridModel;
+            qDebug() << "Rebuilding" << d->gridModel << "for destination" << d->noteDestination << "with external channel" << d->externalMidiChannel << "and using channel" << (d->noteDestination == PatternModel::ExternalDestination && d->externalMidiChannel > -1 ? d->externalMidiChannel : d->midiChannel);
             QList<int> notesToFit;
             for (int note = d->gridModelStartNote; note <= d->gridModelEndNote; ++note) {
                 notesToFit << note;
@@ -815,7 +837,7 @@ QObject *PatternModel::gridModel() const
                     if (i == notesToFit.count()) {
                         break;
                     }
-                    notes << QVariant::fromValue<QObject*>(PlayGridManager::instance()->getNote(notesToFit[i], d->midiChannel));
+                    notes << QVariant::fromValue<QObject*>(PlayGridManager::instance()->getNote(notesToFit[i], (d->noteDestination == PatternModel::ExternalDestination && d->externalMidiChannel > -1 ? d->externalMidiChannel : d->midiChannel)));
                     ++i;
                 }
                 d->gridModel->addRow(notes);
@@ -828,6 +850,8 @@ QObject *PatternModel::gridModel() const
         connect(this, &PatternModel::midiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
         connect(this, &PatternModel::gridModelStartNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
         connect(this, &PatternModel::gridModelEndNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        connect(this, &PatternModel::noteDestinationChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        connect(this, &PatternModel::externalMidiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
         rebuildGridModel();
     }
     return d->gridModel;
@@ -1079,6 +1103,25 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         }
                     }
                     d->positionBuffers[nextPosition + (d->bankOffset * d->width)] = positionBuffers;
+                    // Now fill up the external buffers target
+                    QHash< int, juce::MidiBuffer > externalPositionBuffers;
+                    if (d->externalMidiChannel == d->midiChannel || d->externalMidiChannel == -1) {
+                        externalPositionBuffers = positionBuffers;
+                    } else {
+                        QHash<int, juce::MidiBuffer>::const_iterator position;
+                        for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
+                            juce::MidiBuffer adjustedBuffer;
+                            adjustedBuffer.ensureSize(3 * position.value().getNumEvents());
+                            for (const juce::MidiMessageMetadata &message : position.value()) {
+                                juce::MidiMessage actualMessage = message.getMessage();
+                                // juce midi channels are 1-indexed
+                                actualMessage.setChannel(d->externalMidiChannel + 1);
+                                adjustedBuffer.addEvent(actualMessage, 0);
+                            }
+                            externalPositionBuffers[position.key()] = adjustedBuffer;
+                        }
+                    }
+                    d->externalPositionBuffers[nextPosition + (d->bankOffset * d->width)] = externalPositionBuffers;
                 }
                 if (!d->syncTimer) {
                     d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
@@ -1108,16 +1151,26 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         break;
                     }
                     case PatternModel::ExternalDestination:
+                    {
                         // If this track is supposed to do external work, we should be spitting out midi notes, and we should expect
-                        // that the synths are set up to not make noises (but we still need to fire our notes)
+                        // that the synths are set up to not make noises (but we still need to fire some notes, though potentially to a different channel)
+                        const QHash<int, juce::MidiBuffer> &positionBuffers = d->externalPositionBuffers[nextPosition + (d->bankOffset * d->width)];
+                        QHash<int, juce::MidiBuffer>::const_iterator position;
+                        for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
+                            d->syncTimer->scheduleMidiBuffer(position.value(), qMax(0, progressionIncrement + position.key()));
+                        }
+                        break;
+                    }
                     case PatternModel::SynthDestination:
                     default:
+                    {
                         const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];
                         QHash<int, juce::MidiBuffer>::const_iterator position;
                         for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
                             d->syncTimer->scheduleMidiBuffer(position.value(), qMax(0, progressionIncrement + position.key()));
                         }
                         break;
+                    }
                 }
             }
         }

@@ -98,6 +98,11 @@ class PatternModel : public NotesModel
      *       more like a convenience alias for the layer's midiChannel property, but for now...)
      */
     Q_PROPERTY(int layer READ midiChannel WRITE setMidiChannel NOTIFY midiChannelChanged)
+    /**
+     * \brief The midi channel used to send notes to specifically when the note destination is set to ExternalDestination
+     * @default -1 (which will be interpreted as "the same as midiChannel")
+     */
+    Q_PROPERTY(int externalMidiChannel READ externalMidiChannel WRITE setExternalMidiChannel NOTIFY externalMidiChannelChanged)
     /*
      * \brief A JSON representation of the sound associated with this pattern
      * @note Technically this does not get used by the pattern itself, but it is stored along with all the other data that
@@ -379,6 +384,10 @@ public:
     void setMidiChannel(int midiChannel);
     int midiChannel() const;
     Q_SIGNAL void midiChannelChanged();
+
+    void setExternalMidiChannel(int externalMidiChannel);
+    int externalMidiChannel() const;
+    Q_SIGNAL void externalMidiChannelChanged();
 
     void setLayerData(const QString &layerData);
     QString layerData() const;
