@@ -69,7 +69,6 @@ public:
         connect(&watcher, &QFileSystemWatcher::directoryChanged, q, [this](){
             updatePlaygrids();
         });
-        ensureMidiOutput();
         listenToEverything();
         currentPlaygrids = {
             {"minigrid", 1}, // As these are sorted alphabetically, notesgrid for minigrid and
@@ -77,9 +76,6 @@ public:
         };
     }
     ~Private() {
-        if (midiout) {
-            delete midiout;
-        }
         for (MidiListener *midiListener : midiListeners) {
             midiListener->markAsDone();
         }
@@ -102,7 +98,6 @@ public:
     QVariantList mostRecentlyChangedNotes;
     int currentMidiChannel{-1};
 
-    RtMidiOut *midiout{nullptr};
     std::vector<unsigned char> midiMessage;
     QList<MidiListener*> midiListeners;
 
@@ -136,41 +131,6 @@ public:
                     midiListeners << midiListener;
                 }
             }
-        }
-    }
-    void ensureMidiOutput() {
-        // RtMidiOut constructor
-        try {
-            midiout = new RtMidiOut(RtMidi::UNIX_JACK);
-        }
-        catch ( RtMidiError &error ) {
-            error.printMessage();
-            midiout = nullptr;
-        }
-        if (midiout) {
-            // Check outputs.
-            unsigned int nPorts = midiout->getPortCount();
-            std::string portName;
-            std::cout << "\nThere are " << nPorts << " MIDI output ports available.\n";
-            for (unsigned int i = 0; i < nPorts; ++i) {
-                try {
-                    portName = midiout->getPortName(i);
-                    if (portName.rfind("ZynMidiRouter:main_in", 0) == 0) {
-                        std::cout << "Using output port " << i << " named " << portName << std::endl;
-                        midiout->openPort(i);
-                    } else {
-                        std::cout << "Not using output port " << i << " named " << portName << std::endl;
-                    }
-                }
-                catch (RtMidiError &error) {
-                    error.printMessage();
-                    delete midiout;
-                    midiout = nullptr;
-                }
-            }
-        }
-        if (!midiout) {
-            std::cout << "Failed to open an actual midi output, which clearly is not great." << std::endl;
         }
     }
 
@@ -370,18 +330,12 @@ void PlayGridManager::setPitch(int pitch)
 {
     int adjusted = qBound(0, pitch + 8192, 16383);
     if (d->pitch != adjusted) {
-        if (!d->midiout) {
-            d->ensureMidiOutput();
-        }
-        if (d->midiout) {
-            int shiftedValue = adjusted << 1;              // shift so top bit of lsb is in msb
-            unsigned char msb = HiByte(shiftedValue);      // get the high bits
-            unsigned char lsb = LoByte(shiftedValue) >> 1; // get the low 7 bits and shift right
-            d->midiMessage[0] = 0xE0;
-            d->midiMessage[1] = lsb;
-            d->midiMessage[2] = msb;
-            d->midiout->sendMessage(&d->midiMessage);
-        }
+        int shiftedValue = adjusted << 1;              // shift so top bit of lsb is in msb
+        unsigned char msb = HiByte(shiftedValue);      // get the high bits
+        unsigned char lsb = LoByte(shiftedValue) >> 1; // get the low 7 bits and shift right
+        juce::MidiMessage message(0xE0 + d->currentMidiChannel, lsb, msb, 0);
+        juce::MidiBuffer buffer{message};
+        d->syncTimer->sendMidiBufferImmediately(buffer);
         d->pitch = adjusted;
         Q_EMIT pitchChanged();
     }
@@ -396,15 +350,9 @@ void PlayGridManager::setModulation(int modulation)
 {
     int adjusted = qBound(0, modulation, 127);
     if (d->modulation != adjusted) {
-        if (!d->midiout) {
-            d->ensureMidiOutput();
-        }
-        if (d->midiout) {
-            d->midiMessage[0] = 0xB0;
-            d->midiMessage[1] = 0x01;
-            d->midiMessage[2] = adjusted;
-            d->midiout->sendMessage(&d->midiMessage);
-        }
+        juce::MidiMessage message(0xB0, 0x01, adjusted, 0);
+        juce::MidiBuffer buffer{message};
+        d->syncTimer->sendMidiBufferImmediately(buffer);
         d->modulation = adjusted;
         Q_EMIT modulationChanged();
     }
@@ -1021,18 +969,9 @@ bool PlayGridManager::metronomeActive() const
 
 void PlayGridManager::sendAMidiNoteMessage(unsigned char midiNote, unsigned char velocity, unsigned char channel, bool setOn)
 {
-    if (!d->midiout) {
-        d->ensureMidiOutput();
-    }
-    if (d->midiout && channel >= 0 && channel <= 15) {
-        if (setOn) {
-            d->midiMessage[0] = 0x90 + channel;
-        } else {
-            d->midiMessage[0] = 0x80 + channel;
-        }
-        d->midiMessage[1] = midiNote;
-        d->midiMessage[2] = velocity;
-        d->midiout->sendMessage(&d->midiMessage);
+    if (channel >= 0 && channel <= 15) {
+//         qDebug() << "Sending midi message" << midiNote << channel << velocity << setOn;
+        d->syncTimer->sendNoteImmediately(midiNote, channel, setOn, velocity);
     }
 }
 
