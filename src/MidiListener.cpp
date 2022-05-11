@@ -34,7 +34,7 @@ MidiListener::MidiListener(int rtMidiInPort)
     for (int i = 0; i < MAX_MESSAGES; ++i) {
         messages << new NoteMessage();
     }
-    midiin = new RtMidiIn(RtMidi::UNIX_JACK);
+    midiin = new RtMidiIn(RtMidi::UNIX_JACK, "Midi Listener Client");
     std::vector<unsigned char> message;
     std::string portName;
     try {
