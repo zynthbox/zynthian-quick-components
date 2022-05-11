@@ -32,6 +32,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <libzl.h>
 #include <ClipAudioSource.h>
+#include <MidiRouter.h>
 #include <SyncTimer.h>
 
 #include <QQmlEngine>
@@ -120,7 +121,7 @@ public:
         unsigned int nPorts = midiin->getPortCount();
         if ( nPorts > 0 ) {
             std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n" << std::endl;
-            const char* zynMidiRouterOutName{"ZynMidiRouter:ch"};
+            const char* zynMidiRouterOutName{"ZLRouter:Passthrough"};
             for (unsigned int i = 0; i < nPorts; ++i) {
                 const std::string portName = midiin->getPortName(i);
                 if (portName.rfind(zynMidiRouterOutName, 0) == 0) {
@@ -324,17 +325,11 @@ int PlayGridManager::pitch() const
     return d->pitch;
 }
 
-#define LoByte(i)    ( (char) i )
-#define HiByte(i)    ( (char) ( ((int) i) >> 8) )
 void PlayGridManager::setPitch(int pitch)
 {
     int adjusted = qBound(0, pitch + 8192, 16383);
     if (d->pitch != adjusted) {
-        int shiftedValue = adjusted << 1;              // shift so top bit of lsb is in msb
-        unsigned char msb = HiByte(shiftedValue);      // get the high bits
-        unsigned char lsb = LoByte(shiftedValue) >> 1; // get the low 7 bits and shift right
-        juce::MidiMessage message(0xE0 + d->currentMidiChannel, lsb, msb, 0);
-        juce::MidiBuffer buffer{message};
+        juce::MidiBuffer buffer{juce::MidiMessage::pitchWheel(d->currentMidiChannel + 1, adjusted)};
         d->syncTimer->sendMidiBufferImmediately(buffer);
         d->pitch = adjusted;
         Q_EMIT pitchChanged();
@@ -350,8 +345,7 @@ void PlayGridManager::setModulation(int modulation)
 {
     int adjusted = qBound(0, modulation, 127);
     if (d->modulation != adjusted) {
-        juce::MidiMessage message(0xB0, 0x01, adjusted, 0);
-        juce::MidiBuffer buffer{message};
+        juce::MidiBuffer buffer{juce::MidiMessage::controllerEvent(d->currentMidiChannel + 1, 1, adjusted)};
         d->syncTimer->sendMidiBufferImmediately(buffer);
         d->modulation = adjusted;
         Q_EMIT modulationChanged();
@@ -824,6 +818,7 @@ void PlayGridManager::setCurrentMidiChannel(int midiChannel)
 {
     if (d->currentMidiChannel != midiChannel) {
         d->currentMidiChannel = midiChannel;
+        MidiRouter::instance()->setCurrentChannel(midiChannel);
         Q_EMIT currentMidiChannelChanged();
     }
 }
