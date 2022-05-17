@@ -69,6 +69,11 @@ class PlayGridManager : public QObject
     Q_PROPERTY(QVariantList mostRecentlyChangedNotes READ mostRecentlyChangedNotes NOTIFY mostRecentlyChangedNotesChanged)
 
     /**
+     * \brief A list with the names of all the midi notes which are currently active
+     */
+    Q_PROPERTY(QStringList activeNotes READ activeNotes NOTIFY activeNotesChanged)
+
+    /**
      * \brief The midi channel associated with the currently selected track, or -1 if the channel is invalid
      * @default -1
      */
@@ -260,6 +265,9 @@ public:
     Q_INVOKABLE QVariantList mostRecentlyChangedNotes() const;
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
     Q_INVOKABLE void updateNoteState(QVariantMap metadata);
+
+    QStringList activeNotes() const;
+    Q_SIGNAL void activeNotesChanged();
 
     void setCurrentMidiChannel(int midiChannel);
     int currentMidiChannel() const;
