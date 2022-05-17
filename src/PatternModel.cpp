@@ -178,7 +178,22 @@ PatternModel::PatternModel(SequenceModel* parent)
     midiChannelUpdater->setSingleShot(true);
     connect(midiChannelUpdater, &QTimer::timeout, this, [this](){
         int actualChannel = d->noteDestination == PatternModel::ExternalDestination && d->externalMidiChannel > -1 ? d->externalMidiChannel : d->midiChannel;
-        MidiRouter::instance()->setChannelDestination(d->midiChannel, d->noteDestination == PatternModel::ExternalDestination ? MidiRouter::ExternalDestination : MidiRouter::ZynthianDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
+        MidiRouter::RoutingDestination routerDestination{MidiRouter::ZynthianDestination};
+        switch(d->noteDestination) {
+            case PatternModel::SampleSlicedDestination:
+            case PatternModel::SampleTriggerDestination:
+                routerDestination = MidiRouter::SamplerDestination;
+                break;
+            case PatternModel::ExternalDestination:
+                routerDestination = MidiRouter::ExternalDestination;
+                break;
+            case PatternModel::SampleLoopedDestination:
+            case PatternModel::SynthDestination:
+            default:
+                // Default destination
+                break;
+        }
+        MidiRouter::instance()->setChannelDestination(d->midiChannel, routerDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
         if (d->previouslyUpdatedMidiChannel != d->midiChannel) {
             for (int row = 0; row < rowCount(); ++row) {
                 for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
