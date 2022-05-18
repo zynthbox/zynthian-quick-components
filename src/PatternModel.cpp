@@ -39,16 +39,11 @@
 #include <SamplerSynth.h>
 #include <SyncTimer.h>
 
-#define CLIP_COUNT 5
-
 class PatternModel::Private {
 public:
     Private() {
         playGridManager = PlayGridManager::instance();
         samplerSynth = SamplerSynth::instance();
-        for (int i = 0; i < CLIP_COUNT; ++i) {
-            clips << nullptr;
-        }
     }
     ~Private() {}
     QHash<QString, qint64> lastSavedTimes;
@@ -156,8 +151,12 @@ PatternModel::PatternModel(SequenceModel* parent)
             }
         });
         connect(d->sequence, &SequenceModel::isLoadingChanged, this, [=](){
-            beginResetModel();
-            endResetModel();
+            if (!d->sequence->isLoading()) {
+                beginResetModel();
+                endResetModel();
+                gridModel();
+                clipSliceNotes();
+            }
         });
     }
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
@@ -731,16 +730,27 @@ bool PatternModel::enabled() const
 void PatternModel::setClipIds(const QVariantList &clipIds)
 {
     bool changed{false};
-    int i{0};
-    for (const QVariant &clipId : clipIds) {
-        ClipAudioSource *newClip = ClipAudioSource_byID(clipId.toInt());
-        if (d->clips[i] != newClip) {
-            d->clips[i] = newClip;
-            changed = true;
+    if (clipIds.length() == d->clips.length()) {
+        int i{0};
+        for (const QVariant &clipId : clipIds) {
+            if (d->clips[i]->id() != clipId) {
+                changed = true;
+                break;
+            }
+            ++i;
         }
-        ++i;
+    } else {
+        changed = true;
     }
     if (changed) {
+        QList<QPointer<ClipAudioSource>> newClips;
+        for (const QVariant &clipId: clipIds) {
+            ClipAudioSource *newClip = ClipAudioSource_byID(clipId.toInt());
+            if (newClip) {
+                newClips << newClip;
+            }
+        }
+        d->clips = newClips;
         Q_EMIT clipIdsChanged();
     }
 }
@@ -748,13 +758,8 @@ void PatternModel::setClipIds(const QVariantList &clipIds)
 QVariantList PatternModel::clipIds() const
 {
     QVariantList ids;
-    for (int i = 0; i < CLIP_COUNT; ++i) {
-        ClipAudioSource *clip = d->clips[i];
-        if (clip) {
-            ids << clip->id();
-        } else {
-            ids << -1;
-        }
+    for (ClipAudioSource *clip : qAsConst(d->clips)) {
+        ids << clip->id();
     }
     return ids;
 }
@@ -847,7 +852,7 @@ QObject *PatternModel::gridModel() const
     if (!d->gridModel) {
         d->gridModel = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " - Grid Model"));
         auto rebuildGridModel = [this](){
-            qDebug() << "Rebuilding" << d->gridModel << "for destination" << d->noteDestination << "for channel" << d->midiChannel;
+            // qDebug() << "Rebuilding" << d->gridModel << "for destination" << d->noteDestination << "for channel" << d->midiChannel;
             QList<int> notesToFit;
             for (int note = d->gridModelStartNote; note <= d->gridModelEndNote; ++note) {
                 notesToFit << note;
@@ -1207,7 +1212,8 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
 {
     // If orphaned, or the sequence is asking for sounds to happen, make sounds
     // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
-    if ((!d->sequence || d->sequence->shouldMakeSounds()) && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
+    // Also, at least for now, only make sounds from midi messages if we're the currently active pattern...
+    if ((!d->sequence || (d->sequence->shouldMakeSounds() && d->sequence->activePatternObject() == this)) && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
         if (0x7F < byte1 && byte1 < 0xA0) {
             juce::MidiMessage message(byte1, byte2, byte3);
             juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
