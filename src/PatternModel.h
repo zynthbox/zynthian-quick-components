@@ -222,6 +222,19 @@ class PatternModel : public NotesModel
      * \brief A NotesModel instance which shows appropriate entries for the slices in the clips associated with this pattern
      */
     Q_PROPERTY(QObject* clipSliceNotes READ clipSliceNotes CONSTANT)
+
+    /**
+     * \brief A reference to the zynthiloops Track object this Pattern is associated with
+     */
+    Q_PROPERTY(QObject* zlTrack READ zlTrack WRITE setZlTrack NOTIFY zlTrackChanged);
+    /**
+     * \brief A reference to the zynthiloops Part object this Pattern is associated with
+     */
+    Q_PROPERTY(QObject* zlPart READ zlPart WRITE setZlPart NOTIFY zlPartChanged);
+    /**
+     * \brief A reference to the zynthiloops Scene object this Pattern is associated with
+     */
+    Q_PROPERTY(QObject* zlScene READ zlScene WRITE setZlScene NOTIFY zlSceneChanged);
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -454,6 +467,16 @@ public:
     void setGridModelEndNote(int gridModelEndNote);
     Q_SIGNAL void gridModelEndNoteChanged();
     QObject *gridModel() const;
+
+    QObject *zlTrack() const;
+    void setZlTrack(QObject *zlTrack);
+    Q_SIGNAL void zlTrackChanged();
+    QObject *zlPart() const;
+    void setZlPart(QObject *zlPart);
+    Q_SIGNAL void zlPartChanged();
+    QObject *zlScene() const;
+    void setZlScene(QObject *zlScene);
+    Q_SIGNAL void zlSceneChanged();
 
     int playingRow() const;
     Q_SIGNAL void playingRowChanged();

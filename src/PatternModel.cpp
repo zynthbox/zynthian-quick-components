@@ -39,6 +39,125 @@
 #include <SamplerSynth.h>
 #include <SyncTimer.h>
 
+class ZLSynchronisationManager : public QObject {
+Q_OBJECT
+public:
+    explicit ZLSynchronisationManager(PatternModel *parent = 0)
+        : QObject(parent)
+        , q(parent)
+    {};
+    PatternModel *q{nullptr};
+    QObject *zlTrack{nullptr};
+    QObject *zlPart{nullptr};
+    QObject *zlScene{nullptr};
+
+    void setZlTrack(QObject *newZlTrack)
+    {
+        if (zlTrack != newZlTrack) {
+            if (zlTrack) {
+                zlTrack->disconnect(this);
+            }
+            zlTrack = newZlTrack;
+            if (zlTrack) {
+                connect(zlTrack, SIGNAL(track_audio_type_changed()), this, SLOT(trackAudioTypeChanged()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(externalMidiChannelChanged()), this, SLOT(externalMidiChannelChanged()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                q->setMidiChannel(zlTrack->property("id").toInt());
+                trackAudioTypeChanged();
+                externalMidiChannelChanged();
+                updateSamples();
+                selectedPartChanged();
+            }
+            Q_EMIT q->zlTrackChanged();
+        }
+    }
+
+    void setZlPart(QObject *newZlPart)
+    {
+        if (zlPart != newZlPart) {
+            if (zlPart) {
+                zlPart->disconnect(this);
+            }
+            zlPart = newZlPart;
+            Q_EMIT q->zlPartChanged();
+            if (zlPart) {
+                connect(zlPart, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
+                updateSamples();
+            }
+        }
+    }
+
+
+    void setZlScene(QObject *newZlScene)
+    {
+        if (zlScene != newZlScene) {
+            if (zlScene) {
+                zlScene->disconnect(this);
+            }
+            zlScene = newZlScene;
+            if (zlScene) {
+                connect(zlScene, SIGNAL(enabled_changed()), this, SLOT(sceneEnabledChanged()), Qt::QueuedConnection);
+                // This seems superfluous...
+//                 connect(zlTrack, SIGNAL(enabled_changed()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                sceneEnabledChanged();
+            }
+            Q_EMIT q->zlSceneChanged();
+        }
+    }
+public Q_SLOTS:
+    void sceneEnabledChanged() {
+        q->setEnabled(zlScene->property("enabled").toBool());
+    }
+    void trackAudioTypeChanged() {
+        static const QLatin1String sampleTrig{"sample-trig"};
+        static const QLatin1String sampleSlice{"sample-slice"};
+        static const QLatin1String sampleLoop{"sample-loop"};
+        static const QLatin1String external{"external"};
+        static const QLatin1String synth{"synth"}; // the default
+        const QString trackAudioType = zlTrack->property("trackAudioType").toString();
+        if (trackAudioType == sampleTrig) {
+            q->setNoteDestination(PatternModel::SampleTriggerDestination);
+        } else if (trackAudioType == sampleSlice) {
+            q->setNoteDestination(PatternModel::SampleSlicedDestination);
+        } else if (trackAudioType == sampleLoop) {
+            q->setNoteDestination(PatternModel::SampleLoopedDestination);
+        } else if (trackAudioType == external) {
+            q->setNoteDestination(PatternModel::ExternalDestination);
+        } else { // or in other words "if (trackAudioType == synth)"
+            q->setNoteDestination(PatternModel::SynthDestination);
+        }
+    }
+    void externalMidiChannelChanged() {
+        q->setExternalMidiChannel(zlTrack->property("externalMidiChannel").toInt());
+    }
+    void selectedPartChanged() {
+        SequenceModel *sequence = qobject_cast<SequenceModel*>(q->sequence());
+        if (sequence) {
+            const int trackId{zlTrack->property("id").toInt()};
+            const int selectedPart{zlTrack->property("selectedPart").toInt()};
+            sequence->setActiveTrack(trackId, selectedPart);
+        }
+    }
+    void updateSamples() {
+        QVariantList clipIds;
+        if (zlTrack && zlPart) {
+            const QVariantList trackSamples = zlTrack->property("samples").toList();
+            const QVariantList partSamples = zlPart->property("samples").toList();
+            for (const QVariant& partSample : partSamples) {
+                const QObject *sample = trackSamples[partSample.toInt()].value<QObject*>();
+                if (sample) {
+                    const int sampleCppId = sample->property("cppObjId").toInt();
+                    if (sampleCppId > -1) {
+                        clipIds << sampleCppId;
+                    }
+                }
+            }
+        }
+        q->setClipIds(clipIds);
+    }
+};
+
 class PatternModel::Private {
 public:
     Private() {
@@ -46,6 +165,7 @@ public:
         samplerSynth = SamplerSynth::instance();
     }
     ~Private() {}
+    ZLSynchronisationManager *zlSyncManager{nullptr};
     QHash<QString, qint64> lastSavedTimes;
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
@@ -137,6 +257,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     : NotesModel(parent ? parent->playGridManager() : nullptr)
     , d(new Private)
 {
+    d->zlSyncManager = new ZLSynchronisationManager(this);
     // We need to make sure that we support orphaned patterns (that is, a pattern that is not contained within a sequence)
     d->sequence = parent;
     if (parent) {
@@ -884,6 +1005,36 @@ QObject *PatternModel::gridModel() const
     return d->gridModel;
 }
 
+QObject *PatternModel::zlTrack() const
+{
+    return d->zlSyncManager->zlTrack;
+}
+
+void PatternModel::setZlTrack(QObject *zlTrack)
+{
+    d->zlSyncManager->setZlTrack(zlTrack);
+}
+
+QObject *PatternModel::zlPart() const
+{
+    return d->zlSyncManager->zlPart;
+}
+
+void PatternModel::setZlPart(QObject *zlPart)
+{
+    d->zlSyncManager->setZlPart(zlPart);
+}
+
+QObject *PatternModel::zlScene() const
+{
+    return d->zlSyncManager->zlScene;
+}
+
+void PatternModel::setZlScene(QObject *zlScene)
+{
+    d->zlSyncManager->setZlScene(zlScene);
+}
+
 int PatternModel::playingRow() const
 {
     return d->playingRow;
@@ -1228,3 +1379,6 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
         }
     }
 }
+
+// Since we got us a qobject up there a bit that we need to mocify
+#include "PatternModel.moc"
