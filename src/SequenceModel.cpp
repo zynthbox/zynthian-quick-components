@@ -33,6 +33,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QTimer>
 
 #define TRACK_COUNT 10
 #define PART_COUNT 5
@@ -103,6 +104,12 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
             stopSequencePlayback();
         }
     }, Qt::DirectConnection);
+    // Save yourself anytime changes, but not too often, and only after a second... Let's be a bit gentle here
+    QTimer *saveThrottle = new QTimer(this);
+    saveThrottle->setSingleShot(true);
+    saveThrottle->setInterval(1000);
+    connect(saveThrottle, &QTimer::timeout, this, [this](){ save(); });
+    connect(this, &SequenceModel::isDirtyChanged, saveThrottle, QOverload<>::of(&QTimer::start));
 }
 
 SequenceModel::~SequenceModel()
