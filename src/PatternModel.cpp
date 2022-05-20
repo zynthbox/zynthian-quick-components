@@ -88,7 +88,6 @@ public:
         }
     }
 
-
     void setZlScene(QObject *newZlScene)
     {
         if (zlScene != newZlScene) {
@@ -506,13 +505,11 @@ void PatternModel::setMetadata(int row, int column, QVariant metadata)
 
 void PatternModel::clear()
 {
-    if (!d->sequence || !d->sequence->isLoading()) { beginResetModel(); };
     startLongOperation();
-    for (int row = 0; row < rowCount(); ++row) {
-        clearRow(row);
-    }
+    const int oldHeight = height();
+    setHeight(0);
+    setHeight(oldHeight);
     endLongOperation();
-    if (!d->sequence || !d->sequence->isLoading()) { endResetModel(); };
 }
 
 void PatternModel::clearRow(int row)
@@ -644,6 +641,7 @@ int PatternModel::width() const
 
 void PatternModel::setHeight(int height)
 {
+    startLongOperation();
     if (this->height() < height) {
         // Force these to exist if taller than current
         for (int i = this->height(); i < height; ++i) {
@@ -655,6 +653,7 @@ void PatternModel::setHeight(int height)
             removeRow(this->height() - 1);
         }
     }
+    endLongOperation();
 }
 
 int PatternModel::height() const
