@@ -39,10 +39,10 @@
 #include <SamplerSynth.h>
 #include <SyncTimer.h>
 
-class ZLSynchronisationManager : public QObject {
+class ZLPatternSynchronisationManager : public QObject {
 Q_OBJECT
 public:
-    explicit ZLSynchronisationManager(PatternModel *parent = 0)
+    explicit ZLPatternSynchronisationManager(PatternModel *parent = 0)
         : QObject(parent)
         , q(parent)
     {};
@@ -114,7 +114,7 @@ public Q_SLOTS:
         static const QLatin1String sampleSlice{"sample-slice"};
         static const QLatin1String sampleLoop{"sample-loop"};
         static const QLatin1String external{"external"};
-        static const QLatin1String synth{"synth"}; // the default
+//         static const QLatin1String synth{"synth"}; // the default
         const QString trackAudioType = zlTrack->property("trackAudioType").toString();
         if (trackAudioType == sampleTrig) {
             q->setNoteDestination(PatternModel::SampleTriggerDestination);
@@ -165,7 +165,7 @@ public:
         samplerSynth = SamplerSynth::instance();
     }
     ~Private() {}
-    ZLSynchronisationManager *zlSyncManager{nullptr};
+    ZLPatternSynchronisationManager *zlSyncManager{nullptr};
     QHash<QString, qint64> lastSavedTimes;
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
@@ -257,7 +257,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     : NotesModel(parent ? parent->playGridManager() : nullptr)
     , d(new Private)
 {
-    d->zlSyncManager = new ZLSynchronisationManager(this);
+    d->zlSyncManager = new ZLPatternSynchronisationManager(this);
     // We need to make sure that we support orphaned patterns (that is, a pattern that is not contained within a sequence)
     d->sequence = parent;
     if (parent) {
