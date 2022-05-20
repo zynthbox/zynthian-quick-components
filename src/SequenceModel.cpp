@@ -48,7 +48,9 @@ public:
         : QObject(parent)
         , q(parent)
     {
-        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedSceneIndexChanged);
+        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedSceneIndexChanged, Qt::QueuedConnection);
+        // This actually means current /track/ changed, the track index and our current midi channel are the same number
+        connect(q->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, &ZLSequenceSynchronisationManager::currentMidiChannelChanged, Qt::QueuedConnection);
     };
     SequenceModel *q{nullptr};
     QObject *zlSong{nullptr};
@@ -56,25 +58,30 @@ public:
 
     void setZlSong(QObject *newZlSong) {
         if (zlSong != newZlSong) {
-            zlSong->disconnect(this);
+            if (zlSong) {
+                zlSong->disconnect(this);
+            }
+            zlSong = newZlSong;
+            if (zlSong) {
+                connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()), Qt::QueuedConnection);
+                connect(zlSong, SIGNAL(__scenes_model_changed__()), this, SLOT(scenesModelChanged()), Qt::QueuedConnection);
+                bpmChanged();
+            }
+            scenesModelChanged();
+            currentMidiChannelChanged();
         }
-        zlSong = newZlSong;
-        if (zlSong) {
-            connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()));
-            connect(zlSong, SIGNAL(scenesModelChanged()), this, SLOT(scenesModelChanged()));
-            bpmChanged();
-        }
-        scenesModelChanged();
     }
 
     void setZlScenesModel(QObject *newZlScenesModel) {
         if (zlScenesModel != newZlScenesModel) {
-            zlScenesModel->disconnect(this);
-        }
-        zlScenesModel = newZlScenesModel;
-        if (zlScenesModel) {
-            connect(zlScenesModel, SIGNAL(selectedSceneIndexChanged()), this, SLOT(selectedSceneIndexChanged()));
-            selectedSceneIndexChanged();
+            if (zlScenesModel) {
+                zlScenesModel->disconnect(this);
+            }
+            zlScenesModel = newZlScenesModel;
+            if (zlScenesModel) {
+                connect(zlScenesModel, SIGNAL(selected_scene_index_changed()), this, SLOT(selectedSceneIndexChanged()), Qt::QueuedConnection);
+                selectedSceneIndexChanged();
+            }
         }
     }
 public Q_SLOTS:
@@ -91,15 +98,25 @@ public Q_SLOTS:
             q->setShouldMakeSounds(selectedSceneIndex == q->sceneIndex());
         }
     }
+    void currentMidiChannelChanged() {
+        if (zlSong) {
+            QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
+            QObject *track{nullptr};
+            QMetaObject::invokeMethod(tracksModel, "getTrack", Qt::DirectConnection, Q_RETURN_ARG(QObject*, track), Q_ARG(int, PlayGridManager::instance()->currentMidiChannel()));
+            if (track) {
+                const int trackId{track->property("id").toInt()};
+                const int selectedPart{track->property("selectedPart").toInt()};
+                q->setActiveTrack(trackId, selectedPart);
+            }
+        }
+    }
 };
 
 class SequenceModel::Private {
 public:
     Private(SequenceModel *q)
         : q(q)
-    {
-        zlSyncManager = new ZLSequenceSynchronisationManager(q);
-    }
+    {}
     SequenceModel *q;
     ZLSequenceSynchronisationManager *zlSyncManager{nullptr};
     PlayGridManager *playGridManager{nullptr};
@@ -129,8 +146,6 @@ public:
                 QString sketchFolder = song->property("sketchFolder").toString();
                 const QString sequenceNameForFiles = QString(q->objectName().toLower()).replace(" ", "-");
                 q->setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(sequenceNameForFiles));
-            } else {
-                q->setFilePath(QString("%1/%2.sequence.json").arg(getDataLocation()).arg(QString::number(version)));
             }
         }
     }
@@ -154,6 +169,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     , d(new Private(this))
 {
     d->playGridManager = parent;
+    d->zlSyncManager = new ZLSequenceSynchronisationManager(this);
     d->syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
     connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
         if (!d->syncTimer->timerRunning()) {
@@ -164,7 +180,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     QTimer *saveThrottle = new QTimer(this);
     saveThrottle->setSingleShot(true);
     saveThrottle->setInterval(1000);
-    connect(saveThrottle, &QTimer::timeout, this, [this](){ save(); });
+    connect(saveThrottle, &QTimer::timeout, this, [this](){ if (isDirty()) { save(); } });
     connect(this, &SequenceModel::isDirtyChanged, saveThrottle, QOverload<>::of(&QTimer::start));
 }
 
@@ -286,8 +302,10 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
     }
     if (!d->isLoading) { beginInsertRows(QModelIndex(), insertionRow, insertionRow); }
     d->patternModels.insert(insertionRow, pattern);
-    if (!d->isLoading) { endInsertRows(); }
-    setActivePattern(d->activePattern);
+    if (!d->isLoading) {
+        endInsertRows();
+        setActivePattern(d->activePattern);
+    }
 }
 
 void SequenceModel::removePattern(PatternModel* pattern)
@@ -425,8 +443,10 @@ void SequenceModel::load(const QString &fileName)
     QFile file(d->filePath);
 
     // Clear our the existing model...
+    QList<PatternModel*> oldModels = d->patternModels;
     for (PatternModel *model : d->patternModels) {
         model->disconnect(this);
+        model->startLongOperation();
     }
     d->patternModels.clear();
 
@@ -463,17 +483,21 @@ void SequenceModel::load(const QString &fileName)
 //                 qWarning() << "Found a missing pattern while loading sequence, adding an empty one to compensate";
                 const int intermediaryTrackIndex = actualIndex / PART_COUNT;
                 const QString &intermediaryPartName = partNames[actualIndex - (intermediaryTrackIndex * PART_COUNT)];
-                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), objectName()));
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
+                model->startLongOperation();
                 model->clear();
                 model->setTrackIndex(intermediaryTrackIndex);
                 model->setPartIndex(actualIndex % PART_COUNT);
+                insertPattern(model);
+                model->endLongOperation();
                 ++actualIndex;
             }
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(trackIndex + 1)).arg(partName).arg(objectName()), objectName()));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(trackIndex + 1)).arg(partName).arg(objectName()), this));
             model->startLongOperation();
             model->clear();
             model->setTrackIndex(trackIndex);
             model->setPartIndex(partIndex);
+            insertPattern(model);
             if (entry.exists()) {
                 QFile patternFile{absolutePath};
                 if (patternFile.open(QIODevice::ReadOnly)) {
@@ -495,10 +519,13 @@ void SequenceModel::load(const QString &fileName)
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
             const int intermediaryTrackIndex = i / PART_COUNT;
             const QString &intermediaryPartName = partNames[i % PART_COUNT];
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), objectName()));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
+            model->startLongOperation();
             model->clear();
             model->setTrackIndex(intermediaryTrackIndex);
             model->setPartIndex(i % PART_COUNT);
+            insertPattern(model);
+            model->endLongOperation();
 //             qDebug() << "Added missing model" << intermediaryTrackIndex << intermediaryPartName << "to" << objectName() << model->trackIndex() << model->partIndex();
         }
     }
@@ -508,6 +535,10 @@ void SequenceModel::load(const QString &fileName)
     setIsDirty(false);
     endResetModel();
     d->isLoading = false;
+    // Unlock the patterns, in case...
+    for (PatternModel *model : oldModels) {
+        model->endLongOperation();
+    }
     Q_EMIT isLoadingChanged();
 }
 
@@ -540,12 +571,17 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
                 int i{0};
                 const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
                 for (PatternModel *pattern : d->patternModels) {
-                    QString patternIdentifier = QString::number(i + 1);
-                    if (pattern->trackIndex() > -1 && pattern->partIndex() > -1) {
-                        patternIdentifier = QString("%1%2").arg(QString::number(pattern->trackIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                        QString patternIdentifier = QString::number(i + 1);
+                        if (pattern->trackIndex() > -1 && pattern->partIndex() > -1) {
+                            patternIdentifier = QString("%1%2").arg(QString::number(pattern->trackIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                        }
+                        QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
+                        QFile patternFile(fileName);
+                    if (pattern->hasNotes()) {
+                        pattern->exportToFile(fileName);
+                    } else if (patternFile.exists()) {
+                        patternFile.remove();
                     }
-                    QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
-                    pattern->exportToFile(fileName);
                     ++i;
                 }
             }
@@ -589,10 +625,11 @@ void SequenceModel::setSong(QObject* song)
             const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
             setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(sequenceNameForFiles));
         }
+        qDebug() << Q_FUNC_INFO << this << d->song;
         load();
         Q_EMIT songChanged();
+        d->zlSyncManager->setZlSong(song);
     }
-    d->zlSyncManager->setZlSong(song);
 }
 
 int SequenceModel::soloPattern() const
