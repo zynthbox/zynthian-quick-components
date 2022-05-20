@@ -91,6 +91,11 @@ class SequenceModel : public QAbstractListModel
     Q_PROPERTY(QString filePath READ filePath WRITE setFilePath NOTIFY filePathChanged)
 
     /**
+     * \brief Information on the index of the scene this sequence is associated with
+     * @default -1
+     */
+    Q_PROPERTY(int sceneIndex READ sceneIndex WRITE setSceneIndex NOTIFY sceneIndexChanged)
+    /**
      * \brief Whether or not this sequence's patterns are supposed to be making any sounds
      * @default True
      */
@@ -187,6 +192,10 @@ public:
 
     bool isLoading() const;
     Q_SIGNAL void isLoadingChanged();
+
+    int sceneIndex() const;
+    void setSceneIndex(int sceneIndex);
+    Q_SIGNAL void sceneIndexChanged();
 
     Q_INVOKABLE bool shouldMakeSounds() const;
     Q_INVOKABLE void setShouldMakeSounds(bool shouldMakeSounds);

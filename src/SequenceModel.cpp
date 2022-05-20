@@ -41,12 +41,67 @@
 static const QStringList sceneNames{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
 static const QStringList partNames{"a", "b", "c", "d", "e"};
 
+class ZLSequenceSynchronisationManager : public QObject {
+Q_OBJECT
+public:
+    explicit ZLSequenceSynchronisationManager(SequenceModel *parent = 0)
+        : QObject(parent)
+        , q(parent)
+    {
+        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedSceneIndexChanged);
+    };
+    SequenceModel *q{nullptr};
+    QObject *zlSong{nullptr};
+    QObject *zlScenesModel{nullptr};
+
+    void setZlSong(QObject *newZlSong) {
+        if (zlSong != newZlSong) {
+            zlSong->disconnect(this);
+        }
+        zlSong = newZlSong;
+        if (zlSong) {
+            connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()));
+            connect(zlSong, SIGNAL(scenesModelChanged()), this, SLOT(scenesModelChanged()));
+            bpmChanged();
+        }
+        scenesModelChanged();
+    }
+
+    void setZlScenesModel(QObject *newZlScenesModel) {
+        if (zlScenesModel != newZlScenesModel) {
+            zlScenesModel->disconnect(this);
+        }
+        zlScenesModel = newZlScenesModel;
+        if (zlScenesModel) {
+            connect(zlScenesModel, SIGNAL(selectedSceneIndexChanged()), this, SLOT(selectedSceneIndexChanged()));
+            selectedSceneIndexChanged();
+        }
+    }
+public Q_SLOTS:
+    void bpmChanged() {
+        q->setBpm(zlSong->property("bpm").toInt());
+        qobject_cast<SyncTimer*>(SyncTimer_instance())->setBpm(q->bpm());
+    }
+    void scenesModelChanged() {
+        setZlScenesModel(zlSong->property("scenesModel").value<QObject*>());
+    }
+    void selectedSceneIndexChanged() {
+        if (zlScenesModel) {
+            const int selectedSceneIndex = zlScenesModel->property("selectedSceneIndex").toInt();
+            q->setShouldMakeSounds(selectedSceneIndex == q->sceneIndex());
+        }
+    }
+};
+
 class SequenceModel::Private {
 public:
     Private(SequenceModel *q)
         : q(q)
-    { }
+    {
+        zlSyncManager = new ZLSequenceSynchronisationManager(q);
+    }
     SequenceModel *q;
+    ZLSequenceSynchronisationManager *zlSyncManager{nullptr};
     PlayGridManager *playGridManager{nullptr};
     SyncTimer *syncTimer{nullptr};
     QObject *song{nullptr};
@@ -61,6 +116,7 @@ public:
     QObjectList onifiedNotes;
     QObjectList queuedForOffNotes;
     bool isPlaying{false};
+    int sceneIndex{-1};
     bool shouldMakeSounds{true};
     bool isLoading{false};
 
@@ -333,6 +389,19 @@ bool SequenceModel::isLoading() const
     return d->isLoading;
 }
 
+int SequenceModel::sceneIndex() const
+{
+    return d->sceneIndex;
+}
+
+void SequenceModel::setSceneIndex(int sceneIndex)
+{
+    if (d->sceneIndex != sceneIndex) {
+        d->sceneIndex = sceneIndex;
+        Q_EMIT sceneIndexChanged();
+    }
+}
+
 bool SequenceModel::shouldMakeSounds() const
 {
     return d->shouldMakeSounds;
@@ -523,6 +592,7 @@ void SequenceModel::setSong(QObject* song)
         load();
         Q_EMIT songChanged();
     }
+    d->zlSyncManager->setZlSong(song);
 }
 
 int SequenceModel::soloPattern() const
@@ -673,3 +743,6 @@ void SequenceModel::updatePatternPositions()
         }
     }
 }
+
+// Since we've got a QObject up at the top which wants mocing
+#include "SequenceModel.moc"
