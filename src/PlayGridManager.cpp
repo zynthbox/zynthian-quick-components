@@ -51,6 +51,8 @@
 
 #include <RtMidi.h>
 
+static const QStringList sceneNames{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
+
 static const QStringList midiNoteNames{
     "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
     "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
@@ -72,10 +74,43 @@ void timer_callback(int beat) {
     }
 }
 
+class ZLPGMSynchronisationManager : public QObject {
+Q_OBJECT
+public:
+    explicit ZLPGMSynchronisationManager(PlayGridManager *parent = 0)
+        : QObject(parent)
+        , q(parent)
+    {
+    };
+    PlayGridManager *q{nullptr};
+    QObject *zlDashboard{nullptr};
+
+    void setZlDashboard(QObject *newZlDashboard) {
+        if (zlDashboard != newZlDashboard) {
+            if (zlDashboard) {
+                zlDashboard->disconnect(this);
+            }
+            zlDashboard = newZlDashboard;
+            if (zlDashboard) {
+                connect(zlDashboard, SIGNAL(selected_track_changed()), this, SLOT(selectedTrackChanged()), Qt::QueuedConnection);
+                selectedTrackChanged();
+            }
+        }
+    }
+public Q_SLOTS:
+    void selectedTrackChanged() {
+        if (zlDashboard) {
+            const int selectedTrack = zlDashboard->property("selectedTrack").toInt();
+            q->setCurrentMidiChannel(selectedTrack);
+        }
+    }
+};
+
 class PlayGridManager::Private
 {
 public:
     Private(PlayGridManager *q) : q(q) {
+        zlSyncManager = new ZLPGMSynchronisationManager(q);
         // Let's try and avoid any unnecessary things here...
         midiMessage.push_back(0);
         midiMessage.push_back(0);
@@ -112,6 +147,7 @@ public:
         }
     }
     PlayGridManager *q;
+    ZLPGMSynchronisationManager *zlSyncManager{nullptr};
     QQmlEngine *engine{nullptr};
     QStringList playgrids;
     QVariantMap currentPlaygrids;
@@ -423,7 +459,9 @@ QObject* PlayGridManager::getSequenceModel(const QString& name)
         // CAUTION:
         // This causes a fair bit of IO stuff, and will also create models using getPatternModel
         // below, so make sure this happens _after_ adding it to the map above.
-        model->load();
+        if (!model->isLoading()) {
+            model->load();
+        }
     }
     return model;
 }
@@ -859,6 +897,19 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
     Q_EMIT mostRecentlyChangedNotesChanged();
 }
 
+QObject *PlayGridManager::zlDashboard() const
+{
+    return d->zlSyncManager->zlDashboard;
+}
+
+void PlayGridManager::setZlDashboard(QObject *zlDashboard)
+{
+    if (d->zlSyncManager->zlDashboard != zlDashboard) {
+        d->zlSyncManager->setZlDashboard(zlDashboard);
+        Q_EMIT zlDashboardChanged();
+    }
+}
+
 void PlayGridManager::setCurrentMidiChannel(int midiChannel)
 {
     if (d->currentMidiChannel != midiChannel) {
@@ -1023,3 +1074,6 @@ QObject *PlayGridManager::getClipById(int clipID) const
     }
     return clip;
 }
+
+// Since we've got a QObject up at the top which wants mocing
+#include "PlayGridManager.moc"

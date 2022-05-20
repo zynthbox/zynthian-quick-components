@@ -74,6 +74,10 @@ class PlayGridManager : public QObject
     Q_PROPERTY(QStringList activeNotes READ activeNotes NOTIFY activeNotesChanged)
 
     /**
+     * \brief The global instance of Zynthiloops' session dashboard
+     */
+    Q_PROPERTY(QObject* zlDashboard READ zlDashboard WRITE setZlDashboard NOTIFY zlDashboardChanged)
+    /**
      * \brief The midi channel associated with the currently selected track, or -1 if the channel is invalid
      * @default -1
      */
@@ -268,6 +272,10 @@ public:
 
     QStringList activeNotes() const;
     Q_SIGNAL void activeNotesChanged();
+
+    QObject *zlDashboard() const;
+    void setZlDashboard(QObject *zlDashboard);
+    Q_SIGNAL void zlDashboardChanged();
 
     void setCurrentMidiChannel(int midiChannel);
     int currentMidiChannel() const;
