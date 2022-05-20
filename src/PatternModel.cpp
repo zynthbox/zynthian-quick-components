@@ -45,11 +45,17 @@ public:
     explicit ZLPatternSynchronisationManager(PatternModel *parent = 0)
         : QObject(parent)
         , q(parent)
-    {};
+    {
+        layerDataPuller = new QTimer(this);
+        layerDataPuller->setInterval(100);
+        layerDataPuller->setSingleShot(true);
+        connect(layerDataPuller, &QTimer::timeout, this, &ZLPatternSynchronisationManager::retrieveLayerData);
+    };
     PatternModel *q{nullptr};
     QObject *zlTrack{nullptr};
     QObject *zlPart{nullptr};
     QObject *zlScene{nullptr};
+    QTimer *layerDataPuller{nullptr};
 
     void setZlTrack(QObject *newZlTrack)
     {
@@ -63,11 +69,13 @@ public:
                 connect(zlTrack, SIGNAL(externalMidiChannelChanged()), this, SLOT(externalMidiChannelChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
                 q->setMidiChannel(zlTrack->property("id").toInt());
                 trackAudioTypeChanged();
                 externalMidiChannelChanged();
                 updateSamples();
                 selectedPartChanged();
+                layerDataPuller->start();
             }
             Q_EMIT q->zlTrackChanged();
         }
@@ -154,6 +162,13 @@ public Q_SLOTS:
             }
         }
         q->setClipIds(clipIds);
+    }
+    void retrieveLayerData() {
+        if (zlTrack) {
+            QString jsonSnapshot;
+            QMetaObject::invokeMethod(zlTrack, "getTrackSoundSnapshotJson", Qt::DirectConnection, Q_RETURN_ARG(QString, jsonSnapshot));
+            q->setLayerData(jsonSnapshot);
+        }
     }
 };
 
