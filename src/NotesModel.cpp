@@ -72,20 +72,20 @@ public:
 
     void ensurePositionExists(int row, int column) {
         if (entries.count() < row + 1) {
-            q->beginInsertRows(QModelIndex(), entries.count(), row);
+            if (isWorking == 0) { q->beginInsertRows(QModelIndex(), entries.count(), row); }
             for (int i = entries.count(); i < row + 1; ++i) {
                 entries << QList<Entry>();
             }
-            q->endInsertRows();
+            if (isWorking == 0) { q->endInsertRows(); }
         }
         QList<Entry> rowList = entries[row];
         if (rowList.count() < column + 1) {
-            q->beginInsertColumns(QModelIndex(), rowList.count(), column + 1);
+            if (isWorking == 0) { q->beginInsertColumns(QModelIndex(), rowList.count(), column + 1); }
             for (int i = rowList.count(); i < column + 1; ++i) {
                 rowList << Entry();
             }
             entries[row] = rowList;
-            q->endInsertColumns();
+            if (isWorking == 0) { q->endInsertColumns(); }
         }
     }
     QTimer noteDataChangedUpdater;
@@ -98,7 +98,7 @@ public:
     }
     QTimer noteDataChangedEmitter;
     void emitNoteDataChanged() {
-        if (!isWorking) {
+        if (isWorking == 0) {
             for (int row = 0; row < entries.count(); ++row) {
                 QList<Entry> rowEntries = entries[row];
                 for (int column = 0; column < rowEntries.count(); ++column) {
