@@ -30,6 +30,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -435,6 +436,9 @@ void SequenceModel::setShouldMakeSounds(bool shouldMakeSounds)
 
 void SequenceModel::load(const QString &fileName)
 {
+    QElapsedTimer elapsedTimer;
+    elapsedTimer.start();
+    int loadedPatternCount{0};
     d->isLoading = true;
     Q_EMIT isLoadingChanged();
     beginResetModel();
@@ -507,6 +511,7 @@ void SequenceModel::load(const QString &fileName)
                 }
             }
             model->endLongOperation();
+            ++loadedPatternCount;
 //             qWarning() << "Loaded and added:" << model;
             ++actualIndex;
         }
@@ -541,6 +546,7 @@ void SequenceModel::load(const QString &fileName)
         model->endLongOperation();
     }
     Q_EMIT isLoadingChanged();
+    qDebug() << this << "Loaded" << loadedPatternCount << "patterns and filled in" << PATTERN_COUNT - loadedPatternCount << "in" << elapsedTimer.elapsed() << "milliseconds";
 }
 
 bool SequenceModel::save(const QString &fileName, bool exportOnly)
@@ -626,7 +632,6 @@ void SequenceModel::setSong(QObject* song)
             const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
             setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(sequenceNameForFiles));
         }
-        qDebug() << Q_FUNC_INFO << this << d->song;
         load();
         Q_EMIT songChanged();
         d->zlSyncManager->setZlSong(song);
