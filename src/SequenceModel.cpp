@@ -494,7 +494,7 @@ void SequenceModel::load(const QString &fileName)
             }
             PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(trackIndex + 1)).arg(partName).arg(objectName()), this));
             model->startLongOperation();
-            model->clear();
+            model->resetPattern(true);
             model->setTrackIndex(trackIndex);
             model->setPartIndex(partIndex);
             insertPattern(model);
