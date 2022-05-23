@@ -329,25 +329,30 @@ PatternModel::PatternModel(SequenceModel* parent)
         }
         MidiRouter::instance()->setChannelDestination(d->midiChannel, routerDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
         if (d->previouslyUpdatedMidiChannel != d->midiChannel) {
+            startLongOperation();
             for (int row = 0; row < rowCount(); ++row) {
                 for (int column = 0; column < columnCount(createIndex(row, 0)); ++column) {
                     Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
                     QVariantList newSubnotes;
                     if (oldCompound) {
-                        for (const QVariant &subnote :oldCompound->subnotes()) {
-                            Note *oldNote = subnote.value<Note*>();
-                            if (oldNote) {
-                                newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), d->midiChannel));
-                            } else {
-                                // This really shouldn't happen - spit out a warning and slap in something unknown so we keep the order intact
-                                newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(0, d->midiChannel));
-                                qWarning() << "Failed to convert a subnote value which must be a Note object to a Note object - something clearly isn't right.";
+                        const QVariantList &oldSubnotes = oldCompound->subnotes();
+                        if (oldSubnotes.count() > 0) {
+                            for (const QVariant &subnote :oldCompound->subnotes()) {
+                                Note *oldNote = subnote.value<Note*>();
+                                if (oldNote) {
+                                    newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(oldNote->midiNote(), d->midiChannel));
+                                } else {
+                                    // This really shouldn't happen - spit out a warning and slap in something unknown so we keep the order intact
+                                    newSubnotes << QVariant::fromValue<QObject*>(playGridManager()->getNote(0, d->midiChannel));
+                                    qWarning() << "Failed to convert a subnote value which must be a Note object to a Note object - something clearly isn't right.";
+                                }
                             }
+                            setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
                         }
                     }
-                    setNote(row, column, playGridManager()->getCompoundNote(newSubnotes));
                 }
             }
+            endLongOperation();
             d->positionBuffers.clear();
             d->previouslyUpdatedMidiChannel = d->midiChannel;
         }
@@ -1007,6 +1012,7 @@ QObject *PatternModel::gridModel() const
         d->gridModel = qobject_cast<NotesModel*>(PlayGridManager::instance()->getNotesModel(objectName() + " - Grid Model"));
         auto rebuildGridModel = [this](){
             // qDebug() << "Rebuilding" << d->gridModel << "for destination" << d->noteDestination << "for channel" << d->midiChannel;
+            d->gridModel->startLongOperation();
             QList<int> notesToFit;
             for (int note = d->gridModelStartNote; note <= d->gridModelEndNote; ++note) {
                 notesToFit << note;
@@ -1025,9 +1031,10 @@ QObject *PatternModel::gridModel() const
                 }
                 d->gridModel->addRow(notes);
             }
+            d->gridModel->endLongOperation();
         };
         QTimer *refilTimer = new QTimer(d->gridModel);
-        refilTimer->setInterval(1);
+        refilTimer->setInterval(100);
         refilTimer->setSingleShot(true);
         connect(refilTimer, &QTimer::timeout, d->gridModel, rebuildGridModel);
         connect(this, &PatternModel::midiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
