@@ -448,7 +448,7 @@ void PlayGridManager::setPreferredSequencer(const QString& playgridID)
     Q_EMIT sequenceEditorIndexChanged();
 }
 
-QObject* PlayGridManager::getSequenceModel(const QString& name)
+QObject* PlayGridManager::getSequenceModel(const QString& name, bool loadPatterns)
 {
     SequenceModel *model = d->sequenceModels.value(name.isEmpty() ? QLatin1String("Global") : name);
     if (!model) {
@@ -459,7 +459,7 @@ QObject* PlayGridManager::getSequenceModel(const QString& name)
         // CAUTION:
         // This causes a fair bit of IO stuff, and will also create models using getPatternModel
         // below, so make sure this happens _after_ adding it to the map above.
-        if (!model->isLoading()) {
+        if (!model->isLoading() && loadPatterns) {
             model->load();
         }
     }

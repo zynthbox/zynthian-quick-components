@@ -137,9 +137,10 @@ public:
      * session.
      * @note If passed an empty string, this will return the global sequence model
      * @param name The name of the sequence (pass an empty string, or "Global", to fetch the global sequence)
+     * @param loadPatterns Whether or not to load the sequence's patterns. Default is true, you usually want to trust that
      * @return A Sequence with the given name (or the global sequence if passed an empty name)
      */
-    Q_INVOKABLE QObject* getSequenceModel(const QString &name);
+    Q_INVOKABLE QObject* getSequenceModel(const QString &name, bool loadPatterns = true);
     /**
      * \brief Returns a model suitable for use as a pattern
      *
