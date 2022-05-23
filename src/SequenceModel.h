@@ -110,6 +110,11 @@ class SequenceModel : public QAbstractListModel
      * \brief Whether or not the model is currently loading
      */
     Q_PROPERTY(bool isLoading READ isLoading NOTIFY isLoadingChanged)
+
+    /**
+     * \brief The number of patterns in this sequence
+     */
+    Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 public:
     explicit SequenceModel(PlayGridManager *parent = nullptr);
     ~SequenceModel() override;
@@ -169,6 +174,10 @@ public:
      */
     Q_INVOKABLE int indexOf(QObject *pattern) const;
 
+    /**
+     * \brief Emitted whenever the number of patterns in the sequence changes
+     */
+    Q_SIGNAL void countChanged();
     PlayGridManager *playGridManager() const;
 
     void setBpm(int bpm);

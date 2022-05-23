@@ -307,6 +307,7 @@ void SequenceModel::insertPattern(PatternModel* pattern, int row)
         endInsertRows();
         setActivePattern(d->activePattern);
     }
+    if (!d->isLoading) { Q_EMIT countChanged(); }
 }
 
 void SequenceModel::removePattern(PatternModel* pattern)
@@ -319,6 +320,7 @@ void SequenceModel::removePattern(PatternModel* pattern)
         setActivePattern(d->activePattern);
         if (!d->isLoading) { endRemoveRows(); }
     }
+    if (!d->isLoading) { Q_EMIT countChanged(); }
 }
 
 bool SequenceModel::contains(QObject* pattern) const
@@ -546,6 +548,7 @@ void SequenceModel::load(const QString &fileName)
         model->endLongOperation();
     }
     Q_EMIT isLoadingChanged();
+    Q_EMIT countChanged();
     qDebug() << this << "Loaded" << loadedPatternCount << "patterns and filled in" << PATTERN_COUNT - loadedPatternCount << "in" << elapsedTimer.elapsed() << "milliseconds";
 }
 
