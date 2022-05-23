@@ -973,9 +973,13 @@ QObject *PatternModel::clipSliceNotes() const
                 d->clipSliceNotes->appendRow(notes, metadata);
             }
         };
-        connect(this, &PatternModel::clipIdsChanged, this, fillClipSliceNotes);
-        connect(this, &PatternModel::midiChannelChanged, this, fillClipSliceNotes);
-        fillClipSliceNotes();
+        QTimer *refilTimer = new QTimer(d->gridModel);
+        refilTimer->setInterval(100);
+        refilTimer->setSingleShot(true);
+        connect(refilTimer, &QTimer::timeout, d->gridModel, fillClipSliceNotes);
+        connect(this, &PatternModel::clipIdsChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        connect(this, &PatternModel::midiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        refilTimer->start();
     }
     return d->clipSliceNotes;
 }
@@ -1040,7 +1044,7 @@ QObject *PatternModel::gridModel() const
         connect(this, &PatternModel::midiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
         connect(this, &PatternModel::gridModelStartNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
         connect(this, &PatternModel::gridModelEndNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
-        rebuildGridModel();
+        refilTimer->start();
     }
     return d->gridModel;
 }
