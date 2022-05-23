@@ -484,7 +484,7 @@ void SequenceModel::load(const QString &fileName)
                 const QString &intermediaryPartName = partNames[actualIndex - (intermediaryTrackIndex * PART_COUNT)];
                 PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
                 model->startLongOperation();
-                model->clear();
+                model->resetPattern(true);
                 model->setTrackIndex(intermediaryTrackIndex);
                 model->setPartIndex(actualIndex % PART_COUNT);
                 insertPattern(model);
@@ -522,7 +522,7 @@ void SequenceModel::load(const QString &fileName)
             const QString &intermediaryPartName = partNames[i % PART_COUNT];
             PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
             model->startLongOperation();
-            model->clear();
+            model->resetPattern(true);
             model->setTrackIndex(intermediaryTrackIndex);
             model->setPartIndex(i % PART_COUNT);
             insertPattern(model);
