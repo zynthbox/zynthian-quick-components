@@ -518,6 +518,25 @@ void PatternModel::setMetadata(int row, int column, QVariant metadata)
     NotesModel::setMetadata(row, column, metadata);
 }
 
+void PatternModel::resetPattern(bool clearNotes)
+{
+    startLongOperation();
+    setNoteDestination(PatternModel::SynthDestination);
+    setExternalMidiChannel(-1);
+    setNoteLength(3);
+    setAvailableBars(1);
+    setBankOffset(0);
+    setBankLength(8);
+    setGridModelStartNote(48);
+    setGridModelEndNote(64);
+    setWidth(16);
+    if (clearNotes && hasNotes()) {
+        setHeight(0);
+    }
+    setHeight(16);
+    endLongOperation();
+}
+
 void PatternModel::clear()
 {
     startLongOperation();

@@ -325,6 +325,24 @@ public:
     Q_INVOKABLE void setMetadata(int row, int column, QVariant metadata) override;
 
     /**
+     * \brief Resets all the model's content-related properties to their defaults
+     *
+     * The properties which are reset by this function are:
+     * - noteDestination
+     * - width
+     * - height
+     * - externalMidiChannel
+     * - noteLength
+     * - availableBars
+     * - bankOffset (and consequently bank)
+     * - bankLength
+     * - gridModelStartNote
+     * - gridModelEndNote
+     *
+     * @param clearNotes If set to true, the function will also clear notes (otherwise it will leave those alone that fit inside the default height/width)
+     */
+    Q_INVOKABLE void resetPattern(bool clearNotes = false);
+    /**
      * \brief Removes all notes and metadata from the model
      */
     Q_INVOKABLE void clear() override;
