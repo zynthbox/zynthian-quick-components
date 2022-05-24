@@ -443,9 +443,69 @@ int PatternModel::addSubnote(int row, int column, QObject* note)
         if (newNote->midiChannel() != d->midiChannel) {
             newNote = qobject_cast<Note*>(playGridManager()->getNote(newNote->midiNote(), d->midiChannel));
         }
-        subnotes.append(QVariant::fromValue<QObject*>(newNote));
 
+        subnotes.append(QVariant::fromValue<QObject*>(newNote));
         metadata.append(QVariantHash());
+        setNote(row, column, playGridManager()->getCompoundNote(subnotes));
+        setMetadata(row, column, metadata);
+    }
+    return newPosition;
+}
+
+void PatternModel::insertSubnote(int row, int column, int subnoteIndex, QObject *note)
+{
+    if (row > -1 && row < height() && column > -1 && column < width() && note) {
+        Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+        QVariantList subnotes;
+        QVariantList metadata;
+        int actualPosition{0};
+        if (oldCompound) {
+            subnotes = oldCompound->subnotes();
+            metadata = getMetadata(row, column).toList();
+            actualPosition = qMin(subnoteIndex, subnotes.count());
+        }
+
+        // Ensure the note is correct according to our midi channel settings
+        Note *newNote = qobject_cast<Note*>(note);
+        if (newNote->midiChannel() != d->midiChannel) {
+            newNote = qobject_cast<Note*>(playGridManager()->getNote(newNote->midiNote(), d->midiChannel));
+        }
+
+        subnotes.insert(actualPosition, QVariant::fromValue<QObject*>(newNote));
+        metadata.insert(actualPosition, QVariantHash());
+        setNote(row, column, playGridManager()->getCompoundNote(subnotes));
+        setMetadata(row, column, metadata);
+    }
+}
+
+int PatternModel::insertSubnoteSorted(int row, int column, QObject* note)
+{
+    int newPosition{0};
+    if (row > -1 && row < height() && column > -1 && column < width() && note) {
+        Note *newNote = qobject_cast<Note*>(note);
+        Note* oldCompound = qobject_cast<Note*>(getNote(row, column));
+        QVariantList subnotes;
+        QVariantList metadata;
+        if (oldCompound) {
+            subnotes = oldCompound->subnotes();
+            metadata = getMetadata(row, column).toList();
+            for (int i = 0; i < subnotes.count(); ++i) {
+                const Note* subnote = subnotes[i].value<Note*>();
+                if (subnote->midiNote() <= newNote->midiNote()) {
+                    newPosition = i + 1;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Ensure the note is correct according to our midi channel settings
+        if (newNote->midiChannel() != d->midiChannel) {
+            newNote = qobject_cast<Note*>(playGridManager()->getNote(newNote->midiNote(), d->midiChannel));
+        }
+
+        subnotes.insert(newPosition, QVariant::fromValue<QObject*>(newNote));
+        metadata.insert(newPosition, QVariantHash());
         setNote(row, column, playGridManager()->getCompoundNote(subnotes));
         setMetadata(row, column, metadata);
     }

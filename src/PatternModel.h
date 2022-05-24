@@ -270,6 +270,24 @@ public:
      * @return The subnote position of the newly added note (for convenience with e.g. setEntryMetadata)
      */
     Q_INVOKABLE int addSubnote(int row, int column, QObject* note);
+    /**
+     * \brief Add a new subnote at the given subnote index
+     * @note This also inserts an empty metadata entry at the same position
+     * @param row The row you wish to add a new entry in
+     * @param column The column in that row you wish to add a new entry into
+     * @param subnoteIndex The position at which you wish to insert a subnote (if invalid, it will be appended)
+     * @param note The note you wish to add to this position
+     */
+    Q_INVOKABLE void insertSubnote(int row, int column, int subnoteIndex, QObject* note);
+    /**
+     * \brief Add a new subnote at the position suggested by its midi note
+     * @note The logic is such that the note will be inserted before the first note that has a higher number (or at the end if only lower ones exist)
+     * @param row The row you wish to add a new entry in
+     * @param column The column in that row you wish to add a new entry into
+     * @param note The note you wish to add to this position
+     * @return The subnote position of the newly added note (for convenience with e.g. setEntryMetadata)
+     */
+    Q_INVOKABLE int insertSubnoteSorted(int row, int column, QObject* note);
 
     /**
      * \brief Remove the entry at the given position in the model
