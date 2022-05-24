@@ -72,6 +72,14 @@ class PlayGridManager : public QObject
      * \brief A list with the names of all the midi notes which are currently active
      */
     Q_PROPERTY(QStringList activeNotes READ activeNotes NOTIFY activeNotesChanged)
+    /**
+     * \brief A list with the names of all the midi notes which are currently active on a hardware input device
+     */
+    Q_PROPERTY(QStringList hardwareInActiveNotes READ hardwareInActiveNotes NOTIFY hardwareInActiveNotesChanged)
+    /**
+     * \brief A list with the names of all the midi notes which are currently active on on a hardware output port
+     */
+    Q_PROPERTY(QStringList hardwareOutActiveNotes READ hardwareOutActiveNotes NOTIFY hardwareOutActiveNotesChanged)
 
     /**
      * \brief The global instance of Zynthiloops' session dashboard
@@ -273,6 +281,10 @@ public:
 
     QStringList activeNotes() const;
     Q_SIGNAL void activeNotesChanged();
+    QStringList hardwareInActiveNotes() const;
+    Q_SIGNAL void hardwareInActiveNotesChanged();
+    QStringList hardwareOutActiveNotes() const;
+    Q_SIGNAL void hardwareOutActiveNotesChanged();
 
     QObject *zlDashboard() const;
     void setZlDashboard(QObject *zlDashboard);

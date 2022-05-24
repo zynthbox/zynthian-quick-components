@@ -135,6 +135,36 @@ public:
             activeNotes = activated;
             Q_EMIT q->activeNotesChanged();
         });
+        hardwareInActiveNotesUpdater = new QTimer(q);
+        hardwareInActiveNotesUpdater->setSingleShot(true);
+        hardwareInActiveNotesUpdater->setInterval(1);
+        connect(hardwareInActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
+            QHash<int, int>::const_iterator iterator = hardwareInNoteActivations.constBegin();
+            QStringList activated;
+            while (iterator != hardwareInNoteActivations.constEnd()) {
+                if (iterator.value() > 0) {
+                    activated << midiNoteNames[iterator.key()];
+                }
+                ++iterator;
+            }
+            hardwareInActiveNotes = activated;
+            Q_EMIT q->hardwareInActiveNotesChanged();
+        });
+        hardwareOutActiveNotesUpdater = new QTimer(q);
+        hardwareOutActiveNotesUpdater->setSingleShot(true);
+        hardwareOutActiveNotesUpdater->setInterval(1);
+        connect(hardwareOutActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
+            QHash<int, int>::const_iterator iterator = hardwareOutNoteActivations.constBegin();
+            QStringList activated;
+            while (iterator != hardwareOutNoteActivations.constEnd()) {
+                if (iterator.value() > 0) {
+                    activated << midiNoteNames[iterator.key()];
+                }
+                ++iterator;
+            }
+            hardwareOutActiveNotes = activated;
+            Q_EMIT q->hardwareOutActiveNotesChanged();
+        });
         listenToEverything();
         currentPlaygrids = {
             {"minigrid", 1}, // As these are sorted alphabetically, notesgrid for minigrid and
@@ -163,9 +193,17 @@ public:
     QMap<QString, QObject*> namedInstances;
     QMap<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
+
     QHash<int, int> noteActivations;
     QTimer *activeNotesUpdater;
     QStringList activeNotes;
+    QHash<int, int> hardwareInNoteActivations;
+    QTimer *hardwareInActiveNotesUpdater;
+    QStringList hardwareInActiveNotes;
+    QHash<int, int> hardwareOutNoteActivations;
+    QTimer *hardwareOutActiveNotesUpdater;
+    QStringList hardwareOutActiveNotes;
+
     int currentMidiChannel{-1};
 
     std::vector<unsigned char> midiMessage;
@@ -186,6 +224,14 @@ public:
         for (int i = 0; i < 128; ++i) {
             noteActivations[i] = 0;
         }
+        hardwareInNoteActivations.clear();
+        for (int i = 0; i < 128; ++i) {
+            hardwareInNoteActivations[i] = 0;
+        }
+        hardwareOutNoteActivations.clear();
+        for (int i = 0; i < 128; ++i) {
+            hardwareOutNoteActivations[i] = 0;
+        }
         for (MidiListener *midiListener : midiListeners) {
             midiListener->markAsDone();
         }
@@ -195,6 +241,8 @@ public:
         if ( nPorts > 0 ) {
             std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n" << std::endl;
             const char* zynMidiRouterOutName{"ZLRouter:Passthrough"};
+            const char* zlRouterHardwarePassthrough{"ZLRouter:HardwareInPassthrough"};
+            const char* zlRouterExternalOut{"ZLRouter:ExternalOut"};
             for (unsigned int i = 0; i < nPorts; ++i) {
                 const std::string portName = midiin->getPortName(i);
                 if (portName.rfind(zynMidiRouterOutName, 0) == 0) {
@@ -203,9 +251,30 @@ public:
                     QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ updateNoteState(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
                     midiListener->start();
                     midiListeners << midiListener;
+                } else if (portName.rfind(zlRouterHardwarePassthrough, 0) == 0) {
+                    MidiListener *midiListener = new MidiListener(i);
+                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareInputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+                    midiListener->start();
+                    midiListeners << midiListener;
+                } else if (portName.rfind(zlRouterExternalOut, 0) == 0) {
+                    MidiListener *midiListener = new MidiListener(i);
+                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareOutputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+                    midiListener->start();
+                    midiListeners << midiListener;
                 }
             }
         }
+    }
+
+    void handleHardwareInputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
+        hardwareInNoteActivations[midiNote] += setOn ? 1 : -1;
+        hardwareInActiveNotesUpdater->start();
+    }
+    void handleHardwareOutputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
+        hardwareOutNoteActivations[midiNote] += setOn ? 1 : -1;
+        hardwareOutActiveNotesUpdater->start();
     }
 
     void updateNoteState(int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
@@ -871,6 +940,16 @@ QVariantList PlayGridManager::mostRecentlyChangedNotes() const
 QStringList PlayGridManager::activeNotes() const
 {
     return d->activeNotes;
+}
+
+QStringList PlayGridManager::hardwareInActiveNotes() const
+{
+    return d->hardwareInActiveNotes;
+}
+
+QStringList PlayGridManager::hardwareOutActiveNotes() const
+{
+    return d->hardwareOutActiveNotes;
 }
 
 void PlayGridManager::updateNoteState(QVariantMap metadata)
