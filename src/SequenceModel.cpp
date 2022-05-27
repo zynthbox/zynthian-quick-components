@@ -49,7 +49,7 @@ public:
         : QObject(parent)
         , q(parent)
     {
-        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedSceneIndexChanged, Qt::QueuedConnection);
+        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedMixIndexChanged, Qt::QueuedConnection);
         // This actually means current /track/ changed, the track index and our current midi channel are the same number
         connect(q->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, &ZLSequenceSynchronisationManager::currentMidiChannelChanged, Qt::QueuedConnection);
     };
@@ -80,8 +80,8 @@ public:
             }
             zlScenesModel = newZlScenesModel;
             if (zlScenesModel) {
-                connect(zlScenesModel, SIGNAL(selected_scene_index_changed()), this, SLOT(selectedSceneIndexChanged()), Qt::QueuedConnection);
-                selectedSceneIndexChanged();
+                connect(zlScenesModel, SIGNAL(selected_mix_index_changed()), this, SLOT(selectedMixIndexChanged()), Qt::QueuedConnection);
+                selectedMixIndexChanged();
             }
         }
     }
@@ -93,10 +93,10 @@ public Q_SLOTS:
     void scenesModelChanged() {
         setZlScenesModel(zlSong->property("scenesModel").value<QObject*>());
     }
-    void selectedSceneIndexChanged() {
+    void selectedMixIndexChanged() {
         if (zlScenesModel) {
-            const int selectedSceneIndex = zlScenesModel->property("selectedSceneIndex").toInt();
-            q->setShouldMakeSounds(selectedSceneIndex == q->sceneIndex());
+            const int selectedMixIndex = zlScenesModel->property("selectedMixIndex").toInt();
+            q->setShouldMakeSounds(selectedMixIndex == q->sceneIndex());
         }
     }
     void currentMidiChannelChanged() {
