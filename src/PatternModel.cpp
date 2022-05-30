@@ -952,7 +952,7 @@ void PatternModel::setClipIds(const QVariantList &clipIds)
     if (clipIds.length() == d->clips.length()) {
         int i{0};
         for (const QVariant &clipId : clipIds) {
-            if (d->clips[i]->id() != clipId) {
+            if (!d->clips[i] || d->clips[i]->id() != clipId) {
                 changed = true;
                 break;
             }
@@ -967,6 +967,7 @@ void PatternModel::setClipIds(const QVariantList &clipIds)
             ClipAudioSource *newClip = ClipAudioSource_byID(clipId.toInt());
             if (newClip) {
                 newClips << newClip;
+                connect(newClip, &QObject::destroyed, this, [this, newClip](){ d->clips.removeAll(newClip); });
             }
         }
         d->clips = newClips;
@@ -1326,7 +1327,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
         // And if we're playing midi, but don't have a good channel of our own, if the current channel is good, use that
         || d->playGridManager->currentMidiChannel() > -1)
     ) {
-        const int overrideChannel{(d->noteDestination == PatternModel::SampleSlicedDestination || d->noteDestination == PatternModel ::SampleTriggerDestination) ? 0 : ((d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1)};
+        const int overrideChannel{(d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1};
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -1395,24 +1396,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         break;
                     case PatternModel::SampleTriggerDestination:
                     case PatternModel::SampleSlicedDestination:
-                    {
-                        // Only actually schedule notes for the next tick, not for the far-ahead...
-                        if (progressionIncrement == initialProgression) {
-                            const QHash<int, juce::MidiBuffer> &positionBuffers = d->positionBuffers[nextPosition + (d->bankOffset * d->width)];
-                            QHash<int, juce::MidiBuffer>::const_iterator position;
-                            for (position = positionBuffers.constBegin(); position != positionBuffers.constEnd(); ++position) {
-                                for (const juce::MidiMessageMetadata &meta : position.value()) {
-                                    if (0x7F < meta.data[0] && meta.data[0] < 0xA0) {
-                                        const QList<ClipCommand*> commands = d->midiMessageToClipCommands(meta);
-                                        for (ClipCommand *command : commands) {
-                                            d->syncTimer->scheduleClipCommand(command, progressionIncrement + position.key());
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        break;
-                    }
+                        // Both sample-trig and sample-slice send midi information through, and those notes then get fired by
+                        // SyncTimer as usual, and caught in handleMidiMessage() below
                     case PatternModel::ExternalDestination:
                         // While external destination /is/ somewhere else, libzl's MidiRouter does the actual work of the somewhere-else-ness
                         // We set this up in the midiChannelUpdater timeout handler (see PatternModel's ctor)
@@ -1466,15 +1451,15 @@ void PatternModel::handleSequenceStop()
 void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3)
 {
     // If orphaned, or the sequence is asking for sounds to happen, make sounds
-    // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
-    // Also, at least for now, only make sounds from midi messages if we're the currently active pattern...
-    if ((!d->sequence || (d->sequence->shouldMakeSounds() && d->sequence->activePatternObject() == this)) && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
+    if ((!d->sequence || (d->sequence->shouldMakeSounds() && (d->sequence->soloPatternObject() == this || d->enabled)))
+        // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
+        && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
         if (0x7F < byte1 && byte1 < 0xA0) {
             juce::MidiMessage message(byte1, byte2, byte3);
             juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
             // Always remember, juce thinks channels are 1-indexed
             // FIXME We've got a problem - why is the "dunno" channel 9? There's a track there, that's going to cause issues...
-            if (message.isForChannel(d->midiChannel + 1) || (d->sequence->activePatternObject() == this && (d->midiChannel < 0 || d->midiChannel > 8) && message.getChannel() == 10)) {
+            if (message.isForChannel(d->midiChannel + 1) || ((d->midiChannel < 0 || d->midiChannel > 8) && message.getChannel() == 10)) {
                 const QList<ClipCommand*> commands = d->midiMessageToClipCommands(meta);
                 for (ClipCommand *command : commands) {
                     d->samplerSynth->handleClipCommand(command);
