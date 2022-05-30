@@ -752,6 +752,7 @@ void PatternModel::setHeight(int height)
             removeRow(this->height() - 1);
         }
     }
+    d->positionBuffers.clear();
     endLongOperation();
 }
 
