@@ -763,29 +763,33 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    const quint64 sequenceProgressionLength{d->syncTimer->scheduleAheadAmount()};
-    if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-        PatternModel *pattern = d->patternModels[d->soloPattern];
-        if (pattern) {
-            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
-        }
-    } else {
-        for (PatternModel *pattern : d->patternModels) {
-            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+    if (d->shouldMakeSounds) {
+        const quint64 sequenceProgressionLength{d->syncTimer->scheduleAheadAmount()};
+        if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
+            PatternModel *pattern = d->patternModels[d->soloPattern];
+            if (pattern) {
+                pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+            }
+        } else {
+            for (PatternModel *pattern : d->patternModels) {
+                pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+            }
         }
     }
 }
 
 void SequenceModel::updatePatternPositions()
 {
-    if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-        PatternModel *pattern = d->patternModels[d->soloPattern];
-        if (pattern) {
-            pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
-        }
-    } else {
-        for (PatternModel *pattern : d->patternModels) {
-            pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+    if (d->shouldMakeSounds) {
+        if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
+            PatternModel *pattern = d->patternModels[d->soloPattern];
+            if (pattern) {
+                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+            }
+        } else {
+            for (PatternModel *pattern : d->patternModels) {
+                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+            }
         }
     }
 }
