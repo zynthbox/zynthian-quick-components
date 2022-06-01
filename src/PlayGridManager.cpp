@@ -246,21 +246,21 @@ public:
             for (unsigned int i = 0; i < nPorts; ++i) {
                 const std::string portName = midiin->getPortName(i);
                 if (portName.rfind(zynMidiRouterOutName, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i);
+                    MidiListener *midiListener = new MidiListener(i, zynMidiRouterOutName, 0);
                     QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ updateNoteState(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ updateNoteState(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
                     midiListener->start();
                     midiListeners << midiListener;
                 } else if (portName.rfind(zlRouterHardwarePassthrough, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i);
+                    MidiListener *midiListener = new MidiListener(i, zlRouterHardwarePassthrough, 5);
                     QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareInputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareInputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
                     midiListener->start();
                     midiListeners << midiListener;
                 } else if (portName.rfind(zlRouterExternalOut, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i);
+                    MidiListener *midiListener = new MidiListener(i, zlRouterExternalOut, 5);
                     QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareOutputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareOutputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
                     midiListener->start();
                     midiListeners << midiListener;
                 }
@@ -270,11 +270,11 @@ public:
 
     void handleHardwareInputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
         hardwareInNoteActivations[midiNote] += setOn ? 1 : -1;
-        hardwareInActiveNotesUpdater->start();
+        QMetaObject::invokeMethod(hardwareInActiveNotesUpdater, QOverload<>::of(&QTimer::start), Qt::QueuedConnection);
     }
     void handleHardwareOutputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
         hardwareOutNoteActivations[midiNote] += setOn ? 1 : -1;
-        hardwareOutActiveNotesUpdater->start();
+        QMetaObject::invokeMethod(hardwareOutActiveNotesUpdater, QOverload<>::of(&QTimer::start), Qt::QueuedConnection);
     }
 
     void updateNoteState(int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
@@ -319,7 +319,7 @@ public:
         }
 
         noteActivations[midiNote] += setOn ? 1 : -1;
-        activeNotesUpdater->start();
+        QMetaObject::invokeMethod(activeNotesUpdater, QOverload<>::of(&QTimer::start), Qt::QueuedConnection);
     }
 
     void updatePlaygrids()
