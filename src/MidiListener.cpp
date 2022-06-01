@@ -27,14 +27,15 @@ void handleRtMidiMessage(double, std::vector< unsigned char >*, void*);
 
 #define MAX_MESSAGES 1000
 
-MidiListener::MidiListener(int rtMidiInPort)
+MidiListener::MidiListener(int rtMidiInPort, const QString &name, int waitTime)
     : QThread()
+    , waitTime(waitTime)
     , midiInPort(rtMidiInPort)
 {
     for (int i = 0; i < MAX_MESSAGES; ++i) {
         messages << new NoteMessage();
     }
-    midiin = new RtMidiIn(RtMidi::UNIX_JACK, "Midi Listener Client");
+    midiin = new RtMidiIn(RtMidi::UNIX_JACK, QString("Midi Listener Client %1").arg(name).toStdString());
     std::vector<unsigned char> message;
     std::string portName;
     try {
@@ -67,7 +68,7 @@ void MidiListener::run() {
         if (done) {
             break;
         }
-        if (lastRelevantMessage > -1) {
+        if (waitTime > 0 && lastRelevantMessage > -1) {
             int i{0};
             for (NoteMessage *message : messages) {
                 if (i > lastRelevantMessage || i >= MAX_MESSAGES) {
@@ -78,7 +79,7 @@ void MidiListener::run() {
             }
             lastRelevantMessage = -1;
         }
-        msleep(5);
+        msleep(waitTime == 0 ? 10 : waitTime);
     }
 }
 
@@ -91,7 +92,11 @@ void MidiListener::addMessage(int midiNote, int midiChannel, int velocity, bool 
     if (lastRelevantMessage >= MAX_MESSAGES) {
         qWarning() << "Too many messages in a single run before we could report back - we only expected" << MAX_MESSAGES;
     } else {
-        ++lastRelevantMessage;
+        if (waitTime == 0) {
+            lastRelevantMessage = 0;
+        } else {
+            ++lastRelevantMessage;
+        }
         NoteMessage* message = messages.at(lastRelevantMessage);
         message->midiNote = midiNote;
         message->midiChannel = midiChannel;
@@ -103,6 +108,9 @@ void MidiListener::addMessage(int midiNote, int midiChannel, int velocity, bool 
         }
         if (data->size() > 2) {
             message->byte3 = data->at(2);
+        }
+        if (waitTime == 0) {
+            Q_EMIT noteChanged(message->midiNote, message->midiChannel, message->velocity, message->setOn, message->byte1, message->byte2, message->byte3);
         }
     }
 }

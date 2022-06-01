@@ -41,7 +41,7 @@ struct NoteMessage {
 class MidiListener : public QThread {
     Q_OBJECT
 public:
-    explicit MidiListener(int rtMidiInPort);
+    explicit MidiListener(int rtMidiInPort, const QString &name, int waitTime);
     ~MidiListener() override;
     void run() override;
     Q_SLOT void markAsDone();
@@ -49,6 +49,7 @@ public:
     void addMessage(int midiNote, int midiChannel, int velocity, bool setOn, std::vector< unsigned char > *data);
 private:
     int lastRelevantMessage{-1};
+    int waitTime{5};
     QList<NoteMessage*> messages;
     bool done{false};
     int midiInPort{-1};
