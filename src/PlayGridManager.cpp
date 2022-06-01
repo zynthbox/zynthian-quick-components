@@ -185,13 +185,13 @@ public:
     QVariantMap dashboardModels;
     int pitch{0};
     int modulation{0};
-    QMap<QString, SequenceModel*> sequenceModels;
-    QMap<QString, PatternModel*> patternModels;
-    QMap<QString, NotesModel*> notesModels;
+    QHash<QString, SequenceModel*> sequenceModels;
+    QHash<QString, PatternModel*> patternModels;
+    QHash<QString, NotesModel*> notesModels;
     QList<Note*> notes;
-    QMap<QString, SettingsContainer*> settingsContainers;
-    QMap<QString, QObject*> namedInstances;
-    QMap<Note*, int> noteStateMap;
+    QHash<QString, SettingsContainer*> settingsContainers;
+    QHash<QString, QObject*> namedInstances;
+    QHash<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
 
     QHash<int, int> noteActivations;
