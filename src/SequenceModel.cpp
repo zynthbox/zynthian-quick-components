@@ -764,7 +764,9 @@ void SequenceModel::resetSequence()
 void SequenceModel::advanceSequence()
 {
     if (d->shouldMakeSounds) {
-        const quint64 sequenceProgressionLength{d->syncTimer->scheduleAheadAmount()};
+        // The timer schedules ahead internally for sequence advancement type things,
+        // so the sequenceProgressionLength thing is only for prefilling at this point.
+        const quint64 sequenceProgressionLength{1};
         if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
             PatternModel *pattern = d->patternModels[d->soloPattern];
             if (pattern) {
