@@ -69,6 +69,7 @@ public:
                 connect(zlTrack, SIGNAL(externalMidiChannelChanged()), this, SLOT(externalMidiChannelChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
                 q->setMidiChannel(zlTrack->property("id").toInt());
                 trackAudioTypeChanged();
@@ -76,6 +77,7 @@ public:
                 updateSamples();
                 selectedPartChanged();
                 layerDataPuller->start();
+                chainedSoundsChanged();
             }
             Q_EMIT q->zlTrackChanged();
         }
@@ -162,6 +164,19 @@ public Q_SLOTS:
             }
         }
         q->setClipIds(clipIds);
+    }
+    void chainedSoundsChanged() {
+        if (zlTrack) {
+            QList<int> chainedSounds;
+            const QVariantList trackChainedSounds = zlTrack->property("chainedSounds").toList();
+            for (const QVariant &trackChainedSound : trackChainedSounds) {
+                const int chainedSound = trackChainedSound.toInt();
+                if (chainedSound > -1) {
+                    chainedSounds << chainedSound;
+                }
+            }
+            MidiRouter::instance()->setZynthianChannels(q->trackIndex(), chainedSounds);
+        }
     }
     void retrieveLayerData() {
         if (zlTrack) {
