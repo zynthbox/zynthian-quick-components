@@ -285,7 +285,7 @@ public:
      * @param row The row you wish to add a new entry in
      * @param column The column in that row you wish to add a new entry into
      * @param note The note you wish to add to this position
-     * @return The subnote position of the newly added note (for convenience with e.g. setEntryMetadata)
+     * @return The subnote position of the newly added note (for convenience with e.g. setSubnoteMetadata)
      */
     Q_INVOKABLE int insertSubnoteSorted(int row, int column, QObject* note);
 
