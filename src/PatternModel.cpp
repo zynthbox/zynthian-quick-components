@@ -737,6 +737,10 @@ PatternModel::NoteDestination PatternModel::noteDestination() const
 void PatternModel::setNoteDestination(const PatternModel::NoteDestination &noteDestination)
 {
     if (d->noteDestination != noteDestination) {
+        // Before switching the destination, first let's quickly send a little note off for aaaaall notes on this channel
+        juce::MidiBuffer buffer;
+        buffer.addEvent(juce::MidiMessage::allNotesOff(d->midiChannel + 1), 0);
+        qobject_cast<SyncTimer*>(SyncTimer_instance())->sendMidiBufferImmediately(buffer);
         d->noteDestination = noteDestination;
         Q_EMIT noteDestinationChanged();
     }
