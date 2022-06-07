@@ -565,7 +565,16 @@ QVariant PatternModel::subnoteMetadata(int row, int column, int subnote, const Q
     if (row > -1 && row < height() && column > -1 && column < width()) {
         const QVariantList metadata = getMetadata(row, column).toList();
         if (subnote > -1 && subnote < metadata.count()) {
-            result.setValue(metadata.at(subnote).toHash().value(key));
+            if (key.isEmpty()) {
+                const QVariantHash rawMeta = metadata.at(subnote).toHash();
+                QVariantMap qmlFriendlyMeta;
+                for (const QString &key : rawMeta.keys()) {
+                    qmlFriendlyMeta[key] = rawMeta[key];
+                }
+                result.setValue(qmlFriendlyMeta);
+            } else {
+                result.setValue(metadata.at(subnote).toHash().value(key));
+            }
         }
     }
     return result;
