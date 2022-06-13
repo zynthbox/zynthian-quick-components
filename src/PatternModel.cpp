@@ -223,6 +223,32 @@ public:
     // the on-position delay (so that iterating over the hash gives the scheduling
     // delay for that buffer, and the buffer).
     QHash<int, QHash<int, juce::MidiBuffer> > positionBuffers;
+    // Handy variable in case we want to adjust how far ahead we're looking sometime
+    // in the future (right now it's one step ahead, but we could look further if we
+    // wanted to)
+    static const int lookaheadAmount{2};
+    /**
+     * \brief Invalidates the position buffers relevant to the given position
+     * If you give -1 for the two position indicators, the entire list of buffers
+     * will be invalidated.
+     * This function is required to ensure that all buffers the position could
+     * have an impact on (including those which are before it) are invalidated.
+     * @param row The row of the position to invalidate
+     * @param column The column of the position to invalidate
+     */
+   void invalidatePosition(int row = -1, int column = -1) {
+        if (row == -1 || column == -1) {
+            positionBuffers.clear();
+        } else {
+            const int basePosition = (row * width) + column;
+            for (int subsequentNoteIndex = 0; subsequentNoteIndex < lookaheadAmount; ++subsequentNoteIndex) {
+                // We clear backwards, just because might as well (by subtracting the subsequentNoteIndex from our base position)
+                int ourPosition = (basePosition - subsequentNoteIndex) % (availableBars * width);
+                positionBuffers.remove(ourPosition);
+            }
+        }
+    }
+
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
     int trackIndex{-1};
@@ -298,7 +324,7 @@ PatternModel::PatternModel(SequenceModel* parent)
         // the notes that are expected of us
         connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
             if (d->midiChannel == 15 && d->sequence->playGridManager()->currentMidiChannel() > -1) {
-                d->positionBuffers.clear();
+                d->invalidatePosition();
             }
         });
         connect(d->sequence, &SequenceModel::isLoadingChanged, this, [=](){
@@ -369,7 +395,7 @@ PatternModel::PatternModel(SequenceModel* parent)
                 }
             }
             endLongOperation();
-            d->positionBuffers.clear();
+            d->invalidatePosition();
             d->previouslyUpdatedMidiChannel = d->midiChannel;
         }
     });
@@ -598,13 +624,13 @@ QVariant PatternModel::subnoteMetadata(int row, int column, int subnote, const Q
 
 void PatternModel::setNote(int row, int column, QObject* note)
 {
-    d->positionBuffers.remove((row * d->width) + column);
+    d->invalidatePosition(row, column);
     NotesModel::setNote(row, column, note);
 }
 
 void PatternModel::setMetadata(int row, int column, QVariant metadata)
 {
-    d->positionBuffers.remove((row * d->width) + column);
+    d->invalidatePosition(row, column);
     NotesModel::setMetadata(row, column, metadata);
 }
 
@@ -782,7 +808,7 @@ void PatternModel::setHeight(int height)
             removeRow(this->height() - 1);
         }
     }
-    d->positionBuffers.clear();
+    d->invalidatePosition();
     endLongOperation();
 }
 
@@ -848,7 +874,7 @@ void PatternModel::setNoteLength(int noteLength)
 {
     if (d->noteLength != noteLength) {
         d->noteLength = noteLength;
-        d->positionBuffers.clear();
+        d->invalidatePosition();
         Q_EMIT noteLengthChanged();
     }
 }
@@ -1387,46 +1413,79 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 // squish nextPosition down to fit inside our available range (d->availableBars * d->width)
                 // start + (numberToBeWrapped - start) % (limit - start)
                 nextPosition = nextPosition % (d->availableBars * d->width);
-                int row = (nextPosition / d->width) % d->availableBars;
-                int column = nextPosition - (row * d->width);
 
                 if (!d->positionBuffers.contains(nextPosition + (d->bankOffset * d->width))) {
                     QHash<int, juce::MidiBuffer> positionBuffers;
-                    const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
-                    if (note) {
-                        const QVariantList &subnotes = note->subnotes();
-                        const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
-                        if (meta.count() == subnotes.count()) {
-                            for (int i = 0; i < subnotes.count(); ++i) {
-                                const Note *subnote = subnotes[i].value<Note*>();
-                                const QVariantHash &metaHash = meta[i].toHash();
-                                if (subnote) {
-                                    if (metaHash.isEmpty()) {
-                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
-                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
-                                    } else {
-                                        const int velocity{metaHash.value(velocityString, 64).toInt()};
-                                        const int delay{metaHash.value(delayString, 0).toInt()};
-                                        int duration{metaHash.value(durationString, noteDuration).toInt()};
-                                        if (duration < 1) {
-                                            duration = noteDuration;
+                    // Do a lookup for any notes after this position that want playing before their step (currently
+                    // just looking ahead one step, we could probably afford to do a bunch, but one for now)
+                    for (int subsequentNoteIndex = 0; subsequentNoteIndex < d->lookaheadAmount; ++subsequentNoteIndex) {
+                        int ourPosition = (nextPosition + subsequentNoteIndex) % (d->availableBars * d->width);
+                        int row = (ourPosition / d->width) % d->availableBars;
+                        int column = ourPosition - (row * d->width);
+                        const Note *note = qobject_cast<const Note*>(getNote(row + d->bankOffset, column));
+                        if (note) {
+                            const QVariantList &subnotes = note->subnotes();
+                            const QVariantList &meta = getMetadata(row + d->bankOffset, column).toList();
+                            // The first note we want to treat to all the things
+                            if (subsequentNoteIndex == 0) {
+                                if (meta.count() == subnotes.count()) {
+                                    for (int subnoteIndex = 0; subnoteIndex < subnotes.count(); ++subnoteIndex) {
+                                        const Note *subnote = subnotes[subnoteIndex].value<Note*>();
+                                        const QVariantHash &metaHash = meta[subnoteIndex].toHash();
+                                        if (subnote) {
+                                            if (metaHash.isEmpty()) {
+                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
+                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
+                                            } else {
+                                                const int velocity{metaHash.value(velocityString, 64).toInt()};
+                                                const int delay{metaHash.value(delayString, 0).toInt()};
+                                                int duration{metaHash.value(durationString, noteDuration).toInt()};
+                                                if (duration < 1) {
+                                                    duration = noteDuration;
+                                                }
+                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay), subnote, velocity, true, overrideChannel);
+                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay + duration), subnote, velocity, false, overrideChannel);
+                                            }
                                         }
-                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay), subnote, velocity, true, overrideChannel);
-                                        addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay + duration), subnote, velocity, false, overrideChannel);
+                                    }
+                                } else if (subnotes.count() > 0) {
+                                    for (const QVariant &subnoteVar : subnotes) {
+                                        const Note *subnote = subnoteVar.value<Note*>();
+                                        if (subnote) {
+                                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
+                                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
+                                        }
+                                    }
+                                } else {
+                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), note, 64, true, overrideChannel);
+                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), note, 64, false, overrideChannel);
+                                }
+                            // The lookahead notes only need handling if, and only if, there is matching meta, and the delay is negative (as in, position before that step)
+                            } else {
+                                if (meta.count() == subnotes.count()) {
+                                    const int positionAdjustment = subsequentNoteIndex * noteDuration;
+                                    for (int subnoteIndex = 0; subnoteIndex < subnotes.count(); ++subnoteIndex) {
+                                        const Note *subnote = subnotes[subnoteIndex].value<Note*>();
+                                        const QVariantHash &metaHash = meta[subnoteIndex].toHash();
+                                        if (subnote) {
+                                            if (!metaHash.isEmpty() && metaHash.contains(delayString)) {
+                                                const int delay{metaHash.value(delayString, 0).toInt()};
+                                                if (delay < 0) {
+                                                    const int velocity{metaHash.value(velocityString, 64).toInt()};
+                                                    int duration{metaHash.value(durationString, noteDuration).toInt()};
+                                                    if (duration < 1) {
+                                                        duration = noteDuration;
+                                                    }
+//                                                     qDebug() << "Next position" << nextPosition << "with ourPosition" << ourPosition << "where delay" << delay << "is less than 0";
+//                                                     qDebug() << "With position adjustment" << positionAdjustment << "we end up with start" << positionAdjustment + delay << "and end" << positionAdjustment + delay + duration;
+                                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, positionAdjustment + delay), subnote, velocity, true, overrideChannel);
+                                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, positionAdjustment + delay + duration), subnote, velocity, false, overrideChannel);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
-                        } else if (subnotes.count() > 0) {
-                            for (const QVariant &subnoteVar : subnotes) {
-                                const Note *subnote = subnoteVar.value<Note*>();
-                                if (subnote) {
-                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
-                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
-                                }
-                            }
-                        } else {
-                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), note, 64, true, overrideChannel);
-                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), note, 64, false, overrideChannel);
                         }
                     }
                     d->positionBuffers[nextPosition + (d->bankOffset * d->width)] = positionBuffers;
