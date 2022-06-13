@@ -201,6 +201,7 @@ public:
     int midiChannel{15};
     int externalMidiChannel{-1};
     QString layerData;
+    int defaultNoteDuration{0};
     int noteLength{3};
     int availableBars{1};
     int activeBar{0};
@@ -612,6 +613,7 @@ void PatternModel::resetPattern(bool clearNotes)
     startLongOperation();
     setNoteDestination(PatternModel::SynthDestination);
     setExternalMidiChannel(-1);
+    setDefaultNoteDuration(0);
     setNoteLength(3);
     setAvailableBars(1);
     setBankOffset(0);
@@ -827,6 +829,19 @@ void PatternModel::setLayerData(const QString &layerData)
 QString PatternModel::layerData() const
 {
     return d->layerData;
+}
+
+void PatternModel::setDefaultNoteDuration(int defaultNoteDuration)
+{
+    if (d->defaultNoteDuration != defaultNoteDuration) {
+        d->defaultNoteDuration = defaultNoteDuration;
+        Q_EMIT defaultNoteDurationChanged();
+    }
+}
+
+int PatternModel::defaultNoteDuration() const
+{
+    return d->defaultNoteDuration;
 }
 
 void PatternModel::setNoteLength(int noteLength)

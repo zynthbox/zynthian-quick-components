@@ -110,6 +110,19 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(QString layerData READ layerData WRITE setLayerData NOTIFY layerDataChanged)
     /**
+     * \brief The duration which should be any newly added note (by default 0, meaning auto-quantized)
+     *
+     * By default, notes on a pattern are played back in a quantized fashion, but they can also be given an explicit duration
+     * instead. This property should be used to store the duration that any new note gets given (in particular by drumatique,
+     * but also by any other sequencer which creates patterns).
+     *
+     * The default, 0, means that newly added notes will be auto-quantized for playback (until they are given an explicit
+     * duration of their own)
+     *
+     * @default 0
+     */
+    Q_PROPERTY(int defaultNoteDuration READ defaultNoteDuration WRITE setDefaultNoteDuration NOTIFY defaultNoteDurationChanged)
+    /**
      * \brief The duration of a note in the pattern (the subdivision used to determine the speed of playback)
      * Values from 1 through 6, which each translate to the following:
      * 1: quarter
@@ -350,6 +363,7 @@ public:
      * - width
      * - height
      * - externalMidiChannel
+     * - defaultNoteDuration
      * - noteLength
      * - availableBars
      * - bankOffset (and consequently bank)
@@ -441,6 +455,10 @@ public:
     void setLayerData(const QString &layerData);
     QString layerData() const;
     Q_SIGNAL void layerDataChanged();
+
+    void setDefaultNoteDuration(int defaultNoteDuration);
+    int defaultNoteDuration() const;
+    Q_SIGNAL void defaultNoteDurationChanged();
 
     void setNoteLength(int noteLength);
     int noteLength() const;
