@@ -713,8 +713,10 @@ void SequenceModel::prepareSequencePlayback()
         connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
         // pre-fill the first beat with notes - the first beat will also call the function,
         // but will do so for +1, not current cumulativeBeat, so we need to prefill things a bit.
-        for (PatternModel *pattern : d->patternModels) {
-            pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), d->syncTimer->scheduleAheadAmount(), 0);
+        if (d->shouldMakeSounds) {
+            for (PatternModel *pattern : d->patternModels) {
+                pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), d->syncTimer->scheduleAheadAmount(), 0);
+            }
         }
     }
     playGridManager()->hookUpTimer();
