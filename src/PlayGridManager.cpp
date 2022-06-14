@@ -283,42 +283,27 @@ public:
         static const QLatin1String note_on{"note_on"};
         static const QLatin1String note_off{"note_off"};
 
-        bool shouldAdd{true};
         const qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-        for (int i = mostRecentlyChangedNotes.count() - 1; i >= 0; --i) {
-            const QVariantMap &previousMostRecent = mostRecentlyChangedNotes.at(i).toMap();
-            if (currentTime - previousMostRecent["timestamp"].value<qint64>() > 10) {
-                break;
-            }
-            if (previousMostRecent["note"] == midiNote && previousMostRecent["channel"] == midiChannel && previousMostRecent["velocity"] == velocity && previousMostRecent["type"] == (setOn ? note_on : note_off)) {
-                shouldAdd = false;
-                break;
-            }
+        QVariantMap metadata;
+        metadata["note"] = midiNote;
+        metadata["channel"] = midiChannel;
+        metadata["velocity"] = velocity;
+        metadata["type"] = setOn ? note_on : note_off;
+        metadata.insert("timestamp", QVariant::fromValue<qint64>(currentTime));
+        mostRecentlyChangedNotes << metadata;
+        while (mostRecentlyChangedNotes.count() > 100) {
+            mostRecentlyChangedNotes.removeFirst();
         }
-        if (shouldAdd) {
-            QVariantMap metadata;
-            metadata["note"] = midiNote;
-            metadata["channel"] = midiChannel;
-            metadata["velocity"] = velocity;
-            metadata["type"] = setOn ? note_on : note_off;
-            metadata.insert("timestamp", QVariant::fromValue<qint64>(currentTime));
-            mostRecentlyChangedNotes << metadata;
-            while (mostRecentlyChangedNotes.count() > 100) {
-                mostRecentlyChangedNotes.removeFirst();
-            }
-            QMetaObject::invokeMethod(q, &PlayGridManager::mostRecentlyChangedNotesChanged, Qt::QueuedConnection);
-        }
+        QMetaObject::invokeMethod(q, &PlayGridManager::mostRecentlyChangedNotesChanged, Qt::QueuedConnection);
 
         Note *note = findExistingNote(midiNote, midiChannel);
         if (note) {
-            if (setOn) {
-                note->setIsPlaying(true);
-            } else {
-                note->setIsPlaying(false);
-            }
+            note->setIsPlaying(setOn);
         }
 
-        noteActivations[midiNote] += setOn ? 1 : -1;
+        // Not super happy that we seem unable to count these... something breaks, and threading is going to be
+        // it, but... without this, we end up with seemingly-stuck notes, so i guess, just do it like this
+        noteActivations[midiNote] = setOn ? 1 : 0;
         QMetaObject::invokeMethod(activeNotesUpdater, QOverload<>::of(&QTimer::start), Qt::QueuedConnection);
     }
 
