@@ -76,6 +76,10 @@ public:
      */
     quint64 lastModified() const;
     Q_SIGNAL void lastModifiedChanged();
+    /**
+     * \brief Call this to make the object notice that a change has happened (changing lastModified)
+     */
+    void registerChange();
 
     bool isEmpty() const;
     Q_SIGNAL void isEmptyChanged();

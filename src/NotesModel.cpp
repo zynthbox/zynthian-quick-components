@@ -64,6 +64,7 @@ public:
     NotesModel *q;
     NotesModel *parentModel{nullptr};
     int parentRow{-1};
+    QTimer *lastModifiedChanger{nullptr};
     quint64 lastModified{0};
     QList<NotesModel*> childModels;
     bool isEmpty{true};
@@ -138,18 +139,18 @@ NotesModel::NotesModel(PlayGridManager* parent)
     : QAbstractListModel(parent)
     , d(new Private(this))
 {
-    QTimer *lastModifiedChanger = new QTimer(this);
-    lastModifiedChanger->setInterval(1);
-    lastModifiedChanger->setSingleShot(true);
-    connect(lastModifiedChanger, &QTimer::timeout, this, [this](){
+    d->lastModifiedChanger = new QTimer(this);
+    d->lastModifiedChanger->setInterval(1);
+    d->lastModifiedChanger->setSingleShot(true);
+    connect(d->lastModifiedChanger, &QTimer::timeout, this, [this](){
         d->lastModified = QDateTime::currentMSecsSinceEpoch();
         Q_EMIT lastModifiedChanged();
     });
-    connect(this, &QAbstractItemModel::dataChanged, lastModifiedChanger, QOverload<>::of(&QTimer::start));
-    connect(this, &QAbstractItemModel::modelReset, lastModifiedChanger, QOverload<>::of(&QTimer::start));
-    connect(this, &QAbstractItemModel::rowsInserted, lastModifiedChanger, QOverload<>::of(&QTimer::start));
-    connect(this, &QAbstractItemModel::rowsRemoved, lastModifiedChanger, QOverload<>::of(&QTimer::start));
-    connect(this, &NotesModel::rowsChanged, lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::dataChanged, d->lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::modelReset, d->lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::rowsInserted, d->lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &QAbstractItemModel::rowsRemoved, d->lastModifiedChanger, QOverload<>::of(&QTimer::start));
+    connect(this, &NotesModel::rowsChanged, d->lastModifiedChanger, QOverload<>::of(&QTimer::start));
 }
 
 NotesModel::NotesModel(NotesModel* parent, int row)
@@ -306,6 +307,11 @@ int NotesModel::parentRow() const
 quint64 NotesModel::lastModified() const
 {
     return d->lastModified;
+}
+
+void NotesModel::registerChange()
+{
+    d->lastModifiedChanger->start();
 }
 
 bool NotesModel::isEmpty() const

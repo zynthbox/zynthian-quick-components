@@ -339,6 +339,16 @@ PatternModel::PatternModel(SequenceModel* parent)
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
 
+    connect(this, &PatternModel::noteDestinationChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::midiChannelChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::layerDataChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::noteLengthChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::availableBarsChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::activeBarChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::bankOffsetChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::bankLengthChanged, this, &NotesModel::registerChange);
+    connect(this, &PatternModel::enabledChanged, this, &NotesModel::registerChange);
+
     connect(this, &QObject::objectNameChanged, this, &PatternModel::nameChanged);
     connect(this, &QObject::objectNameChanged, this, &PatternModel::thumbnailUrlChanged);
     connect(this, &NotesModel::lastModifiedChanged, this, &PatternModel::hasNotesChanged);
