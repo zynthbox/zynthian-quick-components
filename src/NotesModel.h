@@ -209,8 +209,18 @@ public:
 
     Q_SIGNAL void rowsChanged();
 
-    void startLongOperation();
-    void endLongOperation();
+    /**
+     * \brief Call this before starting an operation that will do more than one change
+     * This will stop updates from being emitted by the model, until a corresponding endLongOperation
+     * call is made. You can nest multiple of these, and as such it is safe to use.
+     * @note You /must/ make a matching end call, or the model will basically stop working correctly
+     */
+    Q_INVOKABLE void startLongOperation();
+    /**
+     * \brief Call this after completing an operation that will do more than one change
+     * @see startLongOperation()
+     */
+    Q_INVOKABLE void endLongOperation();
 private:
     class Private;
     Private* d;
