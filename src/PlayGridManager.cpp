@@ -363,6 +363,7 @@ public:
                 QJsonObject obj;
                 obj.insert("note", q->noteToJsonObject(qobject_cast<Note*>(model->getNote(row, column))));
                 obj.insert("metadata", QJsonValue::fromVariant(model->getMetadata(row, column)));
+                obj.insert("keyeddata", QJsonValue::fromVariant(model->getKeyedData(row, column)));
                 rowArray.append(obj);
             }
             modelArray << QJsonValue(rowArray);
@@ -751,12 +752,14 @@ void PlayGridManager::setModelFromJson(QObject* model, const QString& json)
             if (row.isArray()) {
                 QVariantList rowList;
                 QVariantList rowMetadata;
+                QVariantList rowKeyedData;
                 QJsonArray rowArray = row.toArray();
                 for (const QJsonValue &note : rowArray) {
                     rowList << QVariant::fromValue<QObject*>(jsonObjectToNote(note["note"].toObject()));
                     rowMetadata << note["metadata"].toVariant();
+                    rowKeyedData << note["keyeddata"].toVariant();
                 }
-                actualModel->insertRow(rowPosition, rowList, rowMetadata);
+                actualModel->insertRow(rowPosition, rowList, rowMetadata, rowKeyedData);
             }
             ++rowPosition;
         }

@@ -141,6 +141,32 @@ public:
      * @param metadata The piece of metadata you wish to set
      */
     Q_INVOKABLE virtual void setMetadata(int row, int column, QVariant metadata);
+    /**
+     * \brief Set a piece of named metadata for the given position
+     * @note Not valid on child models (see parentModel())
+     * @param row The row of the position to set the keyed metadata for
+     * @param column The column of the position to set the keyed metadata for
+     * @param key The name for the piece of metadata
+     * @param value The piece of metadata you wish to set (pass an empty string to unset the key)
+     */
+    Q_INVOKABLE void setKeyedMetadata(int row, int column, const QString& key, const QVariant& metadata);
+    /**
+     * \brief Get a piece of named metadata for the given position
+     * @note Not valid on child models (see parentModel())
+     * @param row The row of the position to fetch the keyed metadata from
+     * @param column The column of the position to fetch the keyed metadata from
+     * @parm key The name of the piece of metadata
+     * @return A QVariant, which is invalid if the key doesn't exist, and otherwise contains the value
+     */
+    Q_INVOKABLE QVariant getKeyedMetadata(int row, int column, const QString& key) const;
+    /**
+     * \brief Get all the hash containing all the keyed data for the given position
+     * @note Not valid on child models (see parentModel())
+     * @param row The row of the position to fetch all keyed data from
+     * @param column The column of the position to fetch all keyed data from
+     * @return A QVariantHash
+     */
+    Q_INVOKABLE QVariantHash getKeyedData(int row, int column) const;
 
     /**
      * \brief Set the list of notes and metadata for the given row to be the given list
@@ -148,8 +174,9 @@ public:
      * @param row The row you wish to replace the notes for
      * @param notes The list of notes you wish to set for the given row
      * @param metadata The list of metadata you wish to set for the given row
+     * @param keyedData The list of keyed data you wish to set for the given row
      */
-    Q_INVOKABLE void setRowData(int row, QVariantList notes, QVariantList metadata = QVariantList());
+    Q_INVOKABLE void setRowData(int row, QVariantList notes, QVariantList metadata = QVariantList(), QVariantList keyedData = QVariantList());
 
     /**
      * \brief Trims the rows in the model of all trailing empty columns, and removes any empty rows
@@ -186,8 +213,9 @@ public:
      * @param index The location at which you wish to insert the row
      * @param notes A list of notes to be added to the model as a new row (they will be inserted at the top of the model)
      * @param metadata An optional list of metadata associated with the notes
+     * @param keyedData An optional hash of key/value based data associated with the notes
      */
-    Q_INVOKABLE void insertRow(int index, const QVariantList &notes, const QVariantList &metadata = QVariantList());
+    Q_INVOKABLE void insertRow(int index, const QVariantList &notes, const QVariantList &metadata = QVariantList(), const QVariantList &keyedData = QVariantList());
 
     /**
      * \brief Remove a row of notes from the model

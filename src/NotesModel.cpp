@@ -30,6 +30,7 @@
 struct Entry {
     Note* note{nullptr};
     QVariant metaData;
+    QVariantHash keyedData;
 };
 
 class NotesModel::Private {
@@ -444,7 +445,66 @@ void NotesModel::setMetadata(int row, int column, QVariant metadata)
     }
 }
 
-void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata)
+QVariant NotesModel::getKeyedMetadata(int row, int column, const QString &key) const
+{
+    QVariant data;
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            const QList<Entry> &rowEntries = d->entries.at(row);
+            if (column >= 0 && column < rowEntries.count()) {
+                const QVariantHash &hash = rowEntries.at(column).keyedData;
+                if (hash.contains(key)) {
+                    data = hash[key];
+                }
+            }
+        }
+    }
+    return data;
+}
+
+QVariantHash NotesModel::getKeyedData(int row, int column) const
+{
+    QVariantHash data;
+    if (!d->parentModel) {
+        if (row >= 0 && row < d->entries.count()) {
+            const QList<Entry> &rowEntries = d->entries.at(row);
+            if (column >= 0 && column < rowEntries.count()) {
+                data = rowEntries.at(column).keyedData;
+            }
+        }
+    }
+    return data;
+}
+
+void NotesModel::setKeyedMetadata(int row, int column, const QString &key, const QVariant &metadata)
+{
+    static const QLatin1String jsvalueType{"QJSValue"};
+    if (!d->parentModel) {
+        d->ensurePositionExists(row, column);
+        QList<Entry> rowList = d->entries[row];
+        if (metadata.type() == QVariant::String && metadata.toString() == "") {
+            if (rowList[column].keyedData.contains(key)) {
+                rowList[column].keyedData.remove(key);
+            }
+        } else {
+            QVariant actualMeta{metadata};
+            if (QString(metadata.typeName()) == jsvalueType) {
+                const QJSValue tempMeta{metadata.value<QJSValue>()};
+                actualMeta = tempMeta.toVariant();
+            }
+            rowList[column].keyedData[key] = actualMeta;
+        }
+        d->entries[row] = rowList;
+        d->isEmtpyUpdater.start();
+        if (d->isWorking == 0) {
+            QModelIndex changed = createIndex(row, column);
+            dataChanged(changed, changed);
+        }
+    }
+}
+
+
+void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata, QVariantList keyedData)
 {
     static const QLatin1String jsvalueType{"QJSValue"};
     if (!d->parentModel) {
@@ -457,9 +517,18 @@ void NotesModel::setRowData(int row, QVariantList notes, QVariantList metadata)
                     const QJSValue tempMeta{actualMeta.value<QJSValue>()};
                     actualMeta = tempMeta.toVariant();
                 }
+                QVariant actualKeyedData;
+                if (i < keyedData.count()) {
+                    actualKeyedData = keyedData.at(i);
+                    if (QString(actualKeyedData.typeName()) == jsvalueType) {
+                        const QJSValue tempMeta{actualKeyedData.value<QJSValue>()};
+                        actualKeyedData = tempMeta.toVariant();
+                    }
+                }
                 Entry entry;
                 entry.note = actualNote;
                 entry.metaData = actualMeta;
+                entry.keyedData = actualKeyedData.toHash();
                 rowList.append(entry);
             }
             d->entries[row] = rowList;
@@ -546,17 +615,21 @@ void NotesModel::appendRow(const QVariantList& notes, const QVariantList& metada
     insertRow(d->entries.count(), notes, metadata);
 }
 
-void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantList& metadata)
+void NotesModel::insertRow(int index, const QVariantList& notes, const QVariantList& metadata, const QVariantList& keyedData)
 {
     if (!d->parentModel && index > -1 && index <= d->entries.count()) {
         QList<Entry> actualNotes;
-        int metadataCount = metadata.count();
+        const int metadataCount = metadata.count();
+        const int keyedDataCount = keyedData.count();
         for (int i = 0; i < notes.count(); ++i) {
             Entry entry;
             Note *note = notes[i].value<Note*>();
             entry.note = note;
             if (i < metadataCount) {
                 entry.metaData = metadata[i];
+            }
+            if (i < keyedDataCount) {
+                entry.keyedData = keyedData[i].toHash();
             }
             actualNotes << entry;
         }
