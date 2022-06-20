@@ -288,8 +288,7 @@ public:
         QList<ClipCommand*> commands;
         const QList<ClipAudioSource*> clips = clipsForMidiNote(meta.data[1]);
         for (ClipAudioSource *clip : clips) {
-            ClipCommand *command = new ClipCommand;
-            command->clip = clip;
+            ClipCommand *command = ClipCommand::trackCommand(clip, midiChannel);
             command->startPlayback = meta.data[0] > 0x8F;
             command->stopPlayback = meta.data[0] < 0x90;
             if (command->startPlayback) {
