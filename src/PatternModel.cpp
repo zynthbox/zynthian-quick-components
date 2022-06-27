@@ -71,6 +71,7 @@ public:
                 connect(zlTrack, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(recordingPopupActiveChanged()), this, SIGNAL(recordingPopupActiveChanged()), Qt::QueuedConnection);
                 q->setMidiChannel(zlTrack->property("id").toInt());
                 trackAudioTypeChanged();
                 externalMidiChannelChanged();
@@ -114,6 +115,9 @@ public:
             Q_EMIT q->zlSceneChanged();
         }
     }
+
+    Q_SIGNAL void recordingPopupActiveChanged();
+
 public Q_SLOTS:
     void sceneEnabledChanged() {
         q->setEnabled(zlScene->property("enabled").toBool());
@@ -378,7 +382,12 @@ PatternModel::PatternModel(SequenceModel* parent)
                 // Default destination
                 break;
         }
-        MidiRouter::instance()->setChannelDestination(d->midiChannel, routerDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
+        if (zlTrack() && zlTrack()->property("recordingPopupActive").toBool()) {
+            // Recording Popup is active. Do connect midi channel to allow recording even if track mode is trig/slice
+            MidiRouter::instance()->setChannelDestination(d->midiChannel, MidiRouter::ZynthianDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
+        } else {
+            MidiRouter::instance()->setChannelDestination(d->midiChannel, routerDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
+        }
         if (d->previouslyUpdatedMidiChannel != d->midiChannel) {
             startLongOperation();
             for (int row = 0; row < rowCount(); ++row) {
@@ -411,6 +420,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     connect(this, &PatternModel::midiChannelChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
     connect(this, &PatternModel::externalMidiChannelChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
     connect(this, &PatternModel::noteDestinationChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
+    connect(d->zlSyncManager, &ZLPatternSynchronisationManager::recordingPopupActiveChanged, midiChannelUpdater, QOverload<>::of(&QTimer::start));
 
     connect(d->playGridManager, &PlayGridManager::midiMessage, this, &PatternModel::handleMidiMessage, Qt::DirectConnection);
     connect(qobject_cast<SyncTimer*>(SyncTimer_instance()), &SyncTimer::clipCommandSent, this, [this](ClipCommand *clipCommand){
