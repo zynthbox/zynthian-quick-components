@@ -122,7 +122,7 @@ public:
         });
         activeNotesUpdater = new QTimer(q);
         activeNotesUpdater->setSingleShot(true);
-        activeNotesUpdater->setInterval(1);
+        activeNotesUpdater->setInterval(0);
         connect(activeNotesUpdater, &QTimer::timeout, q, [this, q](){
             QHash<int, int>::const_iterator iterator = noteActivations.constBegin();
             QStringList activated;
@@ -137,7 +137,7 @@ public:
         });
         hardwareInActiveNotesUpdater = new QTimer(q);
         hardwareInActiveNotesUpdater->setSingleShot(true);
-        hardwareInActiveNotesUpdater->setInterval(1);
+        hardwareInActiveNotesUpdater->setInterval(0);
         connect(hardwareInActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
             QHash<int, int>::const_iterator iterator = hardwareInNoteActivations.constBegin();
             QStringList activated;
@@ -152,7 +152,7 @@ public:
         });
         hardwareOutActiveNotesUpdater = new QTimer(q);
         hardwareOutActiveNotesUpdater->setSingleShot(true);
-        hardwareOutActiveNotesUpdater->setInterval(1);
+        hardwareOutActiveNotesUpdater->setInterval(0);
         connect(hardwareOutActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
             QHash<int, int>::const_iterator iterator = hardwareOutNoteActivations.constBegin();
             QStringList activated;
@@ -270,15 +270,15 @@ public:
     }
 
     void handleHardwareInputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        hardwareInNoteActivations[midiNote] += setOn ? 1 : -1;
+        hardwareInNoteActivations[midiNote] = setOn ? 1 : 0;
         hardwareInActiveNotesUpdater->start();
     }
     void handleHardwareOutputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        hardwareOutNoteActivations[midiNote] += setOn ? 1 : -1;
+        hardwareOutNoteActivations[midiNote] = setOn ? 1 : 0;
         hardwareOutActiveNotesUpdater->start();
     }
     void handlePassthroughEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        noteActivations[midiNote] += setOn ? 1 : -1;
+        noteActivations[midiNote] = setOn ? 1 : 0;
         activeNotesUpdater->start();
     }
 
