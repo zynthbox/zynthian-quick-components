@@ -39,7 +39,7 @@
 #define TRACK_COUNT 10
 #define PART_COUNT 5
 #define PATTERN_COUNT (TRACK_COUNT * PART_COUNT)
-static const QStringList sceneNames{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
+static const QStringList mixNames{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"};
 static const QStringList partNames{"a", "b", "c", "d", "e"};
 
 class ZLSequenceSynchronisationManager : public QObject {
@@ -453,7 +453,7 @@ void SequenceModel::load(const QString &fileName)
             file.close();
         }
     }
-    const QString sceneName{sceneNames.contains(objectName().right(1)) ? objectName().right(1) : ""};
+    const QString mixName{mixNames.contains(objectName()) ? objectName() : ""};
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data.toUtf8());
     if (jsonDoc.isObject()) {
         // First, load the patterns from disk
@@ -479,7 +479,7 @@ void SequenceModel::load(const QString &fileName)
                 // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
                 const int intermediaryTrackIndex = actualIndex / PART_COUNT;
                 const QString &intermediaryPartName = partNames[actualIndex - (intermediaryTrackIndex * PART_COUNT)];
-                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(mixName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
                 model->startLongOperation();
                 model->resetPattern(true);
                 model->setTrackIndex(intermediaryTrackIndex);
@@ -489,7 +489,7 @@ void SequenceModel::load(const QString &fileName)
 //                 qWarning() << "Sequence missing patterns prior to that, added:" << model;
                 ++actualIndex;
             }
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(trackIndex + 1)).arg(partName).arg(objectName()), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(mixName).arg(QString::number(trackIndex + 1)).arg(partName).arg(objectName()), this));
             model->startLongOperation();
             model->resetPattern(true);
             model->setTrackIndex(trackIndex);
@@ -518,7 +518,7 @@ void SequenceModel::load(const QString &fileName)
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
             const int intermediaryTrackIndex = i / PART_COUNT;
             const QString &intermediaryPartName = partNames[i % PART_COUNT];
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(sceneName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Pattern %1-%2%3 - %4").arg(mixName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName).arg(objectName()), this));
             model->startLongOperation();
             model->resetPattern(true);
             model->setTrackIndex(intermediaryTrackIndex);
