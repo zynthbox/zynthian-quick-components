@@ -39,7 +39,7 @@
 #define TRACK_COUNT 10
 #define PART_COUNT 5
 #define PATTERN_COUNT (TRACK_COUNT * PART_COUNT)
-static const QStringList mixNames{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"};
+static const QStringList sketchNames{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"};
 static const QStringList partNames{"a", "b", "c", "d", "e"};
 
 class ZLSequenceSynchronisationManager : public QObject {
@@ -49,7 +49,7 @@ public:
         : QObject(parent)
         , q(parent)
     {
-        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedMixIndexChanged, Qt::QueuedConnection);
+        connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedSketchIndexChanged, Qt::QueuedConnection);
         // This actually means current /track/ changed, the track index and our current midi channel are the same number
         connect(q->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, &ZLSequenceSynchronisationManager::currentMidiChannelChanged, Qt::QueuedConnection);
     };
@@ -80,8 +80,8 @@ public:
             }
             zlScenesModel = newZlScenesModel;
             if (zlScenesModel) {
-                connect(zlScenesModel, SIGNAL(selected_mix_index_changed()), this, SLOT(selectedMixIndexChanged()), Qt::QueuedConnection);
-                selectedMixIndexChanged();
+                connect(zlScenesModel, SIGNAL(selected_sketch_index_changed()), this, SLOT(selectedSketchIndexChanged()), Qt::QueuedConnection);
+                selectedSketchIndexChanged();
             }
         }
     }
@@ -93,10 +93,10 @@ public Q_SLOTS:
     void scenesModelChanged() {
         setZlScenesModel(zlSong->property("scenesModel").value<QObject*>());
     }
-    void selectedMixIndexChanged() {
+    void selectedSketchIndexChanged() {
         if (zlScenesModel) {
-            const int selectedMixIndex = zlScenesModel->property("selectedMixIndex").toInt();
-            q->setShouldMakeSounds(selectedMixIndex == q->sceneIndex());
+            const int selectedSketchIndex = zlScenesModel->property("selectedSketchIndex").toInt();
+            q->setShouldMakeSounds(selectedSketchIndex == q->sceneIndex());
         }
     }
     void currentMidiChannelChanged() {
@@ -453,7 +453,7 @@ void SequenceModel::load(const QString &fileName)
             file.close();
         }
     }
-    const QString mixName{mixNames.contains(objectName()) ? objectName() : ""};
+    const QString sketchName{sketchNames.contains(objectName()) ? objectName() : ""};
     QJsonDocument jsonDoc = QJsonDocument::fromJson(data.toUtf8());
     if (jsonDoc.isObject()) {
         // First, load the patterns from disk
@@ -479,7 +479,7 @@ void SequenceModel::load(const QString &fileName)
                 // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
                 const int intermediaryTrackIndex = actualIndex / PART_COUNT;
                 const QString &intermediaryPartName = partNames[actualIndex - (intermediaryTrackIndex * PART_COUNT)];
-                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(mixName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName), this));
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName), this));
                 model->startLongOperation();
                 model->resetPattern(true);
                 model->setTrackIndex(intermediaryTrackIndex);
@@ -489,7 +489,7 @@ void SequenceModel::load(const QString &fileName)
 //                 qWarning() << "Sequence missing patterns prior to that, added:" << model;
                 ++actualIndex;
             }
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(mixName).arg(QString::number(trackIndex + 1)).arg(partName), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(trackIndex + 1)).arg(partName), this));
             model->startLongOperation();
             model->resetPattern(true);
             model->setTrackIndex(trackIndex);
@@ -518,7 +518,7 @@ void SequenceModel::load(const QString &fileName)
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
             const int intermediaryTrackIndex = i / PART_COUNT;
             const QString &intermediaryPartName = partNames[i % PART_COUNT];
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(mixName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName), this));
             model->startLongOperation();
             model->resetPattern(true);
             model->setTrackIndex(intermediaryTrackIndex);
