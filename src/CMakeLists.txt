@@ -11,6 +11,7 @@ target_sources(zynthian-quick-plugin
     PatternModel.cpp
     PlayGrid.cpp
     PlayGridManager.cpp
+    SegmentHandler.cpp
     SequenceModel.cpp
     SettingsContainer.cpp
 

@@ -33,6 +33,7 @@
 #include "PatternModel.h"
 #include "PlayGrid.h"
 #include "SettingsContainer.h"
+#include "SegmentHandler.h"
 
 void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
 {
@@ -53,6 +54,13 @@ void QmlPlugins::registerTypes(const char *uri)
         playGridManager->setEngine(engine);
         QQmlEngine::setObjectOwnership(playGridManager, QQmlEngine::CppOwnership);
         return playGridManager;
+    });
+    qmlRegisterSingletonType<SegmentHandler>(uri, 1, 0, "SegmentHandler", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
+        Q_UNUSED(engine)
+        Q_UNUSED(scriptEngine)
+        SegmentHandler *segmentHandler = SegmentHandler::instance();
+        QQmlEngine::setObjectOwnership(segmentHandler, QQmlEngine::CppOwnership);
+        return segmentHandler;
     });
     qmlRegisterSingletonType<MidiRecorder>(uri, 1, 0, "MidiRecorder", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
         Q_UNUSED(engine)
