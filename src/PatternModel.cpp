@@ -21,6 +21,7 @@
 
 #include "PatternModel.h"
 #include "Note.h"
+#include "SegmentHandler.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -199,6 +200,7 @@ public:
     }
     ~Private() {}
     ZLPatternSynchronisationManager *zlSyncManager{nullptr};
+    SegmentHandler *segmentHandler{nullptr};
     QHash<QString, qint64> lastSavedTimes;
     int width{16};
     PatternModel::NoteDestination noteDestination{PatternModel::SynthDestination};
@@ -317,6 +319,7 @@ PatternModel::PatternModel(SequenceModel* parent)
     , d(new Private)
 {
     d->zlSyncManager = new ZLPatternSynchronisationManager(this);
+    d->segmentHandler = SegmentHandler::instance();
     // We need to make sure that we support orphaned patterns (that is, a pattern that is not contained within a sequence)
     d->sequence = parent;
     if (parent) {
@@ -1256,7 +1259,9 @@ int PatternModel::bankPlaybackPosition() const
 bool PatternModel::isPlaying() const
 {
     bool isPlaying{false};
-    if (d->sequence && d->sequence->isPlaying()) {
+    if (d->segmentHandler->songMode()) {
+        isPlaying = d->segmentHandler->playfieldState(d->trackIndex, d->sequence->sceneIndex(), d->partIndex);
+    } else if (d->sequence && d->sequence->isPlaying()) {
         if (d->sequence->soloPattern() > -1) {
             isPlaying = (d->sequence->soloPatternObject() == this);
         } else {

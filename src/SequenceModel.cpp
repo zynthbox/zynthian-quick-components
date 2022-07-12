@@ -22,6 +22,7 @@
 #include "SequenceModel.h"
 #include "Note.h"
 #include "PatternModel.h"
+#include "SegmentHandler.h"
 
 #include <libzl.h>
 #include <SyncTimer.h>
@@ -122,6 +123,7 @@ public:
     ZLSequenceSynchronisationManager *zlSyncManager{nullptr};
     PlayGridManager *playGridManager{nullptr};
     SyncTimer *syncTimer{nullptr};
+    SegmentHandler *segmentHandler{nullptr};
     QObject *song{nullptr};
     int soloPattern{-1};
     PatternModel *soloPatternObject{nullptr};
@@ -172,6 +174,7 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     d->playGridManager = parent;
     d->zlSyncManager = new ZLSequenceSynchronisationManager(this);
     d->syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
+    d->segmentHandler = SegmentHandler::instance();
     connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
         if (!d->syncTimer->timerRunning()) {
             stopSequencePlayback();
@@ -756,7 +759,7 @@ void SequenceModel::resetSequence()
 
 void SequenceModel::advanceSequence()
 {
-    if (d->shouldMakeSounds) {
+    if (d->shouldMakeSounds || d->segmentHandler->songMode()) {
         // The timer schedules ahead internally for sequence advancement type things,
         // so the sequenceProgressionLength thing is only for prefilling at this point.
         const quint64 sequenceProgressionLength{1};
@@ -766,7 +769,7 @@ void SequenceModel::advanceSequence()
                 pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
             }
         } else {
-            for (PatternModel *pattern : d->patternModels) {
+            for (PatternModel *pattern : qAsConst(d->patternModels)) {
                 pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
             }
         }
@@ -782,7 +785,7 @@ void SequenceModel::updatePatternPositions()
                 pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
             }
         } else {
-            for (PatternModel *pattern : d->patternModels) {
+            for (PatternModel *pattern : qAsConst(d->patternModels)) {
                 pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
             }
         }
