@@ -23,9 +23,11 @@
 #include "PlayGridManager.h"
 
 #include "libzl.h"
+#include "ClipCommand.h"
 #include "SyncTimer.h"
 #include "TimerCommand.h"
 
+#include <QDebug>
 #include <QVariant>
 
 struct SketchState {
@@ -84,7 +86,18 @@ public:
             if (playlist.contains(playhead)) {
                 const QList<TimerCommand*> commands = playlist[playhead];
                 for (TimerCommand* command : commands) {
-                    syncTimer->scheduleTimerCommand(0, command);
+                    if (command->operation == TimerCommand::StartClipLoopOperation || command->operation == TimerCommand::StopClipLoopOperation) {
+                        ClipCommand* clipCommand = new ClipCommand();
+                        clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
+                        clipCommand->midiChannel = command->parameter;
+                        clipCommand->clip = ClipAudioSource_byID(command->parameter2);
+                        clipCommand->midiNote = command->parameter3;
+                        clipCommand->looping = true;
+                        command->variantParameter.setValue<void*>(clipCommand);
+                        syncTimer->scheduleClipCommand(clipCommand, 0);
+                    } else {
+                        syncTimer->scheduleTimerCommand(0, command);
+                    }
                 }
             }
         }
@@ -162,10 +175,12 @@ public Q_SLOTS:
         Q_EMIT q->songModeChanged();
     }
     void updateSegments() {
+        static const QLatin1String sampleLoopedType{"sample-loop"};
         QHash<quint64, QList<TimerCommand*> > playlist;
         int mixIndex = zlMixesModel->property("selectedMixIndex").toInt();
         QObject *mix{nullptr};
         QMetaObject::invokeMethod(zlMixesModel, "getMix", Qt::DirectConnection, Q_RETURN_ARG(QObject*, mix), Q_ARG(int, mixIndex));
+        QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
         if (mix) {
             QObject *segmentsModel = mix->property("segmentsModel").value<QObject*>();
             if (segmentsModel) {
@@ -186,10 +201,19 @@ public Q_SLOTS:
                             if (!clipsInPrevious.contains(clip)) {
                                 // If the clip was not there in the previous step, that means we should turn it on
                                 TimerCommand* command = new TimerCommand;
-                                command->operation = TimerCommand::StartPartOperation;
                                 command->parameter = clip->property("row").toInt();
-                                command->parameter2 = clip->property("column").toInt();
-                                command->parameter3 = clip->property("part").toInt();
+                                QObject *trackObject{nullptr};
+                                QMetaObject::invokeMethod(tracksModel, "", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
+                                const QString trackAudioType = trackObject->property("trackAudioType").toString();
+                                if (trackAudioType == sampleLoopedType) {
+                                    command->operation = TimerCommand::StartClipLoopOperation;
+                                    command->parameter2 = clip->property("cppObjId").toInt();
+                                    command->parameter3 = 60;
+                                } else {
+                                    command->operation = TimerCommand::StartPartOperation;
+                                    command->parameter2 = clip->property("column").toInt();
+                                    command->parameter3 = clip->property("part").toInt();
+                                }
                                 commands << command;
                             }
                         }
@@ -198,10 +222,19 @@ public Q_SLOTS:
                                 // If the clip was in the previous step, but not in this step, that means it
                                 // should be turned off when reaching this position
                                 TimerCommand* command = new TimerCommand;
-                                command->operation = TimerCommand::StopPartOperation;
                                 command->parameter = clip->property("row").toInt();
-                                command->parameter2 = clip->property("column").toInt();
-                                command->parameter3 = clip->property("part").toInt();
+                                QObject *trackObject{nullptr};
+                                QMetaObject::invokeMethod(tracksModel, "", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
+                                const QString trackAudioType = trackObject->property("trackAudioType").toString();
+                                if (trackAudioType == sampleLoopedType) {
+                                    command->operation = TimerCommand::StopClipLoopOperation;
+                                    command->parameter2 = clip->property("cppObjId").toInt();
+                                    command->parameter3 = 60;
+                                } else {
+                                    command->operation = TimerCommand::StopPartOperation;
+                                    command->parameter2 = clip->property("column").toInt();
+                                    command->parameter3 = clip->property("part").toInt();
+                                }
                                 commands << command;
                             }
                         }
