@@ -102,7 +102,7 @@ public:
     void emitNoteDataChanged() {
         if (isWorking == 0) {
             for (int row = 0; row < entries.count(); ++row) {
-                QList<Entry> rowEntries = entries[row];
+                const QList<Entry>& rowEntries = entries[row];
                 for (int column = 0; column < rowEntries.count(); ++column) {
                     const Entry &entry = rowEntries.at(column);
                     if (updateNotes.contains(entry.note)) {

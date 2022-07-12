@@ -67,7 +67,7 @@ static const QStringList midiNoteNames{
 
 Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
 void timer_callback(int beat) {
-    for (PlayGridManager* pgm : *timer_callback_tickers) {
+    for (PlayGridManager* pgm : qAsConst(*timer_callback_tickers)) {
         pgm->metronomeTick(beat);
     }
 }
@@ -344,7 +344,7 @@ public:
 
     Note *findExistingNote(int midiNote, int midiChannel) {
         Note *note{nullptr};
-        for (Note *aNote : notes) {
+        for (Note *aNote : qAsConst(notes)) {
             if (aNote->midiNote() == midiNote && aNote->midiChannel() == midiChannel) {
                 note = aNote;
                 break;
@@ -948,9 +948,12 @@ void PlayGridManager::updateNoteState(QVariantMap metadata)
 {
     static const QLatin1String note_on{"note_on"};
     static const QLatin1String note_off{"note_off"};
-    int midiNote = metadata.value("note").toInt();
-    int midiChannel = metadata.value("channel").toInt();
-    const QString messageType = metadata.value("type").toString();
+    static const QLatin1String noteString{"note"};
+    static const QLatin1String channelString{"channel"};
+    static const QLatin1String typeString{"type"};
+    int midiNote = metadata[noteString].toInt();
+    int midiChannel = metadata[channelString].toInt();
+    const QString messageType = metadata[typeString].toString();
     if (messageType == note_on) {
         Note *note = d->findExistingNote(midiNote, midiChannel);
         if (note) {
