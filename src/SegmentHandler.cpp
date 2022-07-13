@@ -124,12 +124,6 @@ public:
             playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
-        } else if (command->operation == TimerCommand::StartClipLoopOperation) {
-            ClipCommand *clipCommand = static_cast<ClipCommand *>(command->variantParameter.value<void*>());
-            runningLoops << clipCommand->clip;
-        } else if (command->operation == TimerCommand::StopClipLoopOperation) {
-            ClipCommand *clipCommand = static_cast<ClipCommand *>(command->variantParameter.value<void*>());
-            runningLoops.removeOne(clipCommand->clip);
         }
     }
 
@@ -328,6 +322,12 @@ SegmentHandler::SegmentHandler(QObject *parent)
     d->zlSyncManager = new ZLSegmentHandlerSynchronisationManager(d, this);
     connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, [this](){ d->progressPlayback(); }, Qt::DirectConnection);
     connect(d->syncTimer, &SyncTimer::timerCommand, this, [this](TimerCommand* command){ d->handleTimerCommand(command); }, Qt::DirectConnection);
+    connect(d->syncTimer, &SyncTimer::clipCommandSent, this, [this](ClipCommand* command) {
+        // We don't bother clearing stuff that's been stopped, stopping a non-running clip is essentially an nop anyway
+        if (command->startPlayback) {
+            d->runningLoops << command->clip;
+        }
+    }, Qt::DirectConnection);
     connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
         if (!d->syncTimer->timerRunning()) {
             // First, stop any sounds currently running
