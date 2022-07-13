@@ -294,10 +294,15 @@ bool SegmentHandler::songMode() const
     return d->songMode;
 }
 
-void SegmentHandler::startPlayback(quint64 startOffset)
+void SegmentHandler::startPlayback(quint64 startOffset, quint64 duration)
 {
     d->playfieldState = PlayfieldState();
     d->movePlayhead(startOffset);
+    if (duration > 0) {
+        TimerCommand *stopCommand = new TimerCommand;
+        stopCommand->operation = TimerCommand::StopPlaybackOperation;
+        d->syncTimer->scheduleTimerCommand(duration, stopCommand);
+    }
     d->playGridManager->startMetronome();
 }
 

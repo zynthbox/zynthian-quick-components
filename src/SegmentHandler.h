@@ -62,9 +62,10 @@ public:
      * \brief Starts playback at the given offset
      * Starting playback won't attempt to be overly clever, and will start off with everything
      * disabled, and then apply the sequence on/off states as it progresses.
-     * @param startOffset An offset in timer ticks (e.g. beat * syncTimer.beatSubdivision()) to start playback at
+     * @param startOffset An offset in timer ticks (e.g. beat * syncTimer.getMultiplier()) to start playback at
+     * @param duration How long to play for (a non-zero duration will keep playing until the end of the song)
      */
-    void startPlayback(quint64 startOffset = 0);
+    void startPlayback(quint64 startOffset = 0, quint64 duration = 0);
     /**
      * \brief Stops playback
      */
