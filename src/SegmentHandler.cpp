@@ -326,8 +326,8 @@ SegmentHandler::SegmentHandler(QObject *parent)
     , d(new SegmentHandlerPrivate(this))
 {
     d->zlSyncManager = new ZLSegmentHandlerSynchronisationManager(d, this);
-    connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, [this](){ d->progressPlayback(); });
-    connect(d->syncTimer, &SyncTimer::timerCommand, this, [this](TimerCommand* command){ d->handleTimerCommand(command); });
+    connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, [this](){ d->progressPlayback(); }, Qt::DirectConnection);
+    connect(d->syncTimer, &SyncTimer::timerCommand, this, [this](TimerCommand* command){ d->handleTimerCommand(command); }, Qt::DirectConnection);
     connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
         if (!d->syncTimer->timerRunning()) {
             // First, stop any sounds currently running
