@@ -63,7 +63,7 @@ public:
      * Starting playback won't attempt to be overly clever, and will start off with everything
      * disabled, and then apply the sequence on/off states as it progresses.
      * @param startOffset An offset in timer ticks (e.g. beat * syncTimer.getMultiplier()) to start playback at
-     * @param duration How long to play for (a non-zero duration will keep playing until the end of the song)
+     * @param duration How long to play for (a duration of 0 - the default - will keep playing until the end of the song)
      */
     void startPlayback(quint64 startOffset = 0, quint64 duration = 0);
     /**
