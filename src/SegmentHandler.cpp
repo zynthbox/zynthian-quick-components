@@ -222,7 +222,7 @@ public Q_SLOTS:
                                 TimerCommand* command = new TimerCommand;
                                 command->parameter = clip->property("row").toInt();
                                 QObject *trackObject{nullptr};
-                                QMetaObject::invokeMethod(tracksModel, "", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
+                                QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
                                 const QString trackAudioType = trackObject->property("trackAudioType").toString();
                                 if (trackAudioType == sampleLoopedType) {
                                     command->operation = TimerCommand::StartClipLoopOperation;
@@ -246,7 +246,7 @@ public Q_SLOTS:
                                 TimerCommand* command = new TimerCommand;
                                 command->parameter = clip->property("row").toInt();
                                 QObject *trackObject{nullptr};
-                                QMetaObject::invokeMethod(tracksModel, "", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
+                                QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
                                 const QString trackAudioType = trackObject->property("trackAudioType").toString();
                                 if (trackAudioType == sampleLoopedType) {
                                     command->operation = TimerCommand::StopClipLoopOperation;
