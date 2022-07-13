@@ -84,6 +84,7 @@ public:
     PlayfieldState playfieldState;
     quint64 playhead{0};
     QHash<quint64, QList<TimerCommand*> > playlist;
+    QList<ClipAudioSource*> runningLoops;
 
     void progressPlayback() {
         if (syncTimer->timerRunning() && songMode) {
@@ -103,7 +104,6 @@ public:
                         clipCommand->volume = clipCommand->clip->volumeAbsolute();
                         clipCommand->looping = true;
                         command->variantParameter.setValue<void*>(clipCommand);
-//                         syncTimer->scheduleClipCommand(clipCommand, 0);
                         qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->variantParameter << command->variantParameter.value<void*>() << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
                     }
                     qDebug() << Q_FUNC_INFO << "Scheduled" << command;
@@ -124,6 +124,12 @@ public:
             playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
+        } else if (command->operation == TimerCommand::StartClipLoopOperation) {
+            ClipCommand *clipCommand = static_cast<ClipCommand *>(command->variantParameter.value<void*>());
+            runningLoops << clipCommand->clip;
+        } else if (command->operation == TimerCommand::StopClipLoopOperation) {
+            ClipCommand *clipCommand = static_cast<ClipCommand *>(command->variantParameter.value<void*>());
+            runningLoops.removeOne(clipCommand->clip);
         }
     }
 
@@ -279,11 +285,32 @@ public Q_SLOTS:
                         qWarning() << Q_FUNC_INFO << "Failed to get segment" << segmentIndex;
                     }
                 }
-                qDebug() << Q_FUNC_INFO << "Done processing segments, adding stop command";
+                qDebug() << Q_FUNC_INFO << "Done processing segments, adding the final stops for any ongoing clips, and the timer stop command";
+                // Run through the clipsInPrevious segment and add commands to stop them all
+                QList<TimerCommand*> commands;
+                for (QObject *clip : clipsInPrevious) {
+                    qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
+                    TimerCommand* command = new TimerCommand;
+                    command->parameter = clip->property("row").toInt();
+                    QObject *trackObject{nullptr};
+                    QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
+                    const QString trackAudioType = trackObject->property("trackAudioType").toString();
+                    if (trackAudioType == sampleLoopedType) {
+                        command->operation = TimerCommand::StopClipLoopOperation;
+                        command->parameter2 = clip->property("cppObjId").toInt();
+                        command->parameter3 = 60;
+                    } else {
+                        command->operation = TimerCommand::StopPartOperation;
+                        command->parameter2 = clip->property("column").toInt();
+                        command->parameter3 = clip->property("part").toInt();
+                    }
+                    commands << command;
+                }
                 // And finally, add one stop command right at the end, so playback will stop itself when we get to the end of the song
                 TimerCommand *stopCommand = new TimerCommand;
                 stopCommand->operation = TimerCommand::StopPlaybackOperation;
-                playlist[segmentPosition] = QList<TimerCommand*>{stopCommand};
+                commands << stopCommand;
+                playlist[segmentPosition] = commands;
             } else {
                 qWarning() << Q_FUNC_INFO << "Failed to get the segment model";
             }
@@ -303,6 +330,11 @@ SegmentHandler::SegmentHandler(QObject *parent)
     connect(d->syncTimer, &SyncTimer::timerCommand, this, [this](TimerCommand* command){ d->handleTimerCommand(command); });
     connect(d->syncTimer, &SyncTimer::timerRunningChanged, this, [this](){
         if (!d->syncTimer->timerRunning()) {
+            // First, stop any sounds currently running
+            for (ClipAudioSource *clip : d->runningLoops) {
+                clip->stop();
+            }
+            // Then refresh the playfield
             d->playfieldState = PlayfieldState();
         }
     });
