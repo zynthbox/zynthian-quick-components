@@ -65,16 +65,16 @@ public:
      * @param startOffset An offset in timer ticks (e.g. beat * syncTimer.getMultiplier()) to start playback at
      * @param duration How long to play for (a duration of 0 - the default - will keep playing until the end of the song)
      */
-    void startPlayback(quint64 startOffset = 0, quint64 duration = 0);
+    Q_INVOKABLE void startPlayback(quint64 startOffset = 0, quint64 duration = 0);
     /**
      * \brief Stops playback
      */
-    void stopPlayback();
+    Q_INVOKABLE void stopPlayback();
 
     /**
      * \brief Get the current should-make-sounds state of the given part
      */
-    bool playfieldState(int track, int sketch, int part) const;
+    Q_INVOKABLE bool playfieldState(int track, int sketch, int part) const;
 private:
     SegmentHandlerPrivate *d{nullptr};
 };
