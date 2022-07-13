@@ -40,6 +40,10 @@ class SegmentHandler : public QObject
      * \brief Whether or not we are in song mode (or, in other words, whether SegmentHandler should be used for playback logic)
      */
     Q_PROPERTY(bool songMode READ songMode NOTIFY songModeChanged)
+    /**
+     * \brief The current local playhead position for SegmentHandler
+     */
+    Q_PROPERTY(int playhead READ playhead NOTIFY playheadChanged)
 public:
     static SegmentHandler* instance() {
         static SegmentHandler* instance{nullptr};
@@ -57,6 +61,9 @@ public:
 
     bool songMode() const;
     Q_SIGNAL void songModeChanged();
+
+    int playhead() const;
+    Q_SIGNAL void playheadChanged();
 
     /**
      * \brief Starts playback at the given offset

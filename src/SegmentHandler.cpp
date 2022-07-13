@@ -21,6 +21,7 @@
 
 #include "SegmentHandler.h"
 #include "PlayGridManager.h"
+#include "SequenceModel.h"
 
 #include "libzl.h"
 // Hackety hack - we don't need all the thing, just need to convince CAS it exists
@@ -46,7 +47,7 @@ struct SketchState {
 struct TrackState {
     TrackState() {
         for (int sketchIndex = 0; sketchIndex < 10; ++sketchIndex) {
-            sketchStates << new SketchState;
+            sketchStates << new SketchState();
         }
     }
     ~TrackState() {
@@ -57,7 +58,7 @@ struct TrackState {
 struct PlayfieldState {
     PlayfieldState() {
         for (int trackIndex = 0; trackIndex < 10; ++trackIndex) {
-            trackStates << new TrackState;
+            trackStates << new TrackState();
         }
     };
     ~PlayfieldState() {
@@ -74,6 +75,7 @@ public:
     {
         syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
         playGridManager = PlayGridManager::instance();
+        playfieldState = new PlayfieldState();
     }
     SegmentHandler* q{nullptr};
     SyncTimer* syncTimer{nullptr};
@@ -81,7 +83,7 @@ public:
     ZLSegmentHandlerSynchronisationManager *zlSyncManager{nullptr};
     bool songMode{false};
 
-    PlayfieldState playfieldState;
+    PlayfieldState *playfieldState{nullptr};
     quint64 playhead{0};
     QHash<quint64, QList<TimerCommand*> > playlist;
     QList<ClipAudioSource*> runningLoops;
@@ -89,8 +91,8 @@ public:
     void progressPlayback() {
         if (syncTimer->timerRunning() && songMode) {
             // Instead of using cumulative beat, we keep this one in hand so we don't have to juggle offsets of we start somewhere uneven
-            qDebug() << Q_FUNC_INFO << "Playhead is now at" << playhead;
             if (playlist.contains(playhead)) {
+                qDebug() << Q_FUNC_INFO << "Playhead is now at" << playhead << "and we have things to do";
                 const QList<TimerCommand*> commands = playlist[playhead];
                 for (TimerCommand* command : commands) {
                     if (command->operation == TimerCommand::StartClipLoopOperation || command->operation == TimerCommand::StopClipLoopOperation) {
@@ -111,6 +113,7 @@ public:
                 }
             }
             ++playhead;
+            Q_EMIT q->playheadChanged();
         }
     }
 
@@ -118,10 +121,10 @@ public:
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = true;
+            playfieldState->trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = true;
         } else if(command->operation == TimerCommand::StopPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
+            playfieldState->trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
         }
@@ -136,7 +139,7 @@ public:
             int direction = (playhead > newPosition) ? -1 : 1;
             while (playhead != newPosition) {
                 playhead = playhead + direction;
-                qDebug() << Q_FUNC_INFO << "Moved playhead to" << playhead;
+//                 qDebug() << Q_FUNC_INFO << "Moved playhead to" << playhead;
                 if (playlist.contains(playhead)) {
                     const QList<TimerCommand*> commands = playlist[playhead];
                     for (TimerCommand* command : commands) {
@@ -145,6 +148,7 @@ public:
                 }
             }
         }
+        Q_EMIT q->playheadChanged();
     }
 };
 
@@ -335,7 +339,8 @@ SegmentHandler::SegmentHandler(QObject *parent)
                 clip->stop();
             }
             // Then refresh the playfield
-            d->playfieldState = PlayfieldState();
+            delete d->playfieldState;
+            d->playfieldState = new PlayfieldState();
         }
     });
 }
@@ -363,26 +368,56 @@ bool SegmentHandler::songMode() const
     return d->songMode;
 }
 
+int SegmentHandler::playhead() const
+{
+    return d->playhead;
+}
+
 void SegmentHandler::startPlayback(quint64 startOffset, quint64 duration)
 {
-    d->playfieldState = PlayfieldState();
+    if (d->playfieldState) {
+        delete d->playfieldState;
+    }
+    d->playfieldState = new PlayfieldState();
+    // If we're starting with a new playfield anyway, playhead's logically at 0, but also we need to handle the first position before we start playing (specifically so the sequences know what to do)
+    d->playhead = 1;
+    d->movePlayhead(0);
     d->movePlayhead(startOffset);
     if (duration > 0) {
         TimerCommand *stopCommand = new TimerCommand;
         stopCommand->operation = TimerCommand::StopPlaybackOperation;
         d->syncTimer->scheduleTimerCommand(duration, stopCommand);
     }
+    // Hook up the global sequences to playback
+    for (int i = 1; i < 11; ++i) {
+        SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("S%1").arg(i)));
+        if (sequence) {
+            sequence->prepareSequencePlayback();
+        } else {
+            qDebug() << Q_FUNC_INFO << "Sequence" << i << "could not be fetched, and playback could not be prepared";
+        }
+    }
     d->playGridManager->startMetronome();
 }
 
 void SegmentHandler::stopPlayback()
 {
+    // Disconnect the global sequences
+    for (int i = 1; i < 11; ++i) {
+        SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("S%1").arg(i)));
+        if (sequence) {
+            sequence->stopSequencePlayback();
+        } else {
+            qDebug() << Q_FUNC_INFO << "Sequence" << i << "could not be fetched, and playback could not be stopped";
+        }
+    }
     d->playGridManager->stopMetronome();
+    d->movePlayhead(0);
 }
 
 bool SegmentHandler::playfieldState(int track, int sketch, int part) const
 {
-    return d->playfieldState.trackStates[track]->sketchStates[sketch]->partStates[part];
+    return d->playfieldState->trackStates[track]->sketchStates[sketch]->partStates[part];
 }
 
 // Since we've got a QObject up at the top that wants mocing
