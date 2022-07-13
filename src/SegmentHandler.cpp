@@ -66,10 +66,13 @@ struct PlayfieldState {
 class ZLSegmentHandlerSynchronisationManager;
 class SegmentHandlerPrivate {
 public:
-    SegmentHandlerPrivate() {
+    SegmentHandlerPrivate(SegmentHandler *q)
+        : q(q)
+    {
         syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
         playGridManager = PlayGridManager::instance();
     }
+    SegmentHandler* q{nullptr};
     SyncTimer* syncTimer{nullptr};
     PlayGridManager* playGridManager{nullptr};
     ZLSegmentHandlerSynchronisationManager *zlSyncManager{nullptr};
@@ -115,6 +118,8 @@ public:
         } else if(command->operation == TimerCommand::StopPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
+        } else if (command->operation == TimerCommand::StopPlaybackOperation) {
+            q->stopPlayback();
         }
     }
 
@@ -287,7 +292,7 @@ public Q_SLOTS:
 
 SegmentHandler::SegmentHandler(QObject *parent)
     : QObject(parent)
-    , d(new SegmentHandlerPrivate)
+    , d(new SegmentHandlerPrivate(this))
 {
     d->zlSyncManager = new ZLSegmentHandlerSynchronisationManager(d, this);
     connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, [this](){ d->progressPlayback(); });
