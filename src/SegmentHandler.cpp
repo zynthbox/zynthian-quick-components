@@ -23,6 +23,9 @@
 #include "PlayGridManager.h"
 
 #include "libzl.h"
+// Hackety hack - we don't need all the thing, just need to convince CAS it exists
+#define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
+#include "ClipAudioSource.h"
 #include "ClipCommand.h"
 #include "SyncTimer.h"
 #include "TimerCommand.h"
@@ -90,17 +93,18 @@ public:
                 const QList<TimerCommand*> commands = playlist[playhead];
                 for (TimerCommand* command : commands) {
                     if (command->operation == TimerCommand::StartClipLoopOperation || command->operation == TimerCommand::StopClipLoopOperation) {
+                        // Since the clip command is swallowed each time, we'll need to reset it
                         ClipCommand* clipCommand = new ClipCommand();
                         clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
                         clipCommand->stopPlayback = !clipCommand->startPlayback;
                         clipCommand->midiChannel = command->parameter;
                         clipCommand->clip = ClipAudioSource_byID(command->parameter2);
                         clipCommand->midiNote = command->parameter3;
+                        clipCommand->volume = clipCommand->clip->volumeAbsolute();
                         clipCommand->looping = true;
                         command->variantParameter.setValue<void*>(clipCommand);
 //                         syncTimer->scheduleClipCommand(clipCommand, 0);
                         qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->variantParameter << command->variantParameter.value<void*>() << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
-                    } else {
                     }
                     qDebug() << Q_FUNC_INFO << "Scheduled" << command;
                     syncTimer->scheduleTimerCommand(0, command);
