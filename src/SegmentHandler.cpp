@@ -28,6 +28,7 @@
 #include "TimerCommand.h"
 
 #include <QDebug>
+#include <QTimer>
 #include <QVariant>
 
 struct SketchState {
@@ -71,7 +72,6 @@ public:
     }
     SyncTimer* syncTimer{nullptr};
     PlayGridManager* playGridManager{nullptr};
-    QObject* zlSong{nullptr};
     ZLSegmentHandlerSynchronisationManager *zlSyncManager{nullptr};
     bool songMode{false};
 
@@ -83,6 +83,7 @@ public:
         if (syncTimer->timerRunning()) {
             // Instead of using cumulative beat, we keep this one in hand so we don't have to juggle offsets of we start somewhere uneven
             ++playhead;
+            qDebug() << Q_FUNC_INFO << "Playhead is now at" << playhead;
             if (playlist.contains(playhead)) {
                 const QList<TimerCommand*> commands = playlist[playhead];
                 for (TimerCommand* command : commands) {
@@ -95,8 +96,10 @@ public:
                         clipCommand->looping = true;
                         command->variantParameter.setValue<void*>(clipCommand);
                         syncTimer->scheduleClipCommand(clipCommand, 0);
+                        qDebug() << Q_FUNC_INFO << "Scheduled clip command" << clipCommand;
                     } else {
                         syncTimer->scheduleTimerCommand(0, command);
+                        qDebug() << Q_FUNC_INFO << "Scheduled" << command;
                     }
                 }
             }
@@ -106,8 +109,10 @@ public:
     inline void handleTimerCommand(TimerCommand* command) {
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
+            qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = true;
         } else if(command->operation == TimerCommand::StopPartOperation) {
+            qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState.trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
         }
     }
@@ -117,9 +122,11 @@ public:
         // position to the new one and handle them all - but only
         // if the new position's actually different to the old one
         if (newPosition != playhead) {
+            qDebug() << Q_FUNC_INFO << "Moving playhead from" << playhead << "to" << newPosition;
             int direction = (playhead > newPosition) ? -1 : 1;
             while (playhead != newPosition) {
                 playhead = playhead + direction;
+                qDebug() << Q_FUNC_INFO << "Moved playhead to" << playhead;
                 if (playlist.contains(playhead)) {
                     const QList<TimerCommand*> commands = playlist[playhead];
                     for (TimerCommand* command : commands) {
@@ -138,13 +145,19 @@ public:
         : QObject(parent)
         , q(parent)
         , d(d)
-    { };
+    {
+        segmentUpdater.setInterval(1);
+        segmentUpdater.setSingleShot(true);
+        connect(&segmentUpdater, &QTimer::timeout, q, [this](){ updateSegments(); });
+    };
     SegmentHandler *q{nullptr};
     SegmentHandlerPrivate* d{nullptr};
     QObject *zlSong{nullptr};
     QObject *zlMixesModel{nullptr};
+    QTimer segmentUpdater;
 
     void setZlSong(QObject *newZlSong) {
+        qDebug() << "Setting new song" << newZlSong;
         if (zlSong != newZlSong) {
             if (zlSong) {
                 zlSong->disconnect(this);
@@ -157,6 +170,7 @@ public:
     }
 
     void setZLMixesModel(QObject *newZLMixesModel) {
+        qDebug() << Q_FUNC_INFO << "Setting new mixes model:" << newZLMixesModel;
         if (zlMixesModel != newZLMixesModel) {
             if (zlMixesModel) {
                 zlMixesModel->disconnect(this);
@@ -164,8 +178,11 @@ public:
             zlMixesModel = newZLMixesModel;
             if (zlMixesModel) {
                 connect(zlMixesModel, SIGNAL(songModeChanged()), this, SLOT(songModeChanged()), Qt::QueuedConnection);
-                connect(zlMixesModel, SIGNAL(selectedMixIndexChanged()), this, SLOT(supdateSegments()), Qt::QueuedConnection);
+                connect(zlMixesModel, SIGNAL(selectedMixIndexChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                connect(zlMixesModel, SIGNAL(clipAdded(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                connect(zlMixesModel, SIGNAL(clipRemoved(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 songModeChanged();
+                updateSegments();
             }
         }
     }
@@ -188,6 +205,7 @@ public Q_SLOTS:
                 quint64 segmentPosition{0};
                 QList<QObject*> clipsInPrevious;
                 int segmentCount = segmentsModel->property("count").toInt();
+                qDebug() << Q_FUNC_INFO << "Working with" << segmentCount << "segments...";
                 for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex) {
                     QObject *segment{nullptr};
                     QMetaObject::invokeMethod(segmentsModel, "get_segment", Q_RETURN_ARG(QObject*, segment), Q_ARG(int, segmentIndex));
@@ -199,6 +217,7 @@ public Q_SLOTS:
                             QObject *clip = variantClip.value<QObject*>();
                             includedClips << clip;
                             if (!clipsInPrevious.contains(clip)) {
+                                qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
                                 // If the clip was not there in the previous step, that means we should turn it on
                                 TimerCommand* command = new TimerCommand;
                                 command->parameter = clip->property("row").toInt();
@@ -215,10 +234,13 @@ public Q_SLOTS:
                                     command->parameter3 = clip->property("part").toInt();
                                 }
                                 commands << command;
+                            } else {
+                                qDebug() << Q_FUNC_INFO << "Clip was already in the previous segment, leaving in";
                             }
                         }
                         for (QObject *clip : clipsInPrevious) {
                             if (!includedClips.contains(clip)) {
+                                qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the previous segment but not in this one, so we should stop playing that clip";
                                 // If the clip was in the previous step, but not in this step, that means it
                                 // should be turned off when reaching this position
                                 TimerCommand* command = new TimerCommand;
@@ -243,12 +265,17 @@ public Q_SLOTS:
                         // Finally, make sure the next step is covered
                         quint64 segmentDuration = ((segment->property("barLength").toInt() * 4) + segment->property("beatLength").toInt()) * d->syncTimer->getMultiplier();
                         segmentPosition += segmentDuration;
+                    } else {
+                        qWarning() << Q_FUNC_INFO << "Failed to get segment" << segmentIndex;
                     }
                 }
+                qDebug() << Q_FUNC_INFO << "Done processing segments, adding stop command";
                 // And finally, add one stop command right at the end, so playback will stop itself when we get to the end of the song
                 TimerCommand *stopCommand = new TimerCommand;
                 stopCommand->operation = TimerCommand::StopPlaybackOperation;
                 playlist[segmentPosition] = QList<TimerCommand*>{stopCommand};
+            } else {
+                qWarning() << Q_FUNC_INFO << "Failed to get the segment model";
             }
         } else {
             qWarning() << Q_FUNC_INFO << "Failed to get the current mix";
@@ -278,15 +305,15 @@ SegmentHandler::~SegmentHandler()
 
 void SegmentHandler::setSong(QObject *song)
 {
-    if (d->zlSong != song) {
-        d->zlSong = song;
+    if (d->zlSyncManager->zlSong != song) {
+        d->zlSyncManager->setZlSong(song);
         Q_EMIT songChanged();
     }
 }
 
 QObject *SegmentHandler::song() const
 {
-    return d->zlSong;
+    return d->zlSyncManager->zlSong;
 }
 
 bool SegmentHandler::songMode() const
