@@ -80,9 +80,8 @@ public:
     QHash<quint64, QList<TimerCommand*> > playlist;
 
     void progressPlayback() {
-        if (syncTimer->timerRunning()) {
+        if (syncTimer->timerRunning() && songMode) {
             // Instead of using cumulative beat, we keep this one in hand so we don't have to juggle offsets of we start somewhere uneven
-            ++playhead;
             qDebug() << Q_FUNC_INFO << "Playhead is now at" << playhead;
             if (playlist.contains(playhead)) {
                 const QList<TimerCommand*> commands = playlist[playhead];
@@ -103,6 +102,7 @@ public:
                     }
                 }
             }
+            ++playhead;
         }
     }
 
