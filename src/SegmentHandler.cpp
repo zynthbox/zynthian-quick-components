@@ -81,6 +81,7 @@ public:
     SyncTimer* syncTimer{nullptr};
     PlayGridManager* playGridManager{nullptr};
     ZLSegmentHandlerSynchronisationManager *zlSyncManager{nullptr};
+    QList<SequenceModel*> sequenceModels;
     bool songMode{false};
 
     PlayfieldState *playfieldState{nullptr};
@@ -122,6 +123,13 @@ public:
                     if (command->operation == TimerCommand::StartPartOperation || command->operation == TimerCommand::StopPartOperation) {
                         qDebug() << Q_FUNC_INFO << "Handling part start/stop operation immediately" << command;
                         handleTimerCommand(command);
+                    } else if (command->operation == TimerCommand::StopPlaybackOperation) {
+                        // Disconnect the global sequences, as we want them to stop making noises immediately
+                        for (SequenceModel* sequence : qAsConst(sequenceModels)) {
+                            sequence->disconnectSequencePlayback();
+                        }
+                        qDebug() << Q_FUNC_INFO << "Scheduled" << command;
+                        syncTimer->scheduleTimerCommand(0, command);
                     } else {
                         qDebug() << Q_FUNC_INFO << "Scheduled" << command;
                         syncTimer->scheduleTimerCommand(0, command);
@@ -200,10 +208,12 @@ public:
         if (zlSong != newZlSong) {
             if (zlSong) {
                 zlSong->disconnect(this);
+                d->sequenceModels.clear();
             }
             zlSong = newZlSong;
             if (zlSong) {
                 setZLMixesModel(zlSong->property("mixesModel").value<QObject*>());
+                fetchSequenceModels();
             }
         }
     }
@@ -229,6 +239,16 @@ public Q_SLOTS:
     void songModeChanged() {
         d->songMode = zlMixesModel->property("songMode").toBool();
         Q_EMIT q->songModeChanged();
+    }
+    void fetchSequenceModels() {
+        for (int i = 1; i < 11; ++i) {
+            SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("S%1").arg(i)));
+            if (sequence) {
+                d->sequenceModels << sequence;
+            } else {
+                qDebug() << Q_FUNC_INFO << "Sequence" << i << "could not be fetched, and will be unavailable for playback management";
+            }
+        }
     }
     void updateSegments() {
         static const QLatin1String sampleLoopedType{"sample-loop"};
@@ -427,13 +447,8 @@ void SegmentHandler::startPlayback(quint64 startOffset, quint64 duration)
 void SegmentHandler::stopPlayback()
 {
     // Disconnect the global sequences
-    for (int i = 1; i < 11; ++i) {
-        SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("S%1").arg(i)));
-        if (sequence) {
-            sequence->stopSequencePlayback();
-        } else {
-            qDebug() << Q_FUNC_INFO << "Sequence" << i << "could not be fetched, and playback could not be stopped";
-        }
+    for (SequenceModel* sequence : qAsConst(d->sequenceModels)) {
+        sequence->disconnectSequencePlayback();
     }
     d->playGridManager->stopMetronome();
     d->movePlayhead(0, true);
