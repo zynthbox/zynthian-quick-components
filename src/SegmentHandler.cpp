@@ -88,6 +88,22 @@ public:
     QHash<quint64, QList<TimerCommand*> > playlist;
     QList<ClipAudioSource*> runningLoops;
 
+    inline void ensureTimerClipCommand(TimerCommand* command) {
+        if (!command->variantParameter.value<void*>()) {
+            // Since the clip command is swallowed each time, we'll need to reset it
+            ClipCommand* clipCommand = new ClipCommand();
+            clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
+            clipCommand->stopPlayback = !clipCommand->startPlayback;
+            clipCommand->midiChannel = command->parameter;
+            clipCommand->clip = ClipAudioSource_byID(command->parameter2);
+            clipCommand->midiNote = command->parameter3;
+            clipCommand->volume = clipCommand->clip->volumeAbsolute();
+            clipCommand->looping = true;
+            command->variantParameter.setValue<void*>(clipCommand);
+            qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->variantParameter << command->variantParameter.value<void*>() << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
+        }
+    }
+
     void progressPlayback() {
         if (syncTimer->timerRunning() && songMode) {
             ++playhead;
@@ -101,17 +117,7 @@ public:
                             // If there's no clip to start or stop looping, we should really just ignore the command
                             continue;
                         }
-                        // Since the clip command is swallowed each time, we'll need to reset it
-                        ClipCommand* clipCommand = new ClipCommand();
-                        clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
-                        clipCommand->stopPlayback = !clipCommand->startPlayback;
-                        clipCommand->midiChannel = command->parameter;
-                        clipCommand->clip = ClipAudioSource_byID(command->parameter2);
-                        clipCommand->midiNote = command->parameter3;
-                        clipCommand->volume = clipCommand->clip->volumeAbsolute();
-                        clipCommand->looping = true;
-                        command->variantParameter.setValue<void*>(clipCommand);
-                        qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->variantParameter << command->variantParameter.value<void*>() << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
+                        ensureTimerClipCommand(command);
                     }
                     if (command->operation == TimerCommand::StartPartOperation || command->operation == TimerCommand::StopPartOperation) {
                         qDebug() << Q_FUNC_INFO << "Handling part start/stop operation immediately" << command;
@@ -154,8 +160,15 @@ public:
                     for (TimerCommand* command : commands) {
                         if (ignoreStop && command->operation == TimerCommand::StopPlaybackOperation) {
                             continue;
+                        } else if (command->operation == TimerCommand::StartClipLoopOperation || command->operation == TimerCommand::StopClipLoopOperation) {
+                            // If there's no clip to start or stop looping, we should really just ignore the command
+                            if (command->parameter2 > 0) {
+                                ensureTimerClipCommand(command);
+                                syncTimer->scheduleTimerCommand(0, command);
+                            }
+                        } else {
+                            handleTimerCommand(command);
                         }
-                        handleTimerCommand(command);
                     }
                 }
             }
