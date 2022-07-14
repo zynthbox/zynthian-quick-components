@@ -87,6 +87,8 @@ public:
                 connect(zlMetronomeManager, SIGNAL(recordSoloChanged()), this, SLOT(recordSoloChanged()), Qt::QueuedConnection);
                 connect(zlMetronomeManager, SIGNAL(isRecordingChanged()), this, SLOT(isRecordingChanged()), Qt::QueuedConnection);
             }
+            recordSoloChanged();
+            isRecordingChanged();
         }
     }
 
