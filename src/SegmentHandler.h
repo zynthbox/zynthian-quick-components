@@ -82,6 +82,11 @@ public:
      * \brief Get the current should-make-sounds state of the given part
      */
     Q_INVOKABLE bool playfieldState(int track, int sketch, int part) const;
+
+    /**
+     * \brief Called explicitly by PlayGridManager, to ensure SegmentHandler's progression happens at the right point
+     */
+    void progressPlayback() const;
 private:
     SegmentHandlerPrivate *d{nullptr};
 };

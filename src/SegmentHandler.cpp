@@ -90,6 +90,7 @@ public:
 
     void progressPlayback() {
         if (syncTimer->timerRunning() && songMode) {
+            ++playhead;
             // Instead of using cumulative beat, we keep this one in hand so we don't have to juggle offsets of we start somewhere uneven
             if (playlist.contains(playhead)) {
                 qDebug() << Q_FUNC_INFO << "Playhead is now at" << playhead << "and we have things to do";
@@ -108,11 +109,15 @@ public:
                         command->variantParameter.setValue<void*>(clipCommand);
                         qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->variantParameter << command->variantParameter.value<void*>() << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
                     }
-                    qDebug() << Q_FUNC_INFO << "Scheduled" << command;
-                    syncTimer->scheduleTimerCommand(0, command);
+                    if (command->operation == TimerCommand::StartPartOperation || command->operation == TimerCommand::StopPartOperation) {
+                        qDebug() << Q_FUNC_INFO << "Handling part start/stop operation immediately" << command;
+                        handleTimerCommand(command);
+                    } else {
+                        qDebug() << Q_FUNC_INFO << "Scheduled" << command;
+                        syncTimer->scheduleTimerCommand(0, command);
+                    }
                 }
             }
-            ++playhead;
             Q_EMIT q->playheadChanged();
         }
     }
@@ -130,7 +135,7 @@ public:
         }
     }
 
-    void movePlayhead(quint64 newPosition) {
+    void movePlayhead(quint64 newPosition, bool ignoreStop = false) {
         // Cycle through all positions from the current playhead
         // position to the new one and handle them all - but only
         // if the new position's actually different to the old one
@@ -143,6 +148,9 @@ public:
                 if (playlist.contains(playhead)) {
                     const QList<TimerCommand*> commands = playlist[playhead];
                     for (TimerCommand* command : commands) {
+                        if (ignoreStop && command->operation == TimerCommand::StopPlaybackOperation) {
+                            continue;
+                        }
                         handleTimerCommand(command);
                     }
                 }
@@ -324,7 +332,6 @@ SegmentHandler::SegmentHandler(QObject *parent)
     , d(new SegmentHandlerPrivate(this))
 {
     d->zlSyncManager = new ZLSegmentHandlerSynchronisationManager(d, this);
-    connect(d->playGridManager, &PlayGridManager::metronomeBeat128thChanged, this, [this](){ d->progressPlayback(); }, Qt::DirectConnection);
     connect(d->syncTimer, &SyncTimer::timerCommand, this, [this](TimerCommand* command){ d->handleTimerCommand(command); }, Qt::DirectConnection);
     connect(d->syncTimer, &SyncTimer::clipCommandSent, this, [this](ClipCommand* command) {
         // We don't bother clearing stuff that's been stopped, stopping a non-running clip is essentially an nop anyway
@@ -381,8 +388,8 @@ void SegmentHandler::startPlayback(quint64 startOffset, quint64 duration)
     d->playfieldState = new PlayfieldState();
     // If we're starting with a new playfield anyway, playhead's logically at 0, but also we need to handle the first position before we start playing (specifically so the sequences know what to do)
     d->playhead = 1;
-    d->movePlayhead(0);
-    d->movePlayhead(startOffset);
+    d->movePlayhead(0, true);
+    d->movePlayhead(startOffset, true);
     if (duration > 0) {
         TimerCommand *stopCommand = new TimerCommand;
         stopCommand->operation = TimerCommand::StopPlaybackOperation;
@@ -412,12 +419,17 @@ void SegmentHandler::stopPlayback()
         }
     }
     d->playGridManager->stopMetronome();
-    d->movePlayhead(0);
+    d->movePlayhead(0, true);
 }
 
 bool SegmentHandler::playfieldState(int track, int sketch, int part) const
 {
     return d->playfieldState->trackStates[track]->sketchStates[sketch]->partStates[part];
+}
+
+void SegmentHandler::progressPlayback() const
+{
+    d->progressPlayback();
 }
 
 // Since we've got a QObject up at the top that wants mocing

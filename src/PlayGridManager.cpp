@@ -23,6 +23,7 @@
 #include "Note.h"
 #include "NotesModel.h"
 #include "PatternModel.h"
+#include "SegmentHandler.h"
 #include "SettingsContainer.h"
 #include "MidiListener.h"
 
@@ -1007,6 +1008,7 @@ void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiCha
 
 void PlayGridManager::metronomeTick(int beat)
 {
+    SegmentHandler::instance()->progressPlayback();
     d->metronomeBeat128th = beat;
     Q_EMIT metronomeBeat128thChanged();
     if (beat % 2 == 0) {
