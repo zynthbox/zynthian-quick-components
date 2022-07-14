@@ -97,6 +97,10 @@ public:
                 const QList<TimerCommand*> commands = playlist[playhead];
                 for (TimerCommand* command : commands) {
                     if (command->operation == TimerCommand::StartClipLoopOperation || command->operation == TimerCommand::StopClipLoopOperation) {
+                        if (command->parameter2 < 1) {
+                            // If there's no clip to start or stop looping, we should really just ignore the command
+                            continue;
+                        }
                         // Since the clip command is swallowed each time, we'll need to reset it
                         ClipCommand* clipCommand = new ClipCommand();
                         clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
