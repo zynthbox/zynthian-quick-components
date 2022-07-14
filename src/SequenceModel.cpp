@@ -62,21 +62,31 @@ public:
     void setZlSong(QObject *newZlSong) {
         if (zlSong != newZlSong) {
             if (zlSong) {
+                setZlMetronomeManager(nullptr);
                 zlSong->disconnect(this);
             }
             zlSong = newZlSong;
-            zlMetronomeManager = qvariant_cast<QObject *>(zlSong->property("metronomeManager"));
             if (zlSong) {
+                setZlMetronomeManager(qvariant_cast<QObject *>(zlSong->property("metronomeManager")));
                 connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()), Qt::QueuedConnection);
                 connect(zlSong, SIGNAL(__scenes_model_changed__()), this, SLOT(scenesModelChanged()), Qt::QueuedConnection);
                 bpmChanged();
             }
+            scenesModelChanged();
+            currentMidiChannelChanged();
+        }
+    }
+
+    void setZlMetronomeManager(QObject *newZlMetronomeManager) {
+        if (zlMetronomeManager != newZlMetronomeManager) {
+            if (zlMetronomeManager) {
+                zlMetronomeManager->disconnect(this);
+            }
+            zlMetronomeManager = newZlMetronomeManager;
             if (zlMetronomeManager) {
                 connect(zlMetronomeManager, SIGNAL(recordSoloChanged()), this, SLOT(recordSoloChanged()), Qt::QueuedConnection);
                 connect(zlMetronomeManager, SIGNAL(isRecordingChanged()), this, SLOT(isRecordingChanged()), Qt::QueuedConnection);
             }
-            scenesModelChanged();
-            currentMidiChannelChanged();
         }
     }
 
