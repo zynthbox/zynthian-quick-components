@@ -57,6 +57,7 @@ public:
     SequenceModel *q{nullptr};
     QObject *zlSong{nullptr};
     QObject *zlScenesModel{nullptr};
+    QObject *zlMetronomeManager{nullptr};
 
     void setZlSong(QObject *newZlSong) {
         if (zlSong != newZlSong) {
@@ -64,10 +65,15 @@ public:
                 zlSong->disconnect(this);
             }
             zlSong = newZlSong;
+            zlMetronomeManager = qvariant_cast<QObject *>(zlSong->property("metronomeManager"));
             if (zlSong) {
                 connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()), Qt::QueuedConnection);
                 connect(zlSong, SIGNAL(__scenes_model_changed__()), this, SLOT(scenesModelChanged()), Qt::QueuedConnection);
                 bpmChanged();
+            }
+            if (zlMetronomeManager) {
+                connect(zlMetronomeManager, SIGNAL(recordSoloChanged()), this, SLOT(recordSoloChanged()), Qt::QueuedConnection);
+                connect(zlMetronomeManager, SIGNAL(isRecordingChanged()), this, SLOT(isRecordingChanged()), Qt::QueuedConnection);
             }
             scenesModelChanged();
             currentMidiChannelChanged();
@@ -86,6 +92,15 @@ public:
             }
         }
     }
+
+    void updateShouldMakeSounds() {
+        if (zlMetronomeManager && zlScenesModel) {
+            const int selectedSketchIndex = zlScenesModel->property("selectedSketchIndex").toInt();
+            const bool isRecording = zlMetronomeManager->property("isRecording").toBool();
+            const bool recordSolo = zlMetronomeManager->property("recordSolo").toBool();
+            q->setShouldMakeSounds(selectedSketchIndex == q->sceneIndex() && (!isRecording or (isRecording && !recordSolo)));
+        }
+    }
 public Q_SLOTS:
     void bpmChanged() {
         q->setBpm(zlSong->property("bpm").toInt());
@@ -95,10 +110,13 @@ public Q_SLOTS:
         setZlScenesModel(zlSong->property("scenesModel").value<QObject*>());
     }
     void selectedSketchIndexChanged() {
-        if (zlScenesModel) {
-            const int selectedSketchIndex = zlScenesModel->property("selectedSketchIndex").toInt();
-            q->setShouldMakeSounds(selectedSketchIndex == q->sceneIndex());
-        }
+        updateShouldMakeSounds();
+    }
+    void isRecordingChanged() {
+        updateShouldMakeSounds();
+    }
+    void recordSoloChanged() {
+        updateShouldMakeSounds();
     }
     void currentMidiChannelChanged() {
         if (zlSong) {
