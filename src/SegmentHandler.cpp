@@ -144,10 +144,10 @@ public:
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = true;
+            playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = true;
         } else if(command->operation == TimerCommand::StopPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->trackStates[command->parameter]->sketchStates[command->parameter2]->partStates[command->parameter3] = false;
+            playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = false;
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
         }
@@ -456,7 +456,7 @@ void SegmentHandler::stopPlayback()
 
 bool SegmentHandler::playfieldState(int track, int sketch, int part) const
 {
-    return d->playfieldState->trackStates[track]->sketchStates[sketch]->partStates[part];
+    return d->playfieldState->trackStates.at(track)->sketchStates.at(sketch)->partStates.at(part);
 }
 
 void SegmentHandler::progressPlayback() const
