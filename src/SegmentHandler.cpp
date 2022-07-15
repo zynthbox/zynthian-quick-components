@@ -196,7 +196,7 @@ public:
         , q(parent)
         , d(d)
     {
-        segmentUpdater.setInterval(1);
+        segmentUpdater.setInterval(100);
         segmentUpdater.setSingleShot(true);
         connect(&segmentUpdater, &QTimer::timeout, q, [this](){ updateSegments(); });
     };
@@ -204,10 +204,13 @@ public:
     SegmentHandlerPrivate* d{nullptr};
     QObject *zlSong{nullptr};
     QObject *zlMixesModel{nullptr};
+    QObject *zLSelectedMix{nullptr};
+    QObject *zLSegmentsModel{nullptr};
+    QList<QObject*> zlTracks;
     QTimer segmentUpdater;
 
     void setZlSong(QObject *newZlSong) {
-        qDebug() << "Setting new song" << newZlSong;
+//         qDebug() << "Setting new song" << newZlSong;
         if (zlSong != newZlSong) {
             if (zlSong) {
                 zlSong->disconnect(this);
@@ -218,30 +221,85 @@ public:
                 setZLMixesModel(zlSong->property("mixesModel").value<QObject*>());
                 fetchSequenceModels();
             }
+            updateTracks();
         }
     }
 
     void setZLMixesModel(QObject *newZLMixesModel) {
-        qDebug() << Q_FUNC_INFO << "Setting new mixes model:" << newZLMixesModel;
+//         qDebug() << Q_FUNC_INFO << "Setting new mixes model:" << newZLMixesModel;
         if (zlMixesModel != newZLMixesModel) {
             if (zlMixesModel) {
                 zlMixesModel->disconnect(this);
+                zlMixesModel->disconnect(&segmentUpdater);
             }
             zlMixesModel = newZLMixesModel;
             if (zlMixesModel) {
                 connect(zlMixesModel, SIGNAL(songModeChanged()), this, SLOT(songModeChanged()), Qt::QueuedConnection);
-                connect(zlMixesModel, SIGNAL(selectedMixIndexChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                connect(zlMixesModel, SIGNAL(selectedMixIndexChanged()), this, SLOT(selectedMixIndexChanged()), Qt::QueuedConnection);
                 connect(zlMixesModel, SIGNAL(clipAdded(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 connect(zlMixesModel, SIGNAL(clipRemoved(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 songModeChanged();
-                updateSegments();
+                selectedMixIndexChanged();
             }
+        }
+    }
+
+    void setZLSelectedMix(QObject *newSelectedMix) {
+        if (zLSelectedMix != newSelectedMix) {
+            if (zLSelectedMix) {
+                zLSelectedMix->disconnect(this);
+                setZLSegmentsModel(nullptr);
+            }
+            zLSelectedMix = newSelectedMix;
+            if (zLSelectedMix) {
+                setZLSegmentsModel(zLSelectedMix->property("segmentsModel").value<QObject*>());
+            }
+        }
+    }
+    void setZLSegmentsModel(QObject *newSegmentsModel) {
+        if (zLSegmentsModel != newSegmentsModel) {
+            if (zLSegmentsModel) {
+                zLSegmentsModel->disconnect(this);
+            }
+            zLSegmentsModel = newSegmentsModel;
+            if (zLSegmentsModel) {
+                connect(zLSegmentsModel, SIGNAL(countChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                connect(zLSegmentsModel, SIGNAL(totalBeatDurationChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                segmentUpdater.start();
+            }
+        }
+    }
+    void updateTracks() {
+        if (zlTracks.count() > 0) {
+            for (QObject* track : zlTracks) {
+                track->disconnect(&segmentUpdater);
+            }
+        }
+        if (zlSong) {
+            QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
+            for (int trackIndex = 0; trackIndex < 10; ++trackIndex) {
+                QObject *track{nullptr};
+                QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, track), Q_ARG(int, trackIndex));
+                if (track) {
+                    zlTracks << track;
+                    connect(track, SIGNAL(track_audio_type_changed()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                }
+            }
+//             qDebug() << Q_FUNC_INFO << "Updated tracks, we now keep a hold of" << zlTracks.count();
+            segmentUpdater.start();
         }
     }
 public Q_SLOTS:
     void songModeChanged() {
         d->songMode = zlMixesModel->property("songMode").toBool();
+        segmentUpdater.start();
         Q_EMIT q->songModeChanged();
+    }
+    void selectedMixIndexChanged() {
+        int mixIndex = zlMixesModel->property("selectedMixIndex").toInt();
+        QObject *mix{nullptr};
+        QMetaObject::invokeMethod(zlMixesModel, "getMix", Qt::DirectConnection, Q_RETURN_ARG(QObject*, mix), Q_ARG(int, mixIndex));
+        setZLSelectedMix(mix);
     }
     void fetchSequenceModels() {
         for (int i = 1; i < 11; ++i) {
@@ -249,121 +307,108 @@ public Q_SLOTS:
             if (sequence) {
                 d->sequenceModels << sequence;
             } else {
-                qDebug() << Q_FUNC_INFO << "Sequence" << i << "could not be fetched, and will be unavailable for playback management";
+                qWarning() << Q_FUNC_INFO << "Sequence" << i << "could not be fetched, and will be unavailable for playback management";
             }
         }
     }
     void updateSegments() {
         static const QLatin1String sampleLoopedType{"sample-loop"};
         QHash<quint64, QList<TimerCommand*> > playlist;
-        int mixIndex = zlMixesModel->property("selectedMixIndex").toInt();
-        QObject *mix{nullptr};
-        QMetaObject::invokeMethod(zlMixesModel, "getMix", Qt::DirectConnection, Q_RETURN_ARG(QObject*, mix), Q_ARG(int, mixIndex));
-        QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
-        if (mix) {
-            QObject *segmentsModel = mix->property("segmentsModel").value<QObject*>();
-            if (segmentsModel) {
-                // The position of the next set of commands to be added to the hash
-                quint64 segmentPosition{0};
-                QList<QObject*> clipsInPrevious;
-                int segmentCount = segmentsModel->property("count").toInt();
-                qDebug() << Q_FUNC_INFO << "Working with" << segmentCount << "segments...";
-                for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex) {
-                    QObject *segment{nullptr};
-                    QMetaObject::invokeMethod(segmentsModel, "get_segment", Q_RETURN_ARG(QObject*, segment), Q_ARG(int, segmentIndex));
-                    if (segment) {
-                        QList<TimerCommand*> commands;
-                        QVariantList clips = segment->property("clips").toList();
-                        QList<QObject*> includedClips;
-                        for (const QVariant &variantClip : clips) {
-                            QObject *clip = variantClip.value<QObject*>();
-                            includedClips << clip;
-                            const bool shouldResetPlaybackposition{!clipsInPrevious.contains(clip)}; // This is currently always true for "not in previous segment", but likely we'll want to be able to explicitly do this as well (perhaps with an explicit offset even)
-                            if (shouldResetPlaybackposition || !clipsInPrevious.contains(clip)) {
-                                qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
-                                // If the clip was not there in the previous step, that means we should turn it on
-                                TimerCommand* command = new TimerCommand;
-                                command->parameter = clip->property("row").toInt();
-                                QObject *trackObject{nullptr};
-                                QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
-                                const QString trackAudioType = trackObject->property("trackAudioType").toString();
-                                if (trackAudioType == sampleLoopedType) {
-                                    command->operation = TimerCommand::StartClipLoopOperation;
-                                    command->parameter2 = clip->property("cppObjId").toInt();
-                                    command->parameter3 = 60;
-                                } else {
-                                    command->operation = TimerCommand::StartPartOperation;
-                                    command->parameter2 = clip->property("column").toInt();
-                                    command->parameter3 = clip->property("part").toInt();
-                                    command->bigParameter = shouldResetPlaybackposition ? segmentPosition : 0;
-                                }
-                                commands << command;
+        if (d->songMode && zLSegmentsModel && zlTracks.count() > 0) {
+            // The position of the next set of commands to be added to the hash
+            quint64 segmentPosition{0};
+            QList<QObject*> clipsInPrevious;
+            int segmentCount = zLSegmentsModel->property("count").toInt();
+//             qDebug() << Q_FUNC_INFO << "Working with" << segmentCount << "segments...";
+            for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex) {
+                QObject *segment{nullptr};
+                QMetaObject::invokeMethod(zLSegmentsModel, "get_segment", Q_RETURN_ARG(QObject*, segment), Q_ARG(int, segmentIndex));
+                if (segment) {
+                    QList<TimerCommand*> commands;
+                    QVariantList clips = segment->property("clips").toList();
+                    QList<QObject*> includedClips;
+                    for (const QVariant &variantClip : clips) {
+                        QObject *clip = variantClip.value<QObject*>();
+                        includedClips << clip;
+                        const bool shouldResetPlaybackposition{!clipsInPrevious.contains(clip)}; // This is currently always true for "not in previous segment", but likely we'll want to be able to explicitly do this as well (perhaps with an explicit offset even)
+                        if (shouldResetPlaybackposition || !clipsInPrevious.contains(clip)) {
+//                             qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
+                            // If the clip was not there in the previous step, that means we should turn it on
+                            TimerCommand* command = new TimerCommand;
+                            command->parameter = clip->property("row").toInt();
+                            const QObject *trackObject = zlTracks.at(command->parameter);
+                            const QString trackAudioType = trackObject->property("trackAudioType").toString();
+                            if (trackAudioType == sampleLoopedType) {
+                                command->operation = TimerCommand::StartClipLoopOperation;
+                                command->parameter2 = clip->property("cppObjId").toInt();
+                                command->parameter3 = 60;
                             } else {
-                                qDebug() << Q_FUNC_INFO << "Clip was already in the previous segment, leaving in";
+                                command->operation = TimerCommand::StartPartOperation;
+                                command->parameter2 = clip->property("column").toInt();
+                                command->parameter3 = clip->property("part").toInt();
+                                command->bigParameter = shouldResetPlaybackposition ? segmentPosition : 0;
                             }
+                            commands << command;
+                        } else {
+//                             qDebug() << Q_FUNC_INFO << "Clip was already in the previous segment, leaving in";
                         }
-                        for (QObject *clip : clipsInPrevious) {
-                            if (!includedClips.contains(clip)) {
-                                qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the previous segment but not in this one, so we should stop playing that clip";
-                                // If the clip was in the previous step, but not in this step, that means it
-                                // should be turned off when reaching this position
-                                TimerCommand* command = new TimerCommand;
-                                command->parameter = clip->property("row").toInt();
-                                QObject *trackObject{nullptr};
-                                QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
-                                const QString trackAudioType = trackObject->property("trackAudioType").toString();
-                                if (trackAudioType == sampleLoopedType) {
-                                    command->operation = TimerCommand::StopClipLoopOperation;
-                                    command->parameter2 = clip->property("cppObjId").toInt();
-                                    command->parameter3 = 60;
-                                } else {
-                                    command->operation = TimerCommand::StopPartOperation;
-                                    command->parameter2 = clip->property("column").toInt();
-                                    command->parameter3 = clip->property("part").toInt();
-                                }
-                                commands << command;
+                    }
+                    for (QObject *clip : clipsInPrevious) {
+                        if (!includedClips.contains(clip)) {
+//                             qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the previous segment but not in this one, so we should stop playing that clip";
+                            // If the clip was in the previous step, but not in this step, that means it
+                            // should be turned off when reaching this position
+                            TimerCommand* command = new TimerCommand;
+                            command->parameter = clip->property("row").toInt();
+                            const QObject *trackObject = zlTracks.at(command->parameter);
+                            const QString trackAudioType = trackObject->property("trackAudioType").toString();
+                            if (trackAudioType == sampleLoopedType) {
+                                command->operation = TimerCommand::StopClipLoopOperation;
+                                command->parameter2 = clip->property("cppObjId").toInt();
+                                command->parameter3 = 60;
+                            } else {
+                                command->operation = TimerCommand::StopPartOperation;
+                                command->parameter2 = clip->property("column").toInt();
+                                command->parameter3 = clip->property("part").toInt();
                             }
+                            commands << command;
                         }
-                        clipsInPrevious = includedClips;
-                        playlist[segmentPosition] = commands;
-                        // Finally, make sure the next step is covered
-                        quint64 segmentDuration = ((segment->property("barLength").toInt() * 4) + segment->property("beatLength").toInt()) * d->syncTimer->getMultiplier();
-                        segmentPosition += segmentDuration;
-                    } else {
-                        qWarning() << Q_FUNC_INFO << "Failed to get segment" << segmentIndex;
                     }
+                    clipsInPrevious = includedClips;
+                    // TODO Sort commands before adding - we really kind of want stop things before the start things, for when we have restarting added
+                    playlist[segmentPosition] = commands;
+                    // Finally, make sure the next step is covered
+                    quint64 segmentDuration = ((segment->property("barLength").toInt() * 4) + segment->property("beatLength").toInt()) * d->syncTimer->getMultiplier();
+                    segmentPosition += segmentDuration;
+                } else {
+                    qWarning() << Q_FUNC_INFO << "Failed to get segment" << segmentIndex;
                 }
-                qDebug() << Q_FUNC_INFO << "Done processing segments, adding the final stops for any ongoing clips, and the timer stop command";
-                // Run through the clipsInPrevious segment and add commands to stop them all
-                QList<TimerCommand*> commands;
-                for (QObject *clip : clipsInPrevious) {
-                    qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
-                    TimerCommand* command = new TimerCommand;
-                    command->parameter = clip->property("row").toInt();
-                    QObject *trackObject{nullptr};
-                    QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, trackObject), Q_ARG(int, command->parameter));
-                    const QString trackAudioType = trackObject->property("trackAudioType").toString();
-                    if (trackAudioType == sampleLoopedType) {
-                        command->operation = TimerCommand::StopClipLoopOperation;
-                        command->parameter2 = clip->property("cppObjId").toInt();
-                        command->parameter3 = 60;
-                    } else {
-                        command->operation = TimerCommand::StopPartOperation;
-                        command->parameter2 = clip->property("column").toInt();
-                        command->parameter3 = clip->property("part").toInt();
-                    }
-                    commands << command;
-                }
-                // And finally, add one stop command right at the end, so playback will stop itself when we get to the end of the song
-                TimerCommand *stopCommand = new TimerCommand;
-                stopCommand->operation = TimerCommand::StopPlaybackOperation;
-                commands << stopCommand;
-                playlist[segmentPosition] = commands;
-            } else {
-                qWarning() << Q_FUNC_INFO << "Failed to get the segment model";
             }
-        } else {
-            qWarning() << Q_FUNC_INFO << "Failed to get the current mix";
+//             qDebug() << Q_FUNC_INFO << "Done processing segments, adding the final stops for any ongoing clips, and the timer stop command";
+            // Run through the clipsInPrevious segment and add commands to stop them all
+            QList<TimerCommand*> commands;
+            for (QObject *clip : clipsInPrevious) {
+//                 qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
+                TimerCommand* command = new TimerCommand;
+                command->parameter = clip->property("row").toInt();
+                const QObject *trackObject = zlTracks.at(command->parameter);
+                const QString trackAudioType = trackObject->property("trackAudioType").toString();
+                if (trackAudioType == sampleLoopedType) {
+                    command->operation = TimerCommand::StopClipLoopOperation;
+                    command->parameter2 = clip->property("cppObjId").toInt();
+                    command->parameter3 = 60;
+                } else {
+                    command->operation = TimerCommand::StopPartOperation;
+                    command->parameter2 = clip->property("column").toInt();
+                    command->parameter3 = clip->property("part").toInt();
+                }
+                commands << command;
+            }
+            // And finally, add one stop command right at the end, so playback will stop itself when we get to the end of the song
+            TimerCommand *stopCommand = new TimerCommand;
+            stopCommand->operation = TimerCommand::StopPlaybackOperation;
+            commands << stopCommand;
+            playlist[segmentPosition] = commands;
         }
         d->playlist = playlist;
     }
