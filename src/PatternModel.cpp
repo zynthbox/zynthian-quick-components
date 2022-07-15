@@ -1422,6 +1422,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
         || d->playGridManager->currentMidiChannel() > -1)
     ) {
         const int overrideChannel{(d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1};
+        const quint64 playbackOffset{d->segmentHandler->songMode() ? d->segmentHandler->playfieldOffset(d->trackIndex, d->sequence->sceneIndex(), d->partIndex) : 0};
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -1429,7 +1430,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
         // have already been played).
         for (int progressionIncrement = initialProgression; progressionIncrement <= progressionLength; ++progressionIncrement) {
             // check whether the sequencePosition + progressionIncrement matches our note length
-            quint64 nextPosition = sequencePosition + progressionIncrement;
+            quint64 nextPosition = sequencePosition - playbackOffset + progressionIncrement;
             noteLengthDetails(d->noteLength, nextPosition, relevantToUs, noteDuration);
 
             if (relevantToUs) {

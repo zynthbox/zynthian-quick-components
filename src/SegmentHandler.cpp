@@ -39,10 +39,12 @@ struct SketchState {
     SketchState() {
         for (int partIndex = 0; partIndex < 5; ++partIndex) {
             partStates << false;
+            partOffset << 0;
         }
     }
     // Whether or not the specified part should be making sounds right now
     QList<bool> partStates;
+    QList<quint64> partOffset;
 };
 struct TrackState {
     TrackState() {
@@ -145,6 +147,7 @@ public:
         if (command->operation == TimerCommand::StartPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = true;
+            playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
         } else if(command->operation == TimerCommand::StopPartOperation) {
             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = false;
@@ -275,7 +278,8 @@ public Q_SLOTS:
                         for (const QVariant &variantClip : clips) {
                             QObject *clip = variantClip.value<QObject*>();
                             includedClips << clip;
-                            if (!clipsInPrevious.contains(clip)) {
+                            const bool shouldResetPlaybackposition{!clipsInPrevious.contains(clip)}; // This is currently always true for "not in previous segment", but likely we'll want to be able to explicitly do this as well (perhaps with an explicit offset even)
+                            if (shouldResetPlaybackposition || !clipsInPrevious.contains(clip)) {
                                 qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
                                 // If the clip was not there in the previous step, that means we should turn it on
                                 TimerCommand* command = new TimerCommand;
@@ -291,6 +295,7 @@ public Q_SLOTS:
                                     command->operation = TimerCommand::StartPartOperation;
                                     command->parameter2 = clip->property("column").toInt();
                                     command->parameter3 = clip->property("part").toInt();
+                                    command->bigParameter = shouldResetPlaybackposition ? segmentPosition : 0;
                                 }
                                 commands << command;
                             } else {
@@ -457,6 +462,11 @@ void SegmentHandler::stopPlayback()
 bool SegmentHandler::playfieldState(int track, int sketch, int part) const
 {
     return d->playfieldState->trackStates.at(track)->sketchStates.at(sketch)->partStates.at(part);
+}
+
+quint64 SegmentHandler::playfieldOffset(int track, int sketch, int part) const
+{
+    return d->playfieldState->trackStates.at(track)->sketchStates.at(sketch)->partOffset.at(part);
 }
 
 void SegmentHandler::progressPlayback() const
