@@ -145,12 +145,14 @@ public:
     inline void handleTimerCommand(TimerCommand* command) {
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
-            qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
+//             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = true;
             playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
+            Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if(command->operation == TimerCommand::StopPartOperation) {
-            qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
+//             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
             playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = false;
+            Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
         }
