@@ -320,6 +320,11 @@ PatternModel::PatternModel(SequenceModel* parent)
 {
     d->zlSyncManager = new ZLPatternSynchronisationManager(this);
     d->segmentHandler = SegmentHandler::instance();
+    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this](int track, int sketch, int part){
+        if (d->sequence && track == d->trackIndex && part == d->partIndex && sketch == d->sequence->sceneIndex()) {
+            Q_EMIT isPlayingChanged();
+        }
+    }, Qt::QueuedConnection);
     // We need to make sure that we support orphaned patterns (that is, a pattern that is not contained within a sequence)
     d->sequence = parent;
     if (parent) {
