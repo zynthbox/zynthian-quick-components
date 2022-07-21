@@ -650,6 +650,7 @@ QObject* SequenceModel::song() const
 void SequenceModel::setSong(QObject* song)
 {
     if (d->song != song) {
+        d->playGridManager->taskMessage(QString("Loading patterns for %1").arg(objectName()));
         if (d->song) {
             d->song->disconnect(this);
         }
@@ -662,6 +663,7 @@ void SequenceModel::setSong(QObject* song)
         load();
         Q_EMIT songChanged();
         d->zlSyncManager->setZlSong(song);
+        d->playGridManager->taskMessage(QString("Done loading patterns for %1").arg(objectName()));
     }
 }
 

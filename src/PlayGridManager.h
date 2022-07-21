@@ -345,6 +345,8 @@ public:
 
     // TODO This really probably wants to be in libzl or something... but, yeah, this'll do
     Q_INVOKABLE QObject *getClipById(int clipID) const;
+
+    Q_SIGNAL void taskMessage(const QString &message);
 private:
     class Private;
     Private *d;
