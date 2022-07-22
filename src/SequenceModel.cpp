@@ -59,6 +59,7 @@ public:
     QObject *zlScenesModel{nullptr};
     QObject *zlMetronomeManager{nullptr};
 
+    int soloTrack{-1};
     void setZlSong(QObject *newZlSong) {
         if (zlSong != newZlSong) {
             if (zlSong) {
@@ -70,10 +71,12 @@ public:
                 setZlMetronomeManager(qvariant_cast<QObject *>(zlSong->property("metronomeManager")));
                 connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()), Qt::QueuedConnection);
                 connect(zlSong, SIGNAL(__scenes_model_changed__()), this, SLOT(scenesModelChanged()), Qt::QueuedConnection);
+                connect(zlSong, SIGNAL(playTrackSoloChanged()), this, SLOT(playTrackSoloChanged()), Qt::QueuedConnection);
                 bpmChanged();
             }
             scenesModelChanged();
             currentMidiChannelChanged();
+            playTrackSoloChanged();
         }
     }
 
@@ -129,6 +132,13 @@ public Q_SLOTS:
     }
     void recordSoloChanged() {
         updateShouldMakeSounds();
+    }
+    void playTrackSoloChanged() {
+        if (zlSong) {
+            soloTrack = zlSong->property("playTrackSolo").toInt();
+        } else {
+            soloTrack = -1;
+        }
     }
     void currentMidiChannelChanged() {
         if (zlSong) {
@@ -796,13 +806,15 @@ void SequenceModel::advanceSequence()
         // so the sequenceProgressionLength thing is only for prefilling at this point.
         const quint64 sequenceProgressionLength{1};
         if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-            PatternModel *pattern = d->patternModels[d->soloPattern];
+            const PatternModel *pattern = d->patternModels.at(d->soloPattern);
             if (pattern) {
                 pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
             }
         } else {
-            for (PatternModel *pattern : qAsConst(d->patternModels)) {
-                pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+            for (const PatternModel *pattern : qAsConst(d->patternModels)) {
+                if (d->zlSyncManager->soloTrack == -1 || d->zlSyncManager->soloTrack == pattern->trackIndex()) {
+                    pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+                }
             }
         }
     }
@@ -812,7 +824,7 @@ void SequenceModel::updatePatternPositions()
 {
     if (d->shouldMakeSounds) {
         if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-            PatternModel *pattern = d->patternModels[d->soloPattern];
+            PatternModel *pattern = d->patternModels.at(d->soloPattern);
             if (pattern) {
                 pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
             }
