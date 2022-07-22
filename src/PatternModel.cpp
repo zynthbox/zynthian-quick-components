@@ -58,6 +58,7 @@ public:
     QObject *zlScene{nullptr};
     QTimer *layerDataPuller{nullptr};
 
+    bool trackMuted{false};
     void setZlTrack(QObject *newZlTrack)
     {
         if (zlTrack != newZlTrack) {
@@ -73,6 +74,7 @@ public:
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(recordingPopupActiveChanged()), this, SIGNAL(recordingPopupActiveChanged()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(isMutedChanged()), this, SIGNAL(isMutedChanged()), Qt::QueuedConnection);
                 q->setMidiChannel(zlTrack->property("id").toInt());
                 trackAudioTypeChanged();
                 externalMidiChannelChanged();
@@ -81,6 +83,7 @@ public:
                 layerDataPuller->start();
                 chainedSoundsChanged();
             }
+            isMutedChanged();
             Q_EMIT q->zlTrackChanged();
         }
     }
@@ -181,6 +184,13 @@ public Q_SLOTS:
                 }
             }
             MidiRouter::instance()->setZynthianChannels(q->trackIndex(), chainedSounds);
+        }
+    }
+    void isMutedChanged() {
+        if (zlTrack) {
+            trackMuted = zlTrack->property("muted").toBool();
+        } else {
+            trackMuted = false;
         }
     }
     void retrieveLayerData() {
@@ -1418,13 +1428,16 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
     static const QLatin1String velocityString{"velocity"};
     static const QLatin1String delayString{"delay"};
     static const QLatin1String durationString{"duration"};
-    if (isPlaying()
-        // Play any note if the pattern is set to sliced or trigger destination, since then it's not sending things through the midi graph
-        && (d->noteDestination == PatternModel::SampleSlicedDestination || d->noteDestination == PatternModel ::SampleTriggerDestination
-        // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
-        || (d->midiChannel > -1 && d->midiChannel < 15)
-        // And if we're playing midi, but don't have a good channel of our own, if the current channel is good, use that
-        || d->playGridManager->currentMidiChannel() > -1)
+    if (!d->zlSyncManager->trackMuted
+        && (isPlaying()
+            // Play any note if the pattern is set to sliced or trigger destination, since then it's not sending things through the midi graph
+            && (d->noteDestination == PatternModel::SampleSlicedDestination || d->noteDestination == PatternModel ::SampleTriggerDestination
+                // Don't play notes on channel 15, because that's the control channel, and we don't want patterns to play to that
+                || (d->midiChannel > -1 && d->midiChannel < 15)
+                // And if we're playing midi, but don't have a good channel of our own, if the current channel is good, use that
+                || d->playGridManager->currentMidiChannel() > -1
+            )
+        )
     ) {
         const int overrideChannel{(d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1};
         const quint64 playbackOffset{d->segmentHandler->songMode() ? d->segmentHandler->playfieldOffset(d->trackIndex, d->sequence->sceneIndex(), d->partIndex) : 0};
