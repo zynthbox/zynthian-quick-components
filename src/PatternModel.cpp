@@ -74,7 +74,7 @@ public:
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
                 connect(zlTrack, SIGNAL(recordingPopupActiveChanged()), this, SIGNAL(recordingPopupActiveChanged()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(isMutedChanged()), this, SIGNAL(isMutedChanged()), Qt::QueuedConnection);
+                connect(zlTrack, SIGNAL(isMutedChanged()), this, SLOT(isMutedChanged()), Qt::QueuedConnection);
                 q->setMidiChannel(zlTrack->property("id").toInt());
                 trackAudioTypeChanged();
                 externalMidiChannelChanged();
