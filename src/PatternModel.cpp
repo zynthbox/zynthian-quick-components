@@ -1423,8 +1423,9 @@ inline void noteLengthDetails(int noteLength, quint64 &nextPosition, bool &relev
     }
 }
 
-void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength, int initialProgression) const
+void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const
 {
+    static const int initialProgression{0};
     static const QLatin1String velocityString{"velocity"};
     static const QLatin1String delayString{"delay"};
     static const QLatin1String durationString{"duration"};

@@ -553,9 +553,8 @@ public:
      * the Pattern, to ensure the lowest possible latency)
      * @param sequencePosition The position in the sequence that should be considered (literally a count of ticks)
      * @param progressionLength The number of ticks until the next position (that is, how many ticks between this and the next call of the function)
-     * @param initialProgression The position on top of the sequence position to look at (1 is "one step in the future", 0 is basically "schedule on current tick", useful for prefilling)
      */
-    void handleSequenceAdvancement(quint64 sequencePosition, int progressionLength, int initialProgression = 1) const;
+    void handleSequenceAdvancement(quint64 sequencePosition, int progressionLength) const;
     /**
      * \brief Used by SequenceModel to update its patterns' positions to the actual sequence playback position during playback
      *
