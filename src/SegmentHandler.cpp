@@ -424,7 +424,7 @@ SegmentHandler::SegmentHandler(QObject *parent)
     connect(d->syncTimer, &SyncTimer::timerCommand, this, [this](TimerCommand* command){ d->handleTimerCommand(command); }, Qt::DirectConnection);
     connect(d->syncTimer, &SyncTimer::clipCommandSent, this, [this](ClipCommand* command) {
         // We don't bother clearing stuff that's been stopped, stopping a non-running clip is essentially an nop anyway
-        if (command->startPlayback) {
+        if (command->startPlayback && !d->runningLoops.contains(command->clip)) {
             d->runningLoops << command->clip;
         }
     }, Qt::DirectConnection);
