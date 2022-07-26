@@ -432,13 +432,27 @@ SegmentHandler::SegmentHandler(QObject *parent)
         if (!d->syncTimer->timerRunning()) {
             // First, stop any sounds currently running
             for (ClipAudioSource *clip : d->runningLoops) {
-                clip->stop();
+                ClipCommand *command = ClipCommand::noEffectCommand(clip);
+                command->stopPlayback = true;
+                d->syncTimer->scheduleClipCommand(command, 0);
+                // Less than the best thing - having to do this to ensure we stop the ones looper
+                // queued for starting as well, otherwise they'll get missed for stopping... We'll
+                // want to handle this more precisely later, but for now this should do the trick.
+                command = ClipCommand::effectedCommand(clip);
+                command->stopPlayback = true;
+                d->syncTimer->scheduleClipCommand(command, 0);
+                for (int i = 0; i < 10; ++i) {
+                    command = ClipCommand::trackCommand(clip, i);
+                    command->midiNote = 60;
+                    command->stopPlayback = true;
+                    d->syncTimer->scheduleClipCommand(command, 0);
+                }
             }
             // Then refresh the playfield
             delete d->playfieldState;
             d->playfieldState = new PlayfieldState();
         }
-    });
+    }, Qt::QueuedConnection);
 }
 
 SegmentHandler::~SegmentHandler()
