@@ -1609,7 +1609,7 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
             if (message.isForChannel(d->midiChannel + 1) || ((d->midiChannel < 0 || d->midiChannel > 8) && message.getChannel() == 10)) {
                 const QList<ClipCommand*> commands = d->midiMessageToClipCommands(meta);
                 for (ClipCommand *command : commands) {
-                    d->samplerSynth->handleClipCommand(command);
+                    d->syncTimer->scheduleClipCommand(command, 0);
                 }
             }
         }
