@@ -40,6 +40,20 @@
 #include <SamplerSynth.h>
 #include <SyncTimer.h>
 
+static const QStringList midiNoteNames{
+    "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
+    "C0", "C#0", "D0", "D#0", "E0", "F0", "F#0", "G0", "G#0", "A0", "A#0", "B0",
+    "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", "A1", "A#1", "B1",
+    "C2", "C#2", "D2", "D#2", "E2", "F2", "F#2", "G2", "G#2", "A2", "A#2", "B2",
+    "C3", "C#3", "D3", "D#3", "E3", "F3", "F#3", "G3", "G#3", "A3", "A#3", "B3",
+    "C4", "C#4", "D4", "D#4", "E4", "F4", "F#4", "G4", "G#4", "A4", "A#4", "B4",
+    "C5", "C#5", "D5", "D#5", "E5", "F5", "F#5", "G5", "G#5", "A5", "A#5", "B5",
+    "C6", "C#6", "D6", "D#6", "E6", "F6", "F#6", "G6", "G#6", "A6", "A#6", "B6",
+    "C7", "C#7", "D7", "D#7", "E7", "F7", "F#7", "G7", "G#7", "A7", "A#7", "B7",
+    "C8", "C#8", "D8", "D#8", "E8", "F8", "F#8", "G8", "G#8", "A8", "A#8", "B8",
+    "C9", "C#9", "D9", "D#9", "E9", "F9", "F#9", "G9"
+};
+
 class ZLPatternSynchronisationManager : public QObject {
 Q_OBJECT
 public:
@@ -162,13 +176,12 @@ public Q_SLOTS:
             const QVariantList trackSamples = zlTrack->property("samples").toList();
             const QVariantList partSamples = zlPart->property("samples").toList();
             for (const QVariant& partSample : partSamples) {
+                int sampleCppId{-1};
                 const QObject *sample = trackSamples[partSample.toInt()].value<QObject*>();
                 if (sample) {
-                    const int sampleCppId = sample->property("cppObjId").toInt();
-                    if (sampleCppId > -1) {
-                        clipIds << sampleCppId;
-                    }
+                    sampleCppId = sample->property("cppObjId").toInt();
                 }
+                clipIds << sampleCppId;
             }
         }
         q->setClipIds(clipIds);
@@ -1072,8 +1085,8 @@ void PatternModel::setClipIds(const QVariantList &clipIds)
         QList<QPointer<ClipAudioSource>> newClips;
         for (const QVariant &clipId: clipIds) {
             ClipAudioSource *newClip = ClipAudioSource_byID(clipId.toInt());
+            newClips << newClip;
             if (newClip) {
-                newClips << newClip;
                 connect(newClip, &QObject::destroyed, this, [this, newClip](){ d->clips.removeAll(newClip); });
             }
         }
@@ -1100,12 +1113,12 @@ QObject *PatternModel::clipSliceNotes() const
             QList<QString> noteTitles;
             ClipAudioSource *previousClip{nullptr};
             for (int i = 0; i < d->clips.count(); ++i) {
-                ClipAudioSource *clip = d->clips[i];
+                ClipAudioSource *clip = d->clips.at(i);
                 if (clip) {
                     int sliceStart{clip->sliceBaseMidiNote()};
                     int nextClipStart{129};
                     for (int j = i + 1; j < d->clips.count(); ++j) {
-                        ClipAudioSource *nextClip = d->clips[j];
+                        ClipAudioSource *nextClip = d->clips.at(j);
                         if (nextClip) {
                             nextClipStart = nextClip->sliceBaseMidiNote();
                             break;
@@ -1194,14 +1207,38 @@ QObject *PatternModel::gridModel() const
             d->gridModel->clear();
             for (int row = 0; row < howManyRows; ++row) {
                 QVariantList notes;
+                QVariantList metadata;
                 for (int column = 0; column < notesToFit.count() / howManyRows; ++column) {
                     if (i == notesToFit.count()) {
                         break;
                     }
-                    notes << QVariant::fromValue<QObject*>(PlayGridManager::instance()->getNote(notesToFit[i], d->midiChannel));
+                    Note* note = qobject_cast<Note*>(PlayGridManager::instance()->getNote(notesToFit[i], d->midiChannel));
+                    notes << QVariant::fromValue<QObject*>(note);
+                    QList<ClipAudioSource*> clips = d->clipsForMidiNote(note->midiNote());
+                    if (noteDestination() == SampleTriggerDestination) {
+                        QString noteTitle{midiNoteNames[note->midiNote()]};
+                        if (clips.length() > 0) {
+                            for (ClipAudioSource* clip : clips) {
+                                int clipIndex = d->clips.indexOf(clip);
+                                QString actualNote{};
+                                if (clip->rootNote() != 60) {
+                                    int actualNoteValue = note->midiNote() + (60 - clip->rootNote());
+                                    if (actualNoteValue > -1 && actualNoteValue < 128) {
+                                        actualNote = QString(" (%1)").arg(midiNoteNames[actualNoteValue]);
+                                    }
+                                }
+                                noteTitle += QString("\nSample %1%2").arg(QString::number(clipIndex + 1)).arg(actualNote);
+                            }
+                        } else {
+                            noteTitle += QString{"\n(no sample)"};
+                        }
+                        metadata << QVariantMap{{"displayText", QVariant::fromValue<QString>(noteTitle)}};
+                    } else {
+                        metadata << QVariantMap();
+                    }
                     ++i;
                 }
-                d->gridModel->addRow(notes);
+                d->gridModel->addRow(notes, metadata);
             }
             d->gridModel->endLongOperation();
         };
@@ -1212,6 +1249,18 @@ QObject *PatternModel::gridModel() const
         connect(this, &PatternModel::midiChannelChanged, refilTimer, QOverload<>::of(&QTimer::start));
         connect(this, &PatternModel::gridModelStartNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
         connect(this, &PatternModel::gridModelEndNoteChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        // To ensure we also update when the clips for each position change
+        connect(this, &PatternModel::noteDestinationChanged, refilTimer, QOverload<>::of(&QTimer::start));
+        auto updateClips = [this,refilTimer](){
+            for (ClipAudioSource *clip : d->clips) {
+                if (clip) {
+                    connect(clip, &ClipAudioSource::keyZoneStartChanged, refilTimer, QOverload<>::of(&QTimer::start));
+                    connect(clip, &ClipAudioSource::keyZoneEndChanged, refilTimer, QOverload<>::of(&QTimer::start));
+                }
+            }
+        };
+        connect(this, &PatternModel::clipIdsChanged, d->gridModel, updateClips);
+        updateClips();
         refilTimer->start();
     }
     return d->gridModel;
