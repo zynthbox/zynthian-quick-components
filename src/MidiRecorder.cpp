@@ -21,6 +21,7 @@
 
 #include "MidiRecorder.h"
 
+#include "Note.h"
 #include "PlayGridManager.h"
 #include "PatternModel.h"
 
@@ -280,7 +281,107 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
             acceptChannel << 15;
         }
     }
-    qWarning() << Q_FUNC_INFO << "NO ACTION TAKEN - UNIMPLEMENTED!";
+
+    // work out how many microseconds we've got per step in the given pattern
+    SyncTimer *syncTimer{qobject_cast<SyncTimer*>(patternModel->playGridManager()->syncTimer())};
+    int subbeatsPerStep{0};
+    switch (patternModel->noteLength()) {
+    case 1:
+        subbeatsPerStep = 32;
+        break;
+    case 2:
+        subbeatsPerStep = 16;
+        break;
+    case 3:
+        subbeatsPerStep = 8;
+        break;
+    case 4:
+        subbeatsPerStep = 4;
+        break;
+    case 5:
+        subbeatsPerStep = 2;
+        break;
+    case 6:
+        subbeatsPerStep = 1;
+        break;
+    default:
+        break;
+    }
+    int microsecondsPerStep = syncTimer->subbeatCountToSeconds(syncTimer->getBpm(), subbeatsPerStep) / 1000;
+    int microsecondsPerSubbeat = syncTimer->subbeatCountToSeconds(syncTimer->getBpm(), 1) / 1000;
+
+    // Update the matching on/off pairs in the sequence (just to make sure they're there, and logically
+    // matched, as we depend on that below, but also kind of just want things ready before we use the data
+    d->midiMessageSequence.updateMatchedPairs();
+
+    // find out what the last "on" message is, and use that to determine what the last step would be in the current sequence
+    int lastStep{-1};
+    if (d->midiMessageSequence.getNumEvents() > 0) {
+        auto message = d->midiMessageSequence.end();
+        while (--message) {
+            if ((*message)->message.isNoteOn()) {
+                // use the position of that message to work out how many steps we need
+                lastStep = (*message)->message.getTimeStamp() / microsecondsPerStep;
+                break;
+            }
+            if (message == d->midiMessageSequence.begin()) {
+                break;
+            }
+        }
+    }
+    if (lastStep == -1) {
+        // if it's more than pattern width*bankLength, we've got a problem (and should probably do the first part, and then spit out a message somewhere to the effect that some bits are missing)
+        if (lastStep > patternModel->width() * patternModel->bankLength()) {
+            qWarning() << Q_FUNC_INFO << "We've got more notes in this recording than what will fit in the given pattern with its current note length. Adding what there's room for and ignoring the rest. Last step was supposed to be" << lastStep << "and we have room for" << patternModel->width() * patternModel->bankLength();
+            lastStep = patternModel->width() * patternModel->bankLength();
+        }
+        // resize the pattern to the right number of bars (number of steps divided by the pattern's width)
+        patternModel->setAvailableBars(lastStep / patternModel->width());
+        // fetch the messages in order until the step position is "next step" and then forward the step, find the matching off note (if none is found, set duration 0) and insert them on the current step (if the message's channel is in the accepted list, remembering juce's 1-indexing)
+        int step{0}, midiChannel{0}, midiNote{0}, timestamp{0}, duration{0}, velocity{0}, delay{0}, row{0}, column{0}, subnoteIndex{0};
+        Note* note{nullptr};
+        auto message = d->midiMessageSequence.begin();
+        while (++message != d->midiMessageSequence.end()) {
+            // Only operate on noteOn messages, because they're the ones being inserted
+            if ((*message)->message.isNoteOn() && acceptChannel.contains((*message)->message.getChannel() - 1)) {
+                midiChannel = (*message)->message.getChannel() - 1;
+                midiNote = (*message)->message.getNoteNumber();
+                velocity = (*message)->message.getVelocity();
+                timestamp = (*message)->message.getTimeStamp();
+                while (timestamp > (step * microsecondsPerStep)) {
+                    ++step;
+                }
+                delay = ((step * microsecondsPerStep) - timestamp) / microsecondsPerSubbeat;
+                if ((*message)->noteOffObject) {
+                    duration = ((*message)->noteOffObject->message.getTimeStamp() - timestamp - delay) / microsecondsPerStep;
+                } else {
+                    duration = 0;
+                }
+            } else {
+                continue;
+            }
+            // If we're now past the last step, break out
+            if (step > lastStep) {
+                break;
+            }
+            // Actually insert the message's note data into the step
+            note = qobject_cast<Note*>(patternModel->playGridManager()->getNote(midiNote, midiChannel));
+            row = patternModel->bankOffset() + (step / patternModel->width());
+            column = step % patternModel->width();
+            subnoteIndex = patternModel->addSubnote(row, column, note);
+            patternModel->setSubnoteMetadata(row, column, subnoteIndex, "velocity", velocity);
+            if (duration > 0) {
+                patternModel->setSubnoteMetadata(row, column, subnoteIndex, "duration", velocity);
+            }
+            if (delay > 0) {
+                patternModel->setSubnoteMetadata(row, column, subnoteIndex, "delay", velocity);
+            }
+        }
+        success = true;
+    } else {
+        qWarning() << Q_FUNC_INFO << "Failed to find a last step";
+    }
+
     return success;
 }
 
