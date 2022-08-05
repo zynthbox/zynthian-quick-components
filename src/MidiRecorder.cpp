@@ -363,7 +363,11 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
                     duration = 0;
                 }
             } else {
-                qDebug() << Q_FUNC_INFO << "Not an on message, skipping";
+                if (!acceptChannel.contains(message->message.getChannel() - 1)) {
+                    qDebug() << Q_FUNC_INFO << "Message channel is not accepted, skipping";
+                } else {
+                    qDebug() << Q_FUNC_INFO << "Not an on message, skipping";
+                }
                 continue;
             }
             // If we're now past the last step, break out
