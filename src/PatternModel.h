@@ -237,6 +237,15 @@ class PatternModel : public NotesModel
     Q_PROPERTY(QObject* clipSliceNotes READ clipSliceNotes CONSTANT)
 
     /**
+     * \brief Whether or not the pattern will read messages on its channel and write them into the pattern during playback
+     * This is a form of loop recording, and it will cause the pattern to change existing notes on a given step when there is
+     * already a note with the same note value on that step (so it will change the velocity, duration, and delay of that note,
+     * functionally replacing it with the new one)
+     * @note This property will be changed to false when playback is stopped
+     */
+    Q_PROPERTY(bool recordLive READ recordLive WRITE setRecordLive NOTIFY recordLiveChanged)
+
+    /**
      * \brief A reference to the zynthiloops Track object this Pattern is associated with
      */
     Q_PROPERTY(QObject* zlTrack READ zlTrack WRITE setZlTrack NOTIFY zlTrackChanged);
@@ -521,6 +530,10 @@ public:
     void setGridModelEndNote(int gridModelEndNote);
     Q_SIGNAL void gridModelEndNoteChanged();
     QObject *gridModel() const;
+
+    void setRecordLive(bool recordLive);
+    bool recordLive() const;
+    Q_SIGNAL void recordLiveChanged();
 
     QObject *zlTrack() const;
     void setZlTrack(QObject *zlTrack);

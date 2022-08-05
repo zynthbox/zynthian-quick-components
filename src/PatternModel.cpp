@@ -215,6 +215,14 @@ public Q_SLOTS:
     }
 };
 
+struct NewNoteData {
+    int step{0};
+    int midiNote{0};
+    int velocity{0};
+    int position{0};
+    quint64 timestamp{0};
+};
+
 class PatternModel::Private {
 public:
     Private() {
@@ -240,6 +248,9 @@ public:
     int playingRow{0};
     int playingColumn{0};
     int previouslyUpdatedMidiChannel{-1};
+
+    bool recordingLive{false};
+    QList<NewNoteData*> recordingLiveNotes;
 
     // This bunch of lists is equivalent to the data found in each note, and is
     // stored per-position (index in the outer is row * width + column). The
@@ -1266,6 +1277,19 @@ QObject *PatternModel::gridModel() const
     return d->gridModel;
 }
 
+void PatternModel::setRecordLive(bool recordLive)
+{
+    if (d->recordingLive != recordLive) {
+        d->recordingLive = recordLive;
+        Q_EMIT recordLiveChanged();
+    }
+}
+
+bool PatternModel::recordLive() const
+{
+    return d->recordingLive;
+}
+
 QObject *PatternModel::zlTrack() const
 {
     return d->zlSyncManager->zlTrack;
@@ -1641,7 +1665,7 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
 
 void PatternModel::handleSequenceStop()
 {
-    // Unschedule any notes we've previously scheduled, to try and alleviate troublesome situations
+    setRecordLive(false);
 }
 
 void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3)
@@ -1660,6 +1684,85 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
                 for (ClipCommand *command : commands) {
                     d->syncTimer->scheduleClipCommand(command, 0);
                 }
+            }
+        }
+    }
+    // if we're recording live, and it's a note-on message, create a newnotedata and add to list of notes being recorded
+    if (d->recordingLive && 0x8F < byte1 && byte1 < 0xA0) {
+        juce::MidiMessage message(byte1, byte2, byte3);
+        juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
+        if (message.isForChannel(d->midiChannel + 1)) {
+            NewNoteData *newNote = new NewNoteData;
+            newNote->timestamp = d->syncTimer->cumulativeBeat();
+            newNote->step = newNote->timestamp % (d->availableBars * d->width);
+            newNote->midiNote = message.getNoteNumber();
+            newNote->velocity = message.getVelocity();
+        }
+    }
+    // if note-off, check whether there's a matching on note, and if there is, add that note with velocity, delay, and duration as appropriate for current time and step
+    if (d->recordingLiveNotes.count() > 0 && 0x7F < byte1 && byte1 < 0x90) {
+        juce::MidiMessage message(byte1, byte2, byte3);
+        juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
+        if (message.isForChannel(d->midiChannel + 1)) {
+            NewNoteData *newNote{nullptr};
+            for (NewNoteData *needle : qAsConst(d->recordingLiveNotes)) {
+                if (needle->midiNote == message.getNoteNumber()) {
+                    newNote = needle;
+                    break;
+                }
+            }
+            if (newNote) {
+                // Pick the item out of the list
+                d->recordingLiveNotes.removeOne(newNote);
+                int row = (newNote->step / d->width) % d->availableBars;
+                int column = newNote->step - (row * d->width);
+                quint64 endTimestamp = d->syncTimer->cumulativeBeat();
+
+                bool relevantToUs{false}; // not relevant
+                quint64 nextPosition{newNote->timestamp};
+                quint64 noteDuration{0};
+                noteLengthDetails(d->noteLength, nextPosition, relevantToUs, noteDuration);
+                int patternLength = d->width * d->availableBars;
+                int delay = (newNote->timestamp % (patternLength * noteDuration)) - (((row * d->width) + column) * noteDuration);
+                // Sanity check the delay - if it's within a small amount of the start position of the current step, or very near
+                // the next step, assume it wants to be quantized and make sure we're setting it on the appropriate step)
+                if (delay < 3) {
+                    delay = 0;
+                } else if (noteDuration - delay < 3) {
+                    newNote->step++;
+                    row = (newNote->step / d->width) % d->availableBars;
+                    column = newNote->step - (row * d->width);
+                    delay = 0;
+                }
+
+                int duration = endTimestamp - newNote->timestamp;
+                // Sanity check the duration - if it's within a small amount of the length of the pattern's note, reset it to 0 (for auto-quantizing)
+                if (abs(duration - qint64(noteDuration)) < 3) {
+                    duration = 0;
+                }
+
+                // Now let's make sure that if there's already a note with this note value on the given step, we change that instead of adding a new one
+                row = d->bankOffset + row; // reset row to the internal actual row (otherwise we'd end up with the wrong one)
+                int subnoteIndex{-1};
+                Note *note = qobject_cast<Note*>(getNote(row, column));
+                for (int i = 0; i < note->subnotes().count(); ++i) {
+                    Note* subnote = note->subnotes().at(i).value<Note*>();
+                    if (subnote && subnote->midiNote() == newNote->midiNote) {
+                        subnoteIndex = i;
+                        break;
+                    }
+                }
+                // If we didn't find one there already, /then/ we can create one
+                if (subnoteIndex == -1) {
+                    subnoteIndex = addSubnote(row, column, playGridManager()->getNote(newNote->midiNote, d->midiChannel));
+                }
+                // And then, finally, set the three values (always set them, because we might be changing an existing entry
+                setSubnoteMetadata(row, column, subnoteIndex, "velocity", newNote->velocity);
+                setSubnoteMetadata(row, column, subnoteIndex, "duration", duration);
+                setSubnoteMetadata(row, column, subnoteIndex, "delay", delay);
+
+                // And at the end, get rid of the thing
+                delete newNote;
             }
         }
     }
