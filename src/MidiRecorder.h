@@ -130,15 +130,16 @@ public:
         ApplyChannel14 = 0x65536,
         ApplyChannel15 = 0x131072,
         ApplyAllChannelsToPattern = ApplyChannel0 | ApplyChannel1 | ApplyChannel2 | ApplyChannel3 | ApplyChannel4 | ApplyChannel5 | ApplyChannel6 | ApplyChannel7 | ApplyChannel8 | ApplyChannel9 | ApplyChannel10 | ApplyChannel11 | ApplyChannel12 | ApplyChannel13 | ApplyChannel14 | ApplyChannel15,
+        ApplyAllChannelAndClearPattern = ApplyAllChannelsToPattern | ClearPatternBeforeApplying,
     };
     Q_DECLARE_FLAGS(ApplicatorSettings, ApplicatorSetting)
     Q_FLAG(ApplicatorSettings)
     /**
      * \brief Apply what is contained in the recorder to a pattern
      * @param PatternModel The model to apply the recorder's midi data to
-     * @param settings A set of flags you can use to control the behaviour of the function
+     * @param settings A set of flags you can use to control the behaviour of the function. Defaults to clearing pattern and applying all channels - set your own if required
      */
-    Q_INVOKABLE bool applyToPattern(PatternModel *patternModel, QFlags<ApplicatorSetting> settings = NoFlags) const;
+    Q_INVOKABLE bool applyToPattern(PatternModel *patternModel, QFlags<ApplicatorSetting> settings = ApplyAllChannelAndClearPattern) const;
 
     bool isPlaying() const;
     Q_SIGNAL void isPlayingChanged();
