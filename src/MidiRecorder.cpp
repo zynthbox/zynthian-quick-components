@@ -307,8 +307,8 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
     default:
         break;
     }
-    int microsecondsPerStep = syncTimer->subbeatCountToSeconds(syncTimer->getBpm(), subbeatsPerStep) / 1000;
-    int microsecondsPerSubbeat = syncTimer->subbeatCountToSeconds(syncTimer->getBpm(), 1) / 1000;
+    int microsecondsPerStep = syncTimer->subbeatCountToSeconds(syncTimer->getBpm(), subbeatsPerStep) * 1000000;
+    int microsecondsPerSubbeat = syncTimer->subbeatCountToSeconds(syncTimer->getBpm(), 1) * 1000000;
 
     // Update the matching on/off pairs in the sequence (just to make sure they're there, and logically
     // matched, as we depend on that below, but also kind of just want things ready before we use the data
@@ -317,19 +317,18 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
     // find out what the last "on" message is, and use that to determine what the last step would be in the current sequence
     int lastStep{-1};
     if (d->midiMessageSequence.getNumEvents() > 0) {
-        auto message = d->midiMessageSequence.end();
-        while (--message) {
-            if ((*message)->message.isNoteOn()) {
+        qDebug() << Q_FUNC_INFO << "We've got more than one event recorded, let's find the last on note...";
+        for (int messageIndex = d->midiMessageSequence.getNumEvents() - 1; messageIndex > -1; --messageIndex) {
+            juce::MidiMessageSequence::MidiEventHolder *message = d->midiMessageSequence.getEventPointer(messageIndex);
+            if (message->message.isNoteOn()) {
                 // use the position of that message to work out how many steps we need
-                lastStep = (*message)->message.getTimeStamp() / microsecondsPerStep;
-                break;
-            }
-            if (message == d->midiMessageSequence.begin()) {
+                lastStep = message->message.getTimeStamp() / microsecondsPerStep;
+                qDebug() << Q_FUNC_INFO << "Found an on note while traversing backwards, position is" << lastStep;
                 break;
             }
         }
     }
-    if (lastStep == -1) {
+    if (lastStep > -1) {
         // if it's more than pattern width*bankLength, we've got a problem (and should probably do the first part, and then spit out a message somewhere to the effect that some bits are missing)
         if (lastStep > patternModel->width() * patternModel->bankLength()) {
             qWarning() << Q_FUNC_INFO << "We've got more notes in this recording than what will fit in the given pattern with its current note length. Adding what there's room for and ignoring the rest. Last step was supposed to be" << lastStep << "and we have room for" << patternModel->width() * patternModel->bankLength();
@@ -340,28 +339,36 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
         // fetch the messages in order until the step position is "next step" and then forward the step, find the matching off note (if none is found, set duration 0) and insert them on the current step (if the message's channel is in the accepted list, remembering juce's 1-indexing)
         int step{0}, midiChannel{0}, midiNote{0}, timestamp{0}, duration{0}, velocity{0}, delay{0}, row{0}, column{0}, subnoteIndex{0};
         Note* note{nullptr};
-        auto message = d->midiMessageSequence.begin();
-        while (++message != d->midiMessageSequence.end()) {
+        for (int messageIndex = 0; messageIndex < d->midiMessageSequence.getNumEvents(); ++messageIndex) {
+            juce::MidiMessageSequence::MidiEventHolder *message = d->midiMessageSequence.getEventPointer(messageIndex);
+            if (!message) {
+                qDebug() << "Apparently got an incorrect message, this is bad";
+            }
             // Only operate on noteOn messages, because they're the ones being inserted
-            if ((*message)->message.isNoteOn() && acceptChannel.contains((*message)->message.getChannel() - 1)) {
-                midiChannel = (*message)->message.getChannel() - 1;
-                midiNote = (*message)->message.getNoteNumber();
-                velocity = (*message)->message.getVelocity();
-                timestamp = (*message)->message.getTimeStamp();
+            if (message->message.isNoteOn() && acceptChannel.contains(message->message.getChannel() - 1)) {
+                midiChannel = message->message.getChannel() - 1;
+                midiNote = message->message.getNoteNumber();
+                velocity = message->message.getVelocity();
+                timestamp = message->message.getTimeStamp();
+                qDebug() << Q_FUNC_INFO << "Found an on message, for channel, note, velocity, and timestamp" << midiChannel << midiNote << velocity << timestamp;
                 while (timestamp > (step * microsecondsPerStep)) {
+                    qDebug() << Q_FUNC_INFO << "Increasing step position, now operating on step" << step;
                     ++step;
                 }
                 delay = ((step * microsecondsPerStep) - timestamp) / microsecondsPerSubbeat;
-                if ((*message)->noteOffObject) {
-                    duration = ((*message)->noteOffObject->message.getTimeStamp() - timestamp - delay) / microsecondsPerStep;
+                if (message->noteOffObject) {
+                    duration = (message->noteOffObject->message.getTimeStamp() - timestamp - delay) / microsecondsPerStep;
+                    qDebug() << Q_FUNC_INFO << "Found a note off partner, duration is now" << duration;
                 } else {
                     duration = 0;
                 }
             } else {
+                qDebug() << Q_FUNC_INFO << "Not an on message, skipping";
                 continue;
             }
             // If we're now past the last step, break out
             if (step > lastStep) {
+                qDebug() << Q_FUNC_INFO << "We're past the final step, break out";
                 break;
             }
             // Actually insert the message's note data into the step
@@ -369,6 +376,7 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
             row = patternModel->bankOffset() + (step / patternModel->width());
             column = step % patternModel->width();
             subnoteIndex = patternModel->addSubnote(row, column, note);
+            qDebug() << Q_FUNC_INFO << "Inserted subnote at" << row << column << "New subnote is" << note;
             patternModel->setSubnoteMetadata(row, column, subnoteIndex, "velocity", velocity);
             if (duration > 0) {
                 patternModel->setSubnoteMetadata(row, column, subnoteIndex, "duration", velocity);
