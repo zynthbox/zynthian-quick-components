@@ -234,8 +234,13 @@ public:
     Private() {
         playGridManager = PlayGridManager::instance();
         samplerSynth = SamplerSynth::instance();
+        for (int i = 0; i < 100; ++i) {
+            notePool << new NewNoteData;
+        }
     }
-    ~Private() {}
+    ~Private() {
+        qDeleteAll(notePool);
+    }
     ZLPatternSynchronisationManager *zlSyncManager{nullptr};
     SegmentHandler *segmentHandler{nullptr};
     QHash<QString, qint64> lastSavedTimes;
@@ -257,6 +262,7 @@ public:
 
     bool recordingLive{false};
     QList<NewNoteData*> recordingLiveNotes;
+    QList<NewNoteData*> notePool;
 
     // This bunch of lists is equivalent to the data found in each note, and is
     // stored per-position (index in the outer is row * width + column). The
@@ -327,26 +333,28 @@ public:
     }
     /**
      * Returns a (potentially empty) list of ClipCommands which match the midi message passed to the function
-     * @param meta A midi meta message representing a midi event
+     * @param byte1 The first byte of a midi message
+     * @param byte2 The seconds byte of a midi message
+     * @param byte3 The third byte of a midi message
      * @return A list of ClipCommand instances matching the midi event (list can be empty)
      */
-    QList<ClipCommand*> midiMessageToClipCommands(const juce::MidiMessageMetadata &meta) const {
+    QList<ClipCommand*> midiMessageToClipCommands(const int &byte1, const int &byte2, const int &byte3) const {
         QList<ClipCommand*> commands;
-        const QList<ClipAudioSource*> clips = clipsForMidiNote(meta.data[1]);
+        const QList<ClipAudioSource*> clips = clipsForMidiNote(byte2);
         for (ClipAudioSource *clip : clips) {
             ClipCommand *command = ClipCommand::trackCommand(clip, midiChannel);
-            command->startPlayback = meta.data[0] > 0x8F;
-            command->stopPlayback = meta.data[0] < 0x90;
+            command->startPlayback = byte1 > 0x8F;
+            command->stopPlayback = byte1 < 0x90;
             if (command->startPlayback) {
                 command->changeVolume = true;
-                command->volume = float(meta.data[2]) / float(128);
+                command->volume = float(byte3) / float(128);
             }
             if (noteDestination == SampleSlicedDestination) {
                 command->midiNote = 60;
                 command->changeSlice = true;
-                command->slice = clip->sliceForMidiNote(meta.data[1]);
+                command->slice = clip->sliceForMidiNote(byte2);
             } else {
-                command->midiNote = meta.data[1];
+                command->midiNote = byte2;
             }
             commands << command;
         }
@@ -1674,6 +1682,9 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
             QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
         }
     }
+    while (d->notePool.count() < 100) {
+        d->notePool << new NewNoteData;
+    }
 }
 
 void PatternModel::handleSequenceStop()
@@ -1688,13 +1699,11 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
         // But also, don't make sounds unless we're sample-triggering or slicing (otherwise the synths will handle it)
         && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
         if (0x7F < byte1 && byte1 < 0xA0) {
-            juce::MidiMessage message(byte1, byte2, byte3);
-            juce::MidiMessageMetadata meta(message.getRawData(), message.getRawDataSize(), 0);
-            // Always remember, juce thinks channels are 1-indexed
+            const int midiChannel = (byte1 < 0x90 ? byte1 - 0x80 : byte1 - 0x90);
             // FIXME We've got a problem - why is the "dunno" channel 9? There's a track there, that's going to cause issues...
-            if (message.isForChannel(d->midiChannel + 1) || ((d->midiChannel < 0 || d->midiChannel > 8) && message.getChannel() == 10)) {
-                const QList<ClipCommand*> commands = d->midiMessageToClipCommands(meta);
-                for (ClipCommand *command : commands) {
+            if (d->midiChannel == midiChannel || ((d->midiChannel < 0 || d->midiChannel > 8) && midiChannel == 9)) {
+                const QList<ClipCommand*> commands = d->midiMessageToClipCommands(byte1, byte2, byte3);
+                for (ClipCommand *command : qAsConst(commands)) {
                     d->syncTimer->scheduleClipCommand(command, 0);
                 }
             }
@@ -1713,30 +1722,32 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
             int patternLength = d->width * d->availableBars;
             int step = (timestamp % (patternLength * noteDuration)) / noteDuration;
 
-            NewNoteData *newNote = new NewNoteData;
-            newNote->timestamp = timestamp;
-            newNote->step = step;
-            newNote->midiNote = byte2;
-            newNote->velocity = byte3;
-            d->recordingLiveNotes << newNote;
+            // Belts and braces here - it shouldn't really happen (a hundred notes is kind of a lot to add in a single shot), but just in case...
+            if (d->notePool.count() > 0) {
+                NewNoteData *newNote = d->notePool.takeFirst();
+                newNote->timestamp = timestamp;
+                newNote->step = step;
+                newNote->midiNote = byte2;
+                newNote->velocity = byte3;
+                d->recordingLiveNotes << newNote;
+            }
         }
     }
     // if note-off, check whether there's a matching on note, and if there is, add that note with velocity, delay, and duration as appropriate for current time and step
     if (d->recordingLiveNotes.count() > 0 && 0x7F < byte1 && byte1 < 0x90) {
         const int midiChannel = byte1 - 0x80;
         if ( d->midiChannel == midiChannel) {
+            QMutableListIterator<NewNoteData*> iterator(d->recordingLiveNotes);
             NewNoteData *newNote{nullptr};
-            for (NewNoteData *needle : qAsConst(d->recordingLiveNotes)) {
-                if (needle->midiNote == byte2) {
-                    newNote = needle;
+            while (iterator.hasNext()) {
+                iterator.next();
+                newNote = iterator.value();
+                if (newNote->midiNote == byte2) {
+                    iterator.remove();
+                    newNote->endTimestamp = d->syncTimer->jackPlayhead();
+                    QMetaObject::invokeMethod(d->zlSyncManager, "addRecordedNote", Qt::QueuedConnection, Q_ARG(void*, newNote));
                     break;
                 }
-            }
-            if (newNote) {
-                // Pick the item out of the list
-                d->recordingLiveNotes.removeOne(newNote);
-                newNote->endTimestamp = d->syncTimer->jackPlayhead();
-                QMetaObject::invokeMethod(d->zlSyncManager, "addRecordedNote", Qt::QueuedConnection, Q_ARG(void*, newNote));
             }
         }
     }
