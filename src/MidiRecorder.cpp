@@ -383,10 +383,10 @@ bool MidiRecorder::applyToPattern(PatternModel *patternModel, QFlags<MidiRecorde
             qDebug() << Q_FUNC_INFO << "Inserted subnote at" << row << column << "New subnote is" << note;
             patternModel->setSubnoteMetadata(row, column, subnoteIndex, "velocity", velocity);
             if (duration > 0) {
-                patternModel->setSubnoteMetadata(row, column, subnoteIndex, "duration", velocity);
+                patternModel->setSubnoteMetadata(row, column, subnoteIndex, "duration", duration);
             }
             if (delay > 0) {
-                patternModel->setSubnoteMetadata(row, column, subnoteIndex, "delay", velocity);
+                patternModel->setSubnoteMetadata(row, column, subnoteIndex, "delay", delay);
             }
         }
         success = true;
