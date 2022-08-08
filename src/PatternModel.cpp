@@ -386,6 +386,13 @@ PatternModel::PatternModel(SequenceModel* parent)
                 clipSliceNotes();
             }
         });
+        // If we are currently recording live into this pattern, and the user switches away from it, turn off the live
+        // recording, so we avoid doing changes to things the user's not looking at.
+        connect(d->sequence, &SequenceModel::activePatternChanged, this, [this](){
+            if (d->recordingLive && d->sequence->activePatternObject() != this) {
+                setRecordLive(false);
+            }
+        });
     }
     // This will force the creation of a whole bunch of rows with the desired width and whatnot...
     setHeight(16);
