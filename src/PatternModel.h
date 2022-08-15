@@ -257,6 +257,10 @@ class PatternModel : public NotesModel
      * \brief A reference to the zynthiloops Scene object this Pattern is associated with
      */
     Q_PROPERTY(QObject* zlScene READ zlScene WRITE setZlScene NOTIFY zlSceneChanged);
+    /**
+     * \brief The global instance of Zynthiloops' session dashboard
+     */
+    Q_PROPERTY(QObject* zlDashboard READ zlDashboard WRITE setZlDashboard NOTIFY zlDashboardChanged)
 public:
     explicit PatternModel(SequenceModel* parent = nullptr);
     ~PatternModel() override;
@@ -544,6 +548,9 @@ public:
     QObject *zlScene() const;
     void setZlScene(QObject *zlScene);
     Q_SIGNAL void zlSceneChanged();
+    QObject *zlDashboard() const;
+    void setZlDashboard(QObject *zlDashboard);
+    Q_SIGNAL void zlDashboardChanged();
 
     int playingRow() const;
     Q_SIGNAL void playingRowChanged();

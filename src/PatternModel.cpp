@@ -82,6 +82,7 @@ public:
     QObject *zlTrack{nullptr};
     QObject *zlPart{nullptr};
     QObject *zlScene{nullptr};
+    QObject *zlDashboard{nullptr};
     QTimer *layerDataPuller{nullptr};
 
     bool trackMuted{false};
@@ -146,6 +147,19 @@ public:
         }
     }
 
+    void setZlDashboard(QObject *newZlDashboard) {
+        if (zlDashboard != newZlDashboard) {
+            if (zlDashboard) {
+                zlDashboard->disconnect(this);
+            }
+            zlDashboard = newZlDashboard;
+            if (zlDashboard) {
+                connect(zlDashboard, SIGNAL(selected_track_changed()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                selectedPartChanged();
+            }
+        }
+    }
+
     Q_SIGNAL void recordingPopupActiveChanged();
 
 public Q_SLOTS:
@@ -176,8 +190,8 @@ public Q_SLOTS:
     }
     void selectedPartChanged() {
         SequenceModel *sequence = qobject_cast<SequenceModel*>(q->sequence());
-        if (sequence) {
-            const int trackId{zlTrack->property("id").toInt()};
+        if (sequence && zlTrack && zlDashboard) {
+            const int trackId{zlDashboard->property("selectedTrack").toInt()};
             const int selectedPart{zlTrack->property("selectedPart").toInt()};
             sequence->setActiveTrack(trackId, selectedPart);
         }
@@ -1339,6 +1353,19 @@ QObject *PatternModel::zlScene() const
 void PatternModel::setZlScene(QObject *zlScene)
 {
     d->zlSyncManager->setZlScene(zlScene);
+}
+
+QObject *PatternModel::zlDashboard() const
+{
+    return d->zlSyncManager->zlDashboard;
+}
+
+void PatternModel::setZlDashboard(QObject *zlDashboard)
+{
+    if (d->zlSyncManager->zlDashboard != zlDashboard) {
+        d->zlSyncManager->setZlDashboard(zlDashboard);
+        Q_EMIT zlDashboardChanged();
+    }
 }
 
 int PatternModel::playingRow() const
