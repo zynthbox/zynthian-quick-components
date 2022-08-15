@@ -982,10 +982,12 @@ int PatternModel::noteLength() const
 
 void PatternModel::setAvailableBars(int availableBars)
 {
-    int adjusted = qMin(qMax(0, availableBars), height());
+    int adjusted = qMin(qMax(1, availableBars), bankLength());
     if (d->availableBars != adjusted) {
         d->availableBars = adjusted;
         Q_EMIT availableBarsChanged();
+        // Ensure that we don't have an active bar that's outside our available range
+        setActiveBar(qMin(d->activeBar, d->availableBars - 1));
     }
 }
 
@@ -1050,6 +1052,8 @@ void PatternModel::setBankLength(int bankLength)
     if (d->bankLength != bankLength) {
         d->bankLength = bankLength;
         Q_EMIT bankLengthChanged();
+        // Ensure that the available bars are not outside the number of bars available in a bank
+        setAvailableBars(d->availableBars);
     }
 }
 
