@@ -136,6 +136,7 @@ class PatternModel : public NotesModel
     Q_PROPERTY(int noteLength READ noteLength WRITE setNoteLength NOTIFY noteLengthChanged)
     /**
      * \brief The number of bars in the pattern which should be considered for playback
+     * The minimum number is 1, and the maximum is bankLength
      * @default 1
      */
     Q_PROPERTY(int availableBars READ availableBars WRITE setAvailableBars NOTIFY availableBarsChanged)
