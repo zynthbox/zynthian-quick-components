@@ -1723,7 +1723,7 @@ void PatternModel::handleSequenceStop()
     setRecordLive(false);
 }
 
-void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3)
+void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3, const double& timeStamp)
 {
     // If orphaned, or the sequence is asking for sounds to happen, make sounds
     if ((!d->sequence || (d->sequence->shouldMakeSounds() && (d->sequence->soloPatternObject() == this || d->enabled)))
@@ -1744,20 +1744,10 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
     if (d->recordingLive && 0x8F < byte1 && byte1 < 0xA0) {
         const int midiChannel = byte1 - 0x90;
         if (d->midiChannel == midiChannel) {
-            int timestamp = d->syncTimer->jackPlayhead();
-
-            bool relevantToUs{false}; // not relevant
-            quint64 nextPosition{0};
-            quint64 noteDuration{0};
-            noteLengthDetails(d->noteLength, nextPosition, relevantToUs, noteDuration);
-            int patternLength = d->width * d->availableBars;
-            int step = (timestamp % (patternLength * noteDuration)) / noteDuration;
-
             // Belts and braces here - it shouldn't really happen (a hundred notes is kind of a lot to add in a single shot), but just in case...
             if (d->notePool.count() > 0) {
                 NewNoteData *newNote = d->notePool.takeFirst();
-                newNote->timestamp = timestamp;
-                newNote->step = step;
+                newNote->timestamp = timeStamp;
                 newNote->midiNote = byte2;
                 newNote->velocity = byte3;
                 d->recordingLiveNotes << newNote;
@@ -1775,7 +1765,7 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
                 newNote = iterator.value();
                 if (newNote->midiNote == byte2) {
                     iterator.remove();
-                    newNote->endTimestamp = d->syncTimer->jackPlayhead();
+                    newNote->endTimestamp = timeStamp;
                     QMetaObject::invokeMethod(d->zlSyncManager, "addRecordedNote", Qt::QueuedConnection, Q_ARG(void*, newNote));
                     break;
                 }
@@ -1788,21 +1778,26 @@ void ZLPatternSynchronisationManager::addRecordedNote(void *recordedNote)
 {
     NewNoteData *newNote = static_cast<NewNoteData*>(recordedNote);
 
-    int row = (newNote->step / q->width()) % q->availableBars();
-    int column = newNote->step - (row * q->width());
-
     bool relevantToUs{false}; // not relevant
     quint64 nextPosition{0};
     quint64 noteDuration{0};
     noteLengthDetails(q->noteLength(), nextPosition, relevantToUs, noteDuration);
-    int patternLength = q->width() * q->availableBars();
-    newNote->delay = (newNote->timestamp % patternLength) - (newNote->step * noteDuration);
+    int deviationAllowance = qMax(1.0, ceil(noteDuration * 0.3));
+
+    const int patternLength = q->width() * q->availableBars();
+    const double normalisedTimestamp{double(newNote->timestamp % (patternLength * noteDuration))};
+    newNote->step = normalisedTimestamp / noteDuration;
+    newNote->delay = normalisedTimestamp - (newNote->step * noteDuration);
+
+    int row = (newNote->step / q->width()) % q->availableBars();
+    int column = newNote->step - (row * q->width());
+
     // Sanity check the delay - if it's within a small amount of the start position of the current step, or very near
     // the next step, assume it wants to be quantized and make sure we're setting it on the appropriate step)
-    if (newNote->delay < 3) {
+    if (newNote->delay < deviationAllowance) {
         newNote->delay = 0;
-    } else if (noteDuration - newNote->delay < 3) {
-        newNote->step++;
+    } else if (noteDuration - newNote->delay < deviationAllowance) {
+        newNote->step = (newNote->step + 1) % patternLength;
         row = (newNote->step / q->width()) % q->availableBars();
         column = newNote->step - (row * q->width());
         newNote->delay = 0;
@@ -1810,7 +1805,7 @@ void ZLPatternSynchronisationManager::addRecordedNote(void *recordedNote)
 
     newNote->duration = newNote->endTimestamp - newNote->timestamp;
     // Sanity check the duration - if it's within a small amount of the length of the pattern's note, reset it to 0 (for auto-quantizing)
-    if (abs(newNote->duration - qint64(noteDuration)) < 3) {
+    if (abs(newNote->duration - qint64(noteDuration)) < deviationAllowance) {
         newNote->duration = 0;
     }
 
@@ -1838,7 +1833,7 @@ void ZLPatternSynchronisationManager::addRecordedNote(void *recordedNote)
         const int oldDuration = q->subnoteMetadata(newNote->row, newNote->column, subnoteIndex, "duration").toInt();
         const int oldDelay = q->subnoteMetadata(newNote->row, newNote->column, subnoteIndex, "delay").toInt();
         if (oldVelocity == newNote->velocity && oldDuration == newNote->duration && oldDelay == newNote->delay) {
-//             qDebug() << "This is a note we already have in the pattern, with the same data set on it, so no need to do anything with that";
+//             qDebug() << "This is a note we already have in the pattern, with the same data set on it, so no need to do anything with that" << newNote << newNote->timestamp << newNote->endTimestamp << newNote->step << newNote->row << newNote->column << newNote->midiNote << newNote->velocity << newNote->delay << newNote->duration;
             subnoteIndex = -1;
         }
     }
@@ -1847,7 +1842,7 @@ void ZLPatternSynchronisationManager::addRecordedNote(void *recordedNote)
         q->setSubnoteMetadata(newNote->row, newNote->column, subnoteIndex, "velocity", newNote->velocity);
         q->setSubnoteMetadata(newNote->row, newNote->column, subnoteIndex, "duration", newNote->duration);
         q->setSubnoteMetadata(newNote->row, newNote->column, subnoteIndex, "delay", newNote->delay);
-        qDebug() << Q_FUNC_INFO << "Handled a recorded new note:" << newNote << newNote->timestamp << newNote->endTimestamp << newNote->step << newNote->row << newNote->column << newNote->midiNote << newNote->velocity << newNote->delay << newNote->duration;
+        qDebug() << Q_FUNC_INFO << "Handled a recorded new note:" << newNote << newNote->timestamp << newNote->endTimestamp << newNote->step << newNote->row << newNote->column << newNote->midiNote << newNote->velocity << newNote->delay << newNote->duration << "with deviation allowance" << deviationAllowance;
     }
 
     // And at the end, get rid of the thing

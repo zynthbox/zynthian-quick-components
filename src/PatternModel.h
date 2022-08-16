@@ -587,7 +587,7 @@ public:
      */
     void handleSequenceStop();
 
-    Q_SLOT void handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3);
+    Q_SLOT void handleMidiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3, const double& timeStamp);
 private:
     class Private;
     Private *d;
