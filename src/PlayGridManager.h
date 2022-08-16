@@ -278,7 +278,7 @@ public:
 
     Q_INVOKABLE void setNoteState(Note *note, int velocity = 64, bool setOn = true);
     Q_SIGNAL void noteStateChanged(QObject *note);
-    Q_SIGNAL void midiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3);
+    Q_SIGNAL void midiMessage(const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3, const double& timeStamp);
     Q_INVOKABLE QVariantList mostRecentlyChangedNotes() const;
     Q_SIGNAL void mostRecentlyChangedNotesChanged();
     Q_INVOKABLE void updateNoteState(QVariantMap metadata);

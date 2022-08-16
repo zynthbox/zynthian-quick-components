@@ -23,37 +23,33 @@
 #define MIDILISTENER_H
 
 #include <QThread>
-
-#include <RtMidi.h>
+#include <jack/midiport.h>
 
 void handleRtMidiMessage(double, std::vector< unsigned char >*, void*);
 
-struct NoteMessage {
-    bool setOn{false};
-    int midiNote{0};
-    int midiChannel{0};
-    int velocity{0};
-    unsigned char byte1{0};
-    unsigned char byte2{0};
-    unsigned char byte3{0};
-};
-
+struct NoteMessage;
+class MidiListenerPrivate;
 class MidiListener : public QThread {
     Q_OBJECT
 public:
-    explicit MidiListener(int rtMidiInPort, const QString &name, int waitTime);
+    explicit MidiListener(QObject *parent = nullptr);
     ~MidiListener() override;
+
+    enum Port {
+        UnknownPort = -1,
+        PassthroughPort = 0,
+        InternalPassthroughPort = 1,
+        HardwareInPassthrough = 2,
+        ExternalOutPort = 3,
+    };
+    Q_ENUM(Port)
+
     void run() override;
     Q_SLOT void markAsDone();
-    Q_SIGNAL void noteChanged(int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3);
-    void addMessage(int midiNote, int midiChannel, int velocity, bool setOn, std::vector< unsigned char > *data);
+    Q_SIGNAL void noteChanged(Port port, int midiNote, int midiChannel, int velocity, bool setOn, double timeStamp, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3);
+    void addMessage(Port port, double timeStamp, int midiNote, int midiChannel, int velocity, bool setOn, const jack_midi_event_t &event);
 private:
-    int lastRelevantMessage{-1};
-    int waitTime{5};
-    QList<NoteMessage*> messages;
-    bool done{false};
-    int midiInPort{-1};
-    RtMidiIn *midiin{nullptr};
+    MidiListenerPrivate *d{nullptr};
 };
 
 #endif//MIDILISTENER_H

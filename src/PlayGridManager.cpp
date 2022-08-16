@@ -50,8 +50,6 @@
 #include <QSettings>
 #include <QTimer>
 
-#include <RtMidi.h>
-
 static const QStringList midiNoteNames{
     "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
     "C0", "C#0", "D0", "D#0", "E0", "F0", "F#0", "G0", "G#0", "A0", "A#0", "B0",
@@ -186,9 +184,7 @@ public:
         };
     }
     ~Private() {
-        for (MidiListener *midiListener : midiListeners) {
-            midiListener->markAsDone();
-        }
+        midiListener->markAsDone();
     }
     PlayGridManager *q;
     ZLPGMSynchronisationManager *zlSyncManager{nullptr};
@@ -224,7 +220,7 @@ public:
     int currentMidiChannel{-1};
 
     std::vector<unsigned char> midiMessage;
-    QList<MidiListener*> midiListeners;
+    MidiListener* midiListener{nullptr};
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -247,89 +243,65 @@ public:
             hardwareInNoteActivations[i] = 0;
             hardwareOutNoteActivations[i] = 0;
         }
-        for (MidiListener *midiListener : midiListeners) {
+        if (midiListener) {
             midiListener->markAsDone();
+            midiListener->deleteLater();
         }
-        midiListeners.clear();
-        RtMidiIn *midiin = new RtMidiIn(RtMidi::UNIX_JACK);
-        unsigned int nPorts = midiin->getPortCount();
-        if ( nPorts > 0 ) {
-            std::cout << "\nThere are " << nPorts << " MIDI input ports available.\n" << std::endl;
-            const char* zynMidiRouterOutName{"ZLRouter:Passthrough"};
-            const char* zlRouterInternalPassthrough{"ZLRouter:InternalPassthrough"};
-            const char* zlRouterHardwarePassthrough{"ZLRouter:HardwareInPassthrough"};
-            const char* zlRouterExternalOut{"ZLRouter:ExternalOut"};
-            for (unsigned int i = 0; i < nPorts; ++i) {
-                const std::string portName = midiin->getPortName(i);
-                if (portName.rfind(zynMidiRouterOutName, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i, zynMidiRouterOutName, 0);
-                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ updateNoteState(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handlePassthroughEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
-                    midiListener->start();
-                    midiListeners << midiListener;
-                } else if (portName.rfind(zlRouterInternalPassthrough, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i, zlRouterInternalPassthrough, 5);
-                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleInternalInputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
-                    midiListener->start();
-                    midiListeners << midiListener;
-                } else if (portName.rfind(zlRouterHardwarePassthrough, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i, zlRouterHardwarePassthrough, 5);
-                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareInputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
-                    midiListener->start();
-                    midiListeners << midiListener;
-                } else if (portName.rfind(zlRouterExternalOut, 0) == 0) {
-                    MidiListener *midiListener = new MidiListener(i, zlRouterExternalOut, 5);
-                    QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-                    QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3){ handleHardwareOutputEvent(midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
-                    midiListener->start();
-                    midiListeners << midiListener;
-                }
+        midiListener = new MidiListener(q);
+        QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
+        QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](MidiListener::Port port, int midiNote, int midiChannel, int velocity, bool setOn, double timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ updateNoteState(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
+        QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](MidiListener::Port port, int midiNote, int midiChannel, int velocity, bool setOn, double timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ handleInputEvent(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+        midiListener->start();
+    }
+
+    void handleInputEvent(MidiListener::Port port, double /*timeStamp*/, int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
+        switch(port) {
+            case MidiListener::PassthroughPort:
+                noteActivations[midiNote] = setOn ? 1 : 0;
+                activeNotesUpdater->start();
+                break;
+            case MidiListener::InternalPassthroughPort:
+                internalPassthroughNoteActivations[midiNote] = setOn ? 1 : 0;
+                internalPassthroughActiveNotesUpdater->start();
+                break;
+            case MidiListener::HardwareInPassthrough:
+                hardwareInNoteActivations[midiNote] = setOn ? 1 : 0;
+                hardwareInActiveNotesUpdater->start();
+                break;
+            case MidiListener::ExternalOutPort:
+                hardwareOutNoteActivations[midiNote] = setOn ? 1 : 0;
+                hardwareOutActiveNotesUpdater->start();
+                break;
+            default:
+                qWarning() << Q_FUNC_INFO << "Input event came in from an unknown port, somehow - no idea what to do with this";
+                break;
+        }
+    }
+
+    void updateNoteState(MidiListener::Port port, double timeStamp, int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
+        if (port == MidiListener::PassthroughPort) {
+            // First notify all our friends of the thing (because they might like to know very quickly)
+            Q_EMIT q->midiMessage(byte1, byte2, byte3, timeStamp);
+            static const QLatin1String note_on{"note_on"};
+            static const QLatin1String note_off{"note_off"};
+
+            const qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+            QVariantMap metadata;
+            metadata["note"] = midiNote;
+            metadata["channel"] = midiChannel;
+            metadata["velocity"] = velocity;
+            metadata["type"] = setOn ? note_on : note_off;
+            metadata.insert("timestamp", QVariant::fromValue<qint64>(currentTime));
+            mostRecentlyChangedNotes << metadata;
+            while (mostRecentlyChangedNotes.count() > 100) {
+                mostRecentlyChangedNotes.removeFirst();
             }
-        }
-    }
+            QMetaObject::invokeMethod(q, &PlayGridManager::mostRecentlyChangedNotesChanged, Qt::QueuedConnection);
 
-    void handleInternalInputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        internalPassthroughNoteActivations[midiNote] = setOn ? 1 : 0;
-        internalPassthroughActiveNotesUpdater->start();
-    }
-    void handleHardwareInputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        hardwareInNoteActivations[midiNote] = setOn ? 1 : 0;
-        hardwareInActiveNotesUpdater->start();
-    }
-    void handleHardwareOutputEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        hardwareOutNoteActivations[midiNote] = setOn ? 1 : 0;
-        hardwareOutActiveNotesUpdater->start();
-    }
-    void handlePassthroughEvent(int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
-        noteActivations[midiNote] = setOn ? 1 : 0;
-        activeNotesUpdater->start();
-    }
-
-    void updateNoteState(int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
-        // First notify all our friends of the thing (because they might like to know very quickly)
-        Q_EMIT q->midiMessage(byte1, byte2, byte3);
-        static const QLatin1String note_on{"note_on"};
-        static const QLatin1String note_off{"note_off"};
-
-        const qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
-        QVariantMap metadata;
-        metadata["note"] = midiNote;
-        metadata["channel"] = midiChannel;
-        metadata["velocity"] = velocity;
-        metadata["type"] = setOn ? note_on : note_off;
-        metadata.insert("timestamp", QVariant::fromValue<qint64>(currentTime));
-        mostRecentlyChangedNotes << metadata;
-        while (mostRecentlyChangedNotes.count() > 100) {
-            mostRecentlyChangedNotes.removeFirst();
-        }
-        QMetaObject::invokeMethod(q, &PlayGridManager::mostRecentlyChangedNotesChanged, Qt::QueuedConnection);
-
-        Note *note = findExistingNote(midiNote, midiChannel);
-        if (note) {
-            note->setIsPlaying(setOn);
+            Note *note = findExistingNote(midiNote, midiChannel);
+            if (note) {
+                note->setIsPlaying(setOn);
+            }
         }
     }
 
