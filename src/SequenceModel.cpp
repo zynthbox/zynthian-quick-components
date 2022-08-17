@@ -797,7 +797,7 @@ void SequenceModel::advanceSequence()
     if (d->shouldMakeSounds || d->segmentHandler->songMode()) {
         // The timer schedules ahead internally for sequence advancement type things,
         // so the sequenceProgressionLength thing is only for prefilling at this point.
-        const quint64 sequenceProgressionLength{1};
+        const quint64 sequenceProgressionLength{0};
         if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
             const PatternModel *pattern = d->patternModels.at(d->soloPattern);
             if (pattern) {
