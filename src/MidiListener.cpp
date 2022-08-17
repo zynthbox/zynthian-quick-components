@@ -85,7 +85,18 @@ public:
         }
     }
 
+    QAtomicInt jack_has_xrun{0};
     int process(jack_nframes_t nframes) {
+        if (jack_has_xrun > 0) {
+            /*******************************************************************
+             * EARLY RETURN
+             * We return early here, to avoid touching anything else. The logic
+             * here is that xrun handling is critical and needs to be immediate.
+             *******************************************************************/
+            qWarning() << Q_FUNC_INFO << "XRun detected, skipping one progress to catch up next time. Reported xruns:" << jack_has_xrun;
+            jack_has_xrun = 0;
+            return 0;
+        }
         jack_nframes_t current_frames;
         jack_time_t current_usecs;
         jack_time_t next_usecs;
@@ -102,7 +113,7 @@ public:
             jack_midi_event_t event;
             for (uint32_t eventIndex = 0; eventIndex < events; ++eventIndex) {
                 if (jack_midi_event_get(&event, inputBuffer, eventIndex)) {
-                    qWarning() << "MidiListener: jack_midi_event_get failed, received note lost!";
+                    qWarning() << "MidiListener: jack_midi_event_get failed, received note lost on listener port" << listenerPort->identifier;
                     continue;
                 }
                 if ((event.buffer[0] & 0xf0) == 0xf0) {
@@ -129,6 +140,7 @@ public:
         return 0;
     }
     int xrun() {
+        jack_has_xrun++;
         return 0;
     }
 };
