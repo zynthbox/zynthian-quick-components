@@ -819,11 +819,11 @@ void SequenceModel::updatePatternPositions()
         if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
             PatternModel *pattern = d->patternModels.at(d->soloPattern);
             if (pattern) {
-                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat() - d->syncTimer->scheduleAheadAmount());
             }
         } else {
             for (PatternModel *pattern : qAsConst(d->patternModels)) {
-                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat());
+                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat() - d->syncTimer->scheduleAheadAmount());
             }
         }
     }
