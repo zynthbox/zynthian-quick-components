@@ -221,6 +221,7 @@ public:
             zlSong = newZlSong;
             if (zlSong) {
                 setZLMixesModel(zlSong->property("mixesModel").value<QObject*>());
+                connect(zlSong, SIGNAL(isLoadingChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 fetchSequenceModels();
             }
             updateTracks();
@@ -276,6 +277,7 @@ public:
             for (QObject* track : zlTracks) {
                 track->disconnect(&segmentUpdater);
             }
+            zlTracks.clear();
         }
         if (zlSong) {
             QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
@@ -321,7 +323,7 @@ public Q_SLOTS:
             quint64 segmentPosition{0};
             QList<QObject*> clipsInPrevious;
             int segmentCount = zLSegmentsModel->property("count").toInt();
-//             qDebug() << Q_FUNC_INFO << "Working with" << segmentCount << "segments...";
+            qDebug() << Q_FUNC_INFO << "Working with" << segmentCount << "segments...";
             for (int segmentIndex = 0; segmentIndex < segmentCount; ++segmentIndex) {
                 QObject *segment{nullptr};
                 QMetaObject::invokeMethod(zLSegmentsModel, "get_segment", Q_RETURN_ARG(QObject*, segment), Q_ARG(int, segmentIndex));
@@ -334,7 +336,7 @@ public Q_SLOTS:
                         includedClips << clip;
                         const bool shouldResetPlaybackposition{!clipsInPrevious.contains(clip)}; // This is currently always true for "not in previous segment", but likely we'll want to be able to explicitly do this as well (perhaps with an explicit offset even)
                         if (shouldResetPlaybackposition || !clipsInPrevious.contains(clip)) {
-//                             qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
+                            qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
                             // If the clip was not there in the previous step, that means we should turn it on
                             TimerCommand* command = new TimerCommand;
                             command->parameter = clip->property("row").toInt();
@@ -352,12 +354,12 @@ public Q_SLOTS:
                             }
                             commands << command;
                         } else {
-//                             qDebug() << Q_FUNC_INFO << "Clip was already in the previous segment, leaving in";
+                            qDebug() << Q_FUNC_INFO << "Clip was already in the previous segment, leaving in";
                         }
                     }
                     for (QObject *clip : clipsInPrevious) {
                         if (!includedClips.contains(clip)) {
-//                             qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the previous segment but not in this one, so we should stop playing that clip";
+                            qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the previous segment but not in this one, so we should stop playing that clip";
                             // If the clip was in the previous step, but not in this step, that means it
                             // should be turned off when reaching this position
                             TimerCommand* command = new TimerCommand;
@@ -386,11 +388,11 @@ public Q_SLOTS:
                     qWarning() << Q_FUNC_INFO << "Failed to get segment" << segmentIndex;
                 }
             }
-//             qDebug() << Q_FUNC_INFO << "Done processing segments, adding the final stops for any ongoing clips, and the timer stop command";
+            qDebug() << Q_FUNC_INFO << "Done processing segments, adding the final stops for any ongoing clips, and the timer stop command";
             // Run through the clipsInPrevious segment and add commands to stop them all
             QList<TimerCommand*> commands;
             for (QObject *clip : clipsInPrevious) {
-//                 qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
+                qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
                 TimerCommand* command = new TimerCommand;
                 command->parameter = clip->property("row").toInt();
                 const QObject *trackObject = zlTracks.at(command->parameter);
