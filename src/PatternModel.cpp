@@ -247,6 +247,7 @@ class PatternModel::Private {
 public:
     Private() {
         playGridManager = PlayGridManager::instance();
+        syncTimer = qobject_cast<SyncTimer*>(playGridManager->syncTimer());
         samplerSynth = SamplerSynth::instance();
         for (int i = 0; i < 100; ++i) {
             notePool << new NewNoteData;
@@ -1658,9 +1659,6 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                         }
                     }
                     d->positionBuffers[nextPosition + (d->bankOffset * d->width)] = positionBuffers;
-                }
-                if (!d->syncTimer) {
-                    d->syncTimer = qobject_cast<SyncTimer*>(playGridManager()->syncTimer());
                 }
                 switch (d->noteDestination) {
                     case PatternModel::SampleLoopedDestination:
