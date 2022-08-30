@@ -26,7 +26,7 @@
 #include "SequenceModel.h"
 
 /**
- * \brief A way to keep track of the notes which make up a conceptual song pattern
+ * \brief A way to keep channel of the notes which make up a conceptual song pattern
  *
  * This specialised NotesModel will always be a square model (that is, all rows have the same width).
  *
@@ -43,11 +43,11 @@ class PatternModel : public NotesModel
      */
     Q_PROPERTY(QObject* sequence READ sequence CONSTANT)
     /**
-     * \brief The index of the track this model is associated with
+     * \brief The index of the channel this model is associated with
      */
-    Q_PROPERTY(int trackIndex READ trackIndex NOTIFY trackIndexChanged)
+    Q_PROPERTY(int channelIndex READ channelIndex NOTIFY channelIndexChanged)
     /**
-     * \brief The index of the part inside this pattern's associated track associates this pattern with
+     * \brief The index of the part inside this pattern's associated channel associates this pattern with
      */
     Q_PROPERTY(int partIndex READ partIndex NOTIFY partIndexChanged)
     /**
@@ -213,7 +213,7 @@ class PatternModel : public NotesModel
     /**
      * \brief Whether or not this pattern is currently included in playback
      * This is essentially the same as performing a check on the parent sequence to see whether
-     * that is playing, and then further checking whether this pattern is the current solo track
+     * that is playing, and then further checking whether this pattern is the current solo channel
      * if one is set, and if none is set then whether the pattern is enabled.
      */
     Q_PROPERTY(bool isPlaying READ isPlaying NOTIFY isPlayingChanged)
@@ -247,9 +247,9 @@ class PatternModel : public NotesModel
     Q_PROPERTY(bool recordLive READ recordLive WRITE setRecordLive NOTIFY recordLiveChanged)
 
     /**
-     * \brief A reference to the zynthiloops Track object this Pattern is associated with
+     * \brief A reference to the zynthiloops Channel object this Pattern is associated with
      */
-    Q_PROPERTY(QObject* zlTrack READ zlTrack WRITE setZlTrack NOTIFY zlTrackChanged);
+    Q_PROPERTY(QObject* zlChannel READ zlChannel WRITE setZlChannel NOTIFY zlChannelChanged);
     /**
      * \brief A reference to the zynthiloops Part object this Pattern is associated with
      */
@@ -415,27 +415,27 @@ public:
 
     QObject* sequence() const;
     /**
-     * \brief The index of the logical track this pattern belongs to
-     * @return The index of the logical track this pattern belongs to (-1 if not assigned)
+     * \brief The index of the logical channel this pattern belongs to
+     * @return The index of the logical channel this pattern belongs to (-1 if not assigned)
      */
-    int trackIndex() const;
+    int channelIndex() const;
     /**
-     * \brief Set the index of the logical track this pattern belongs to
+     * \brief Set the index of the logical channel this pattern belongs to
      * @note This value is not checked, and multiple pattern objects might have the same value (though usually won't)
-     * @param trackIndex The index of the logical track this pattern belongs to
+     * @param channelIndex The index of the logical channel this pattern belongs to
      */
-    void setTrackIndex(int trackIndex);
-    Q_SIGNAL void trackIndexChanged();
+    void setChannelIndex(int channelIndex);
+    Q_SIGNAL void channelIndexChanged();
     /**
-     * \brief The index of the part of the logical track this pattern belongs to
-     * @return The index of the part of the logical track this pattern belongs to (-1 if note assigned)
+     * \brief The index of the part of the logical channel this pattern belongs to
+     * @return The index of the part of the logical channel this pattern belongs to (-1 if note assigned)
      */
     int partIndex() const;
     QString partName() const;
     /**
-     * \brief Set the index of the part of the logical track this pattern belongs to
-     * @note This value is not checked and multiple patterns in the same track can carry the same index (though usually won't)
-     * @param The index of the part of the logical track this pattern belongs to
+     * \brief Set the index of the part of the logical channel this pattern belongs to
+     * @note This value is not checked and multiple patterns in the same channel can carry the same index (though usually won't)
+     * @param The index of the part of the logical channel this pattern belongs to
      */
     void setPartIndex(int partIndex);
     Q_SIGNAL void partIndexChanged();
@@ -540,9 +540,9 @@ public:
     bool recordLive() const;
     Q_SIGNAL void recordLiveChanged();
 
-    QObject *zlTrack() const;
-    void setZlTrack(QObject *zlTrack);
-    Q_SIGNAL void zlTrackChanged();
+    QObject *zlChannel() const;
+    void setZlChannel(QObject *zlChannel);
+    Q_SIGNAL void zlChannelChanged();
     QObject *zlPart() const;
     void setZlPart(QObject *zlPart);
     Q_SIGNAL void zlPartChanged();

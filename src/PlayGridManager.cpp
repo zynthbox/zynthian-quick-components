@@ -89,16 +89,16 @@ public:
             }
             zlDashboard = newZlDashboard;
             if (zlDashboard) {
-                connect(zlDashboard, SIGNAL(selected_track_changed()), this, SLOT(selectedTrackChanged()), Qt::QueuedConnection);
-                selectedTrackChanged();
+                connect(zlDashboard, SIGNAL(selected_channel_changed()), this, SLOT(selectedChannelChanged()), Qt::QueuedConnection);
+                selectedChannelChanged();
             }
         }
     }
 public Q_SLOTS:
-    void selectedTrackChanged() {
+    void selectedChannelChanged() {
         if (zlDashboard) {
-            const int selectedTrack = zlDashboard->property("selectedTrack").toInt();
-            q->setCurrentMidiChannel(selectedTrack);
+            const int selectedChannel = zlDashboard->property("selectedChannel").toInt();
+            q->setCurrentMidiChannel(selectedChannel);
         }
     }
 };

@@ -90,7 +90,7 @@ class PlayGridManager : public QObject
      */
     Q_PROPERTY(QObject* zlDashboard READ zlDashboard WRITE setZlDashboard NOTIFY zlDashboardChanged)
     /**
-     * \brief The midi channel associated with the currently selected track, or -1 if the channel is invalid
+     * \brief The midi channel associated with the currently selected channel, or -1 if the channel is invalid
      * @default -1
      */
     Q_PROPERTY(int currentMidiChannel READ currentMidiChannel WRITE setCurrentMidiChannel NOTIFY currentMidiChannelChanged)

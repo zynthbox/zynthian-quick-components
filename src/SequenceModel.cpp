@@ -37,9 +37,9 @@
 #include <QJsonDocument>
 #include <QTimer>
 
-#define TRACK_COUNT 10
+#define CHANNEL_COUNT 10
 #define PART_COUNT 5
-#define PATTERN_COUNT (TRACK_COUNT * PART_COUNT)
+#define PATTERN_COUNT (CHANNEL_COUNT * PART_COUNT)
 static const QStringList sketchNames{"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10"};
 static const QStringList partNames{"a", "b", "c", "d", "e"};
 
@@ -51,7 +51,7 @@ public:
         , q(parent)
     {
         connect(q, &SequenceModel::sceneIndexChanged, this, &ZLSequenceSynchronisationManager::selectedSketchIndexChanged, Qt::QueuedConnection);
-        // This actually means current /track/ changed, the track index and our current midi channel are the same number
+        // This actually means current /channel/ changed, the channel index and our current midi channel are the same number
         connect(q->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, &ZLSequenceSynchronisationManager::currentMidiChannelChanged, Qt::QueuedConnection);
     };
     SequenceModel *q{nullptr};
@@ -59,7 +59,7 @@ public:
     QObject *zlScenesModel{nullptr};
     QObject *zlMetronomeManager{nullptr};
 
-    int soloTrack{-1};
+    int soloChannel{-1};
     void setZlSong(QObject *newZlSong) {
         if (zlSong != newZlSong) {
             if (zlSong) {
@@ -71,12 +71,12 @@ public:
                 setZlMetronomeManager(qvariant_cast<QObject *>(zlSong->property("metronomeManager")));
                 connect(zlSong, SIGNAL(bpm_changed()), this, SLOT(bpmChanged()), Qt::QueuedConnection);
                 connect(zlSong, SIGNAL(__scenes_model_changed__()), this, SLOT(scenesModelChanged()), Qt::QueuedConnection);
-                connect(zlSong, SIGNAL(playTrackSoloChanged()), this, SLOT(playTrackSoloChanged()), Qt::QueuedConnection);
+                connect(zlSong, SIGNAL(playChannelSoloChanged()), this, SLOT(playChannelSoloChanged()), Qt::QueuedConnection);
                 bpmChanged();
             }
             scenesModelChanged();
             currentMidiChannelChanged();
-            playTrackSoloChanged();
+            playChannelSoloChanged();
         }
     }
 
@@ -133,22 +133,22 @@ public Q_SLOTS:
     void recordSoloChanged() {
         updateShouldMakeSounds();
     }
-    void playTrackSoloChanged() {
+    void playChannelSoloChanged() {
         if (zlSong) {
-            soloTrack = zlSong->property("playTrackSolo").toInt();
+            soloChannel = zlSong->property("playChannelSolo").toInt();
         } else {
-            soloTrack = -1;
+            soloChannel = -1;
         }
     }
     void currentMidiChannelChanged() {
         if (zlSong) {
-            QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
-            QObject *track{nullptr};
-            QMetaObject::invokeMethod(tracksModel, "getTrack", Qt::DirectConnection, Q_RETURN_ARG(QObject*, track), Q_ARG(int, PlayGridManager::instance()->currentMidiChannel()));
-            if (track) {
-                const int trackId{track->property("id").toInt()};
-                const int selectedPart{track->property("selectedPart").toInt()};
-                q->setActiveTrack(trackId, selectedPart);
+            QObject *channelsModel = zlSong->property("channelsModel").value<QObject*>();
+            QObject *channel{nullptr};
+            QMetaObject::invokeMethod(channelsModel, "getChannel", Qt::DirectConnection, Q_RETURN_ARG(QObject*, channel), Q_ARG(int, PlayGridManager::instance()->currentMidiChannel()));
+            if (channel) {
+                const int channelId{channel->property("id").toInt()};
+                const int selectedPart{channel->property("selectedPart").toInt()};
+                q->setActiveChannel(channelId, selectedPart);
             }
         }
     }
@@ -303,11 +303,11 @@ QObject* SequenceModel::get(int patternIndex) const
     return pattern;
 }
 
-QObject *SequenceModel::getByPart(int trackIndex, int partIndex) const
+QObject *SequenceModel::getByPart(int channelIndex, int partIndex) const
 {
     QObject *pattern{nullptr};
     for (PatternModel *needle : d->patternModels) {
-        if (needle->trackIndex() == trackIndex && needle->partIndex() == partIndex) {
+        if (needle->channelIndex() == channelIndex && needle->partIndex() == partIndex) {
             pattern = needle;
             break;
         }
@@ -395,9 +395,9 @@ void SequenceModel::setActivePattern(int activePattern)
     }
 }
 
-void SequenceModel::setActiveTrack(int trackId, int partId)
+void SequenceModel::setActiveChannel(int channelId, int partId)
 {
-    setActivePattern((trackId * PART_COUNT) + partId);
+    setActivePattern((channelId * PART_COUNT) + partId);
 }
 
 int SequenceModel::activePattern() const
@@ -509,33 +509,33 @@ void SequenceModel::load(const QString &fileName)
         // file suffix, sorted naturally (so 10 is at the end, not after 1, which is just silly)
         int actualIndex{0};
         for (const QFileInfo &entry : entries) {
-            // The filename for patterns is "sequencename-(trackIndex)(partName).pattern.json"
-            // where trackIndex is a number from 1 through 10 and partName is a single lower-case letter
+            // The filename for patterns is "sequencename-(channelIndex)(partName).pattern.json"
+            // where channelIndex is a number from 1 through 10 and partName is a single lower-case letter
             const QString absolutePath{entry.absoluteFilePath()};
             const int startPos{absolutePath.lastIndexOf('-')};
             const int length{absolutePath.length() - startPos - 14}; // 14 is the length+1 of the string .pattern.json, our pattern file suffix
-            int trackIndex{absolutePath.midRef(startPos + 1, length - 1).toInt() - 1};
+            int channelIndex{absolutePath.midRef(startPos + 1, length - 1).toInt() - 1};
             const QString partName{absolutePath.mid(startPos + length, 1)};
             int partIndex = partNames.indexOf(partName);
-//             qDebug() << "Loading pattern" << trackIndex + 1 << partName << "for sequence" << this << "from file" << absolutePath;
-            while (actualIndex < (trackIndex * PART_COUNT) + partIndex) {
+//             qDebug() << "Loading pattern" << channelIndex + 1 << partName << "for sequence" << this << "from file" << absolutePath;
+            while (actualIndex < (channelIndex * PART_COUNT) + partIndex) {
                 // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
-                const int intermediaryTrackIndex = actualIndex / PART_COUNT;
-                const QString &intermediaryPartName = partNames[actualIndex - (intermediaryTrackIndex * PART_COUNT)];
-                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName), this));
+                const int intermediaryChannelIndex = actualIndex / PART_COUNT;
+                const QString &intermediaryPartName = partNames[actualIndex - (intermediaryChannelIndex * PART_COUNT)];
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryChannelIndex + 1)).arg(intermediaryPartName), this));
                 model->startLongOperation();
                 model->resetPattern(true);
-                model->setTrackIndex(intermediaryTrackIndex);
+                model->setChannelIndex(intermediaryChannelIndex);
                 model->setPartIndex(actualIndex % PART_COUNT);
                 insertPattern(model);
                 model->endLongOperation();
 //                 qWarning() << "Sequence missing patterns prior to that, added:" << model;
                 ++actualIndex;
             }
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(trackIndex + 1)).arg(partName), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(channelIndex + 1)).arg(partName), this));
             model->startLongOperation();
             model->resetPattern(true);
-            model->setTrackIndex(trackIndex);
+            model->setChannelIndex(channelIndex);
             model->setPartIndex(partIndex);
             insertPattern(model);
             if (entry.exists()) {
@@ -559,16 +559,16 @@ void SequenceModel::load(const QString &fileName)
     // This ensures that when we're first creating ourselves a sequence, we end up with some models in it
     if (d->patternModels.count() < PATTERN_COUNT) {
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
-            const int intermediaryTrackIndex = i / PART_COUNT;
+            const int intermediaryChannelIndex = i / PART_COUNT;
             const QString &intermediaryPartName = partNames[i % PART_COUNT];
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryTrackIndex + 1)).arg(intermediaryPartName), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryChannelIndex + 1)).arg(intermediaryPartName), this));
             model->startLongOperation();
             model->resetPattern(true);
-            model->setTrackIndex(intermediaryTrackIndex);
+            model->setChannelIndex(intermediaryChannelIndex);
             model->setPartIndex(i % PART_COUNT);
             insertPattern(model);
             model->endLongOperation();
-//             qDebug() << "Added missing model" << intermediaryTrackIndex << intermediaryPartName << "to" << objectName() << model->trackIndex() << model->partIndex();
+//             qDebug() << "Added missing model" << intermediaryChannelIndex << intermediaryPartName << "to" << objectName() << model->channelIndex() << model->partIndex();
         }
     }
     if (activePattern() == -1) {
@@ -616,8 +616,8 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
                 const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
                 for (PatternModel *pattern : d->patternModels) {
                     QString patternIdentifier = QString::number(i + 1);
-                    if (pattern->trackIndex() > -1 && pattern->partIndex() > -1) {
-                        patternIdentifier = QString("%1%2").arg(QString::number(pattern->trackIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                    if (pattern->channelIndex() > -1 && pattern->partIndex() > -1) {
+                        patternIdentifier = QString("%1%2").arg(QString::number(pattern->channelIndex() + 1)).arg(partNames[pattern->partIndex()]);
                     }
                     QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
                     QFile patternFile(fileName);
@@ -805,7 +805,7 @@ void SequenceModel::advanceSequence()
             }
         } else {
             for (const PatternModel *pattern : qAsConst(d->patternModels)) {
-                if (d->zlSyncManager->soloTrack == -1 || d->zlSyncManager->soloTrack == pattern->trackIndex()) {
+                if (d->zlSyncManager->soloChannel == -1 || d->zlSyncManager->soloChannel == pattern->channelIndex()) {
                     pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
                 }
             }

@@ -81,16 +81,16 @@ public:
     /**
      * \brief Get the current should-make-sounds state of the given part
      */
-    Q_INVOKABLE bool playfieldState(int track, int sketch, int part) const;
+    Q_INVOKABLE bool playfieldState(int channel, int sketch, int part) const;
     /**
      * \brief Get the offset position for the given part
      */
-    Q_INVOKABLE quint64 playfieldOffset(int track, int sketch, int part) const;
+    Q_INVOKABLE quint64 playfieldOffset(int channel, int sketch, int part) const;
     /**
      * \brief Emitted when the playfield of the given part changed
      * NOTE! Connect to this with a QueuedConnection, otherwise you may hold up playback
      */
-    Q_SIGNAL void playfieldInformationChanged(int track, int sketch, int part);
+    Q_SIGNAL void playfieldInformationChanged(int channel, int sketch, int part);
 
     /**
      * \brief Called explicitly by PlayGridManager, to ensure SegmentHandler's progression happens at the right point

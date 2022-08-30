@@ -79,31 +79,31 @@ public:
         connect(layerDataPuller, &QTimer::timeout, this, &ZLPatternSynchronisationManager::retrieveLayerData);
     };
     PatternModel *q{nullptr};
-    QObject *zlTrack{nullptr};
+    QObject *zlChannel{nullptr};
     QObject *zlPart{nullptr};
     QObject *zlScene{nullptr};
     QObject *zlDashboard{nullptr};
     QTimer *layerDataPuller{nullptr};
 
-    bool trackMuted{false};
-    void setZlTrack(QObject *newZlTrack)
+    bool channelMuted{false};
+    void setZlChannel(QObject *newZlChannel)
     {
-        if (zlTrack != newZlTrack) {
-            if (zlTrack) {
-                zlTrack->disconnect(this);
+        if (zlChannel != newZlChannel) {
+            if (zlChannel) {
+                zlChannel->disconnect(this);
             }
-            zlTrack = newZlTrack;
-            if (zlTrack) {
-                connect(zlTrack, SIGNAL(track_audio_type_changed()), this, SLOT(trackAudioTypeChanged()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(externalMidiChannelChanged()), this, SLOT(externalMidiChannelChanged()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(recordingPopupActiveChanged()), this, SIGNAL(recordingPopupActiveChanged()), Qt::QueuedConnection);
-                connect(zlTrack, SIGNAL(isMutedChanged()), this, SLOT(isMutedChanged()), Qt::QueuedConnection);
-                q->setMidiChannel(zlTrack->property("id").toInt());
-                trackAudioTypeChanged();
+            zlChannel = newZlChannel;
+            if (zlChannel) {
+                connect(zlChannel, SIGNAL(channel_audio_type_changed()), this, SLOT(channelAudioTypeChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(externalMidiChannelChanged()), this, SLOT(externalMidiChannelChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(recordingPopupActiveChanged()), this, SIGNAL(recordingPopupActiveChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(isMutedChanged()), this, SLOT(isMutedChanged()), Qt::QueuedConnection);
+                q->setMidiChannel(zlChannel->property("id").toInt());
+                channelAudioTypeChanged();
                 externalMidiChannelChanged();
                 updateSamples();
                 selectedPartChanged();
@@ -111,7 +111,7 @@ public:
                 chainedSoundsChanged();
             }
             isMutedChanged();
-            Q_EMIT q->zlTrackChanged();
+            Q_EMIT q->zlChannelChanged();
         }
     }
 
@@ -140,7 +140,7 @@ public:
             if (zlScene) {
                 connect(zlScene, SIGNAL(enabled_changed()), this, SLOT(sceneEnabledChanged()), Qt::QueuedConnection);
                 // This seems superfluous...
-//                 connect(zlTrack, SIGNAL(enabled_changed()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+//                 connect(zlChannel, SIGNAL(enabled_changed()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
                 sceneEnabledChanged();
             }
             Q_EMIT q->zlSceneChanged();
@@ -154,7 +154,7 @@ public:
             }
             zlDashboard = newZlDashboard;
             if (zlDashboard) {
-                connect(zlDashboard, SIGNAL(selected_track_changed()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
+                connect(zlDashboard, SIGNAL(selected_channel_changed()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
                 selectedPartChanged();
             }
         }
@@ -166,44 +166,44 @@ public Q_SLOTS:
     void sceneEnabledChanged() {
         q->setEnabled(zlScene->property("enabled").toBool());
     }
-    void trackAudioTypeChanged() {
+    void channelAudioTypeChanged() {
         static const QLatin1String sampleTrig{"sample-trig"};
         static const QLatin1String sampleSlice{"sample-slice"};
         static const QLatin1String sampleLoop{"sample-loop"};
         static const QLatin1String external{"external"};
 //         static const QLatin1String synth{"synth"}; // the default
-        const QString trackAudioType = zlTrack->property("trackAudioType").toString();
-        if (trackAudioType == sampleTrig) {
+        const QString channelAudioType = zlChannel->property("channelAudioType").toString();
+        if (channelAudioType == sampleTrig) {
             q->setNoteDestination(PatternModel::SampleTriggerDestination);
-        } else if (trackAudioType == sampleSlice) {
+        } else if (channelAudioType == sampleSlice) {
             q->setNoteDestination(PatternModel::SampleSlicedDestination);
-        } else if (trackAudioType == sampleLoop) {
+        } else if (channelAudioType == sampleLoop) {
             q->setNoteDestination(PatternModel::SampleLoopedDestination);
-        } else if (trackAudioType == external) {
+        } else if (channelAudioType == external) {
             q->setNoteDestination(PatternModel::ExternalDestination);
-        } else { // or in other words "if (trackAudioType == synth)"
+        } else { // or in other words "if (channelAudioType == synth)"
             q->setNoteDestination(PatternModel::SynthDestination);
         }
     }
     void externalMidiChannelChanged() {
-        q->setExternalMidiChannel(zlTrack->property("externalMidiChannel").toInt());
+        q->setExternalMidiChannel(zlChannel->property("externalMidiChannel").toInt());
     }
     void selectedPartChanged() {
         SequenceModel *sequence = qobject_cast<SequenceModel*>(q->sequence());
-        if (sequence && zlTrack && zlDashboard) {
-            const int trackId{zlDashboard->property("selectedTrack").toInt()};
-            const int selectedPart{zlTrack->property("selectedPart").toInt()};
-            sequence->setActiveTrack(trackId, selectedPart);
+        if (sequence && zlChannel && zlDashboard) {
+            const int channelId{zlDashboard->property("selectedChannel").toInt()};
+            const int selectedPart{zlChannel->property("selectedPart").toInt()};
+            sequence->setActiveChannel(channelId, selectedPart);
         }
     }
     void updateSamples() {
         QVariantList clipIds;
-        if (zlTrack && zlPart) {
-            const QVariantList trackSamples = zlTrack->property("samples").toList();
+        if (zlChannel && zlPart) {
+            const QVariantList channelSamples = zlChannel->property("samples").toList();
             const QVariantList partSamples = zlPart->property("samples").toList();
             for (const QVariant& partSample : partSamples) {
                 int sampleCppId{-1};
-                const QObject *sample = trackSamples[partSample.toInt()].value<QObject*>();
+                const QObject *sample = channelSamples[partSample.toInt()].value<QObject*>();
                 if (sample) {
                     sampleCppId = sample->property("cppObjId").toInt();
                 }
@@ -213,29 +213,29 @@ public Q_SLOTS:
         q->setClipIds(clipIds);
     }
     void chainedSoundsChanged() {
-        if (zlTrack) {
+        if (zlChannel) {
             QList<int> chainedSounds;
-            const QVariantList trackChainedSounds = zlTrack->property("chainedSounds").toList();
-            for (const QVariant &trackChainedSound : trackChainedSounds) {
-                const int chainedSound = trackChainedSound.toInt();
+            const QVariantList channelChainedSounds = zlChannel->property("chainedSounds").toList();
+            for (const QVariant &channelChainedSound : channelChainedSounds) {
+                const int chainedSound = channelChainedSound.toInt();
                 if (chainedSound > -1) {
                     chainedSounds << chainedSound;
                 }
             }
-            MidiRouter::instance()->setZynthianChannels(q->trackIndex(), chainedSounds);
+            MidiRouter::instance()->setZynthianChannels(q->channelIndex(), chainedSounds);
         }
     }
     void isMutedChanged() {
-        if (zlTrack) {
-            trackMuted = zlTrack->property("muted").toBool();
+        if (zlChannel) {
+            channelMuted = zlChannel->property("muted").toBool();
         } else {
-            trackMuted = false;
+            channelMuted = false;
         }
     }
     void retrieveLayerData() {
-        if (zlTrack) {
+        if (zlChannel) {
             QString jsonSnapshot;
-            QMetaObject::invokeMethod(zlTrack, "getTrackSoundSnapshotJson", Qt::DirectConnection, Q_RETURN_ARG(QString, jsonSnapshot));
+            QMetaObject::invokeMethod(zlChannel, "getChannelSoundSnapshotJson", Qt::DirectConnection, Q_RETURN_ARG(QString, jsonSnapshot));
             q->setLayerData(jsonSnapshot);
         }
     }
@@ -318,7 +318,7 @@ public:
 
     SyncTimer* syncTimer{nullptr};
     SequenceModel *sequence;
-    int trackIndex{-1};
+    int channelIndex{-1};
     int partIndex{-1};
 
     PlayGridManager *playGridManager{nullptr};
@@ -357,7 +357,7 @@ public:
         QList<ClipCommand*> commands;
         const QList<ClipAudioSource*> clips = clipsForMidiNote(byte2);
         for (ClipAudioSource *clip : clips) {
-            ClipCommand *command = ClipCommand::trackCommand(clip, midiChannel);
+            ClipCommand *command = ClipCommand::channelCommand(clip, midiChannel);
             command->startPlayback = byte1 > 0x8F;
             command->stopPlayback = byte1 < 0x90;
             if (command->startPlayback) {
@@ -383,8 +383,8 @@ PatternModel::PatternModel(SequenceModel* parent)
 {
     d->zlSyncManager = new ZLPatternSynchronisationManager(this);
     d->segmentHandler = SegmentHandler::instance();
-    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this](int track, int sketch, int part){
-        if (d->sequence && track == d->trackIndex && part == d->partIndex && sketch == d->sequence->sceneIndex()) {
+    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this](int channel, int sketch, int part){
+        if (d->sequence && channel == d->channelIndex && part == d->partIndex && sketch == d->sequence->sceneIndex()) {
             Q_EMIT isPlayingChanged();
         }
     }, Qt::QueuedConnection);
@@ -460,8 +460,8 @@ PatternModel::PatternModel(SequenceModel* parent)
                 // Default destination
                 break;
         }
-        if (zlTrack() && zlTrack()->property("recordingPopupActive").toBool()) {
-            // Recording Popup is active. Do connect midi channel to allow recording even if track mode is trig/slice
+        if (zlChannel() && zlChannel()->property("recordingPopupActive").toBool()) {
+            // Recording Popup is active. Do connect midi channel to allow recording even if channel mode is trig/slice
             MidiRouter::instance()->setChannelDestination(d->midiChannel, MidiRouter::ZynthianDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
         } else {
             MidiRouter::instance()->setChannelDestination(d->midiChannel, routerDestination, actualChannel == d->midiChannel ? -1 : actualChannel);
@@ -822,16 +822,16 @@ QObject* PatternModel::sequence() const
     return d->sequence;
 }
 
-int PatternModel::trackIndex() const
+int PatternModel::channelIndex() const
 {
-    return d->trackIndex;
+    return d->channelIndex;
 }
 
-void PatternModel::setTrackIndex(int trackIndex)
+void PatternModel::setChannelIndex(int channelIndex)
 {
-    if (d->trackIndex != trackIndex) {
-        d->trackIndex = trackIndex;
-        Q_EMIT trackIndexChanged();
+    if (d->channelIndex != channelIndex) {
+        d->channelIndex = channelIndex;
+        Q_EMIT channelIndexChanged();
     }
 }
 
@@ -1330,14 +1330,14 @@ bool PatternModel::recordLive() const
     return d->recordingLive;
 }
 
-QObject *PatternModel::zlTrack() const
+QObject *PatternModel::zlChannel() const
 {
-    return d->zlSyncManager->zlTrack;
+    return d->zlSyncManager->zlChannel;
 }
 
-void PatternModel::setZlTrack(QObject *zlTrack)
+void PatternModel::setZlChannel(QObject *zlChannel)
 {
-    d->zlSyncManager->setZlTrack(zlTrack);
+    d->zlSyncManager->setZlChannel(zlChannel);
 }
 
 QObject *PatternModel::zlPart() const
@@ -1401,7 +1401,7 @@ bool PatternModel::isPlaying() const
 {
     bool isPlaying{false};
     if (d->segmentHandler->songMode()) {
-        isPlaying = d->segmentHandler->playfieldState(d->trackIndex, d->sequence->sceneIndex(), d->partIndex);
+        isPlaying = d->segmentHandler->playfieldState(d->channelIndex, d->sequence->sceneIndex(), d->partIndex);
     } else if (d->sequence && d->sequence->isPlaying()) {
         if (d->sequence->soloPattern() > -1) {
             isPlaying = (d->sequence->soloPatternObject() == this);
@@ -1555,7 +1555,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
     static const QLatin1String velocityString{"velocity"};
     static const QLatin1String delayString{"delay"};
     static const QLatin1String durationString{"duration"};
-    if (!d->zlSyncManager->trackMuted
+    if (!d->zlSyncManager->channelMuted
         && (isPlaying()
             // Play any note if the pattern is set to sliced or trigger destination, since then it's not sending things through the midi graph
             && (d->noteDestination == PatternModel::SampleSlicedDestination || d->noteDestination == PatternModel ::SampleTriggerDestination
@@ -1567,7 +1567,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
         )
     ) {
         const int overrideChannel{(d->midiChannel == 15) ? d->playGridManager->currentMidiChannel() : -1};
-        const quint64 playbackOffset{d->segmentHandler->songMode() ? d->segmentHandler->playfieldOffset(d->trackIndex, d->sequence->sceneIndex(), d->partIndex) : 0};
+        const quint64 playbackOffset{d->segmentHandler->songMode() ? d->segmentHandler->playfieldOffset(d->channelIndex, d->sequence->sceneIndex(), d->partIndex) : 0};
         quint64 noteDuration{0};
         bool relevantToUs{false};
         // Since this happens at the /end/ of the cycle in a beat, this should be used to schedule beats for the next
@@ -1662,7 +1662,7 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                 }
                 switch (d->noteDestination) {
                     case PatternModel::SampleLoopedDestination:
-                        // If this track is supposed to loop its sample, we are not supposed to be making patterny sounds
+                        // If this channel is supposed to loop its sample, we are not supposed to be making patterny sounds
                         break;
                     case PatternModel::SampleTriggerDestination:
                     case PatternModel::SampleSlicedDestination:
@@ -1729,7 +1729,7 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
         && (d->noteDestination == SampleTriggerDestination || d->noteDestination == SampleSlicedDestination)) {
         if (0x7F < byte1 && byte1 < 0xA0) {
             const int midiChannel = (byte1 < 0x90 ? byte1 - 0x80 : byte1 - 0x90);
-            // FIXME We've got a problem - why is the "dunno" channel 9? There's a track there, that's going to cause issues...
+            // FIXME We've got a problem - why is the "dunno" channel 9? There's a channel there, that's going to cause issues...
             if (d->midiChannel == midiChannel || ((d->midiChannel < 0 || d->midiChannel > 8) && midiChannel == 9)) {
                 const QList<ClipCommand*> commands = d->midiMessageToClipCommands(byte1, byte2, byte3);
                 for (ClipCommand *command : qAsConst(commands)) {

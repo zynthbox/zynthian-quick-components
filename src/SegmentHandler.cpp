@@ -46,27 +46,27 @@ struct SketchState {
     QList<bool> partStates;
     QList<quint64> partOffset;
 };
-struct TrackState {
-    TrackState() {
+struct ChannelState {
+    ChannelState() {
         for (int sketchIndex = 0; sketchIndex < 10; ++sketchIndex) {
             sketchStates << new SketchState();
         }
     }
-    ~TrackState() {
+    ~ChannelState() {
         qDeleteAll(sketchStates);
     }
     QList<SketchState*> sketchStates;
 };
 struct PlayfieldState {
     PlayfieldState() {
-        for (int trackIndex = 0; trackIndex < 10; ++trackIndex) {
-            trackStates << new TrackState();
+        for (int channelIndex = 0; channelIndex < 10; ++channelIndex) {
+            channelStates << new ChannelState();
         }
     };
     ~PlayfieldState() {
-        qDeleteAll(trackStates);
+        qDeleteAll(channelStates);
     }
-    QList<TrackState*> trackStates;
+    QList<ChannelState*> channelStates;
 };
 
 class ZLSegmentHandlerSynchronisationManager;
@@ -146,12 +146,12 @@ public:
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
 //             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = true;
-            playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
+            playfieldState->channelStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = true;
+            playfieldState->channelStates.at(command->parameter)->sketchStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
             Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if(command->operation == TimerCommand::StopPartOperation) {
 //             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->trackStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = false;
+            playfieldState->channelStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = false;
             Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
@@ -208,7 +208,7 @@ public:
     QObject *zlMixesModel{nullptr};
     QObject *zLSelectedMix{nullptr};
     QObject *zLSegmentsModel{nullptr};
-    QList<QObject*> zlTracks;
+    QList<QObject*> zlChannels;
     QTimer segmentUpdater;
 
     void setZlSong(QObject *newZlSong) {
@@ -224,7 +224,7 @@ public:
                 connect(zlSong, SIGNAL(isLoadingChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 fetchSequenceModels();
             }
-            updateTracks();
+            updateChannels();
         }
     }
 
@@ -272,24 +272,24 @@ public:
             }
         }
     }
-    void updateTracks() {
-        if (zlTracks.count() > 0) {
-            for (QObject* track : zlTracks) {
-                track->disconnect(&segmentUpdater);
+    void updateChannels() {
+        if (zlChannels.count() > 0) {
+            for (QObject* channel : zlChannels) {
+                channel->disconnect(&segmentUpdater);
             }
-            zlTracks.clear();
+            zlChannels.clear();
         }
         if (zlSong) {
-            QObject *tracksModel = zlSong->property("tracksModel").value<QObject*>();
-            for (int trackIndex = 0; trackIndex < 10; ++trackIndex) {
-                QObject *track{nullptr};
-                QMetaObject::invokeMethod(tracksModel, "getTrack", Q_RETURN_ARG(QObject*, track), Q_ARG(int, trackIndex));
-                if (track) {
-                    zlTracks << track;
-                    connect(track, SIGNAL(track_audio_type_changed()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+            QObject *channelsModel = zlSong->property("channelsModel").value<QObject*>();
+            for (int channelIndex = 0; channelIndex < 10; ++channelIndex) {
+                QObject *channel{nullptr};
+                QMetaObject::invokeMethod(channelsModel, "getChannel", Q_RETURN_ARG(QObject*, channel), Q_ARG(int, channelIndex));
+                if (channel) {
+                    zlChannels << channel;
+                    connect(channel, SIGNAL(channel_audio_type_changed()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 }
             }
-//             qDebug() << Q_FUNC_INFO << "Updated tracks, we now keep a hold of" << zlTracks.count();
+//             qDebug() << Q_FUNC_INFO << "Updated channels, we now keep a hold of" << zlChannels.count();
             segmentUpdater.start();
         }
     }
@@ -318,7 +318,7 @@ public Q_SLOTS:
     void updateSegments() {
         static const QLatin1String sampleLoopedType{"sample-loop"};
         QHash<quint64, QList<TimerCommand*> > playlist;
-        if (d->songMode && zLSegmentsModel && zlTracks.count() > 0) {
+        if (d->songMode && zLSegmentsModel && zlChannels.count() > 0) {
             // The position of the next set of commands to be added to the hash
             quint64 segmentPosition{0};
             QList<QObject*> clipsInPrevious;
@@ -340,9 +340,9 @@ public Q_SLOTS:
                             // If the clip was not there in the previous step, that means we should turn it on
                             TimerCommand* command = new TimerCommand;
                             command->parameter = clip->property("row").toInt();
-                            const QObject *trackObject = zlTracks.at(command->parameter);
-                            const QString trackAudioType = trackObject->property("trackAudioType").toString();
-                            if (trackAudioType == sampleLoopedType) {
+                            const QObject *channelObject = zlChannels.at(command->parameter);
+                            const QString channelAudioType = channelObject->property("channelAudioType").toString();
+                            if (channelAudioType == sampleLoopedType) {
                                 command->operation = TimerCommand::StartClipLoopOperation;
                                 command->parameter2 = clip->property("cppObjId").toInt();
                                 command->parameter3 = 60;
@@ -364,9 +364,9 @@ public Q_SLOTS:
                             // should be turned off when reaching this position
                             TimerCommand* command = new TimerCommand;
                             command->parameter = clip->property("row").toInt();
-                            const QObject *trackObject = zlTracks.at(command->parameter);
-                            const QString trackAudioType = trackObject->property("trackAudioType").toString();
-                            if (trackAudioType == sampleLoopedType) {
+                            const QObject *channelObject = zlChannels.at(command->parameter);
+                            const QString channelAudioType = channelObject->property("channelAudioType").toString();
+                            if (channelAudioType == sampleLoopedType) {
                                 command->operation = TimerCommand::StopClipLoopOperation;
                                 command->parameter2 = clip->property("cppObjId").toInt();
                                 command->parameter3 = 60;
@@ -395,9 +395,9 @@ public Q_SLOTS:
                 qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
                 TimerCommand* command = new TimerCommand;
                 command->parameter = clip->property("row").toInt();
-                const QObject *trackObject = zlTracks.at(command->parameter);
-                const QString trackAudioType = trackObject->property("trackAudioType").toString();
-                if (trackAudioType == sampleLoopedType) {
+                const QObject *channelObject = zlChannels.at(command->parameter);
+                const QString channelAudioType = channelObject->property("channelAudioType").toString();
+                if (channelAudioType == sampleLoopedType) {
                     command->operation = TimerCommand::StopClipLoopOperation;
                     command->parameter2 = clip->property("cppObjId").toInt();
                     command->parameter3 = 60;
@@ -444,7 +444,7 @@ SegmentHandler::SegmentHandler(QObject *parent)
                 command->stopPlayback = true;
                 d->syncTimer->scheduleClipCommand(command, 0);
                 for (int i = 0; i < 10; ++i) {
-                    command = ClipCommand::trackCommand(clip, i);
+                    command = ClipCommand::channelCommand(clip, i);
                     command->midiNote = 60;
                     command->stopPlayback = true;
                     d->syncTimer->scheduleClipCommand(command, 0);
@@ -522,14 +522,14 @@ void SegmentHandler::stopPlayback()
     d->movePlayhead(0, true);
 }
 
-bool SegmentHandler::playfieldState(int track, int sketch, int part) const
+bool SegmentHandler::playfieldState(int channel, int sketch, int part) const
 {
-    return d->playfieldState->trackStates.at(track)->sketchStates.at(sketch)->partStates.at(part);
+    return d->playfieldState->channelStates.at(channel)->sketchStates.at(sketch)->partStates.at(part);
 }
 
-quint64 SegmentHandler::playfieldOffset(int track, int sketch, int part) const
+quint64 SegmentHandler::playfieldOffset(int channel, int sketch, int part) const
 {
-    return d->playfieldState->trackStates.at(track)->sketchStates.at(sketch)->partOffset.at(part);
+    return d->playfieldState->channelStates.at(channel)->sketchStates.at(sketch)->partOffset.at(part);
 }
 
 void SegmentHandler::progressPlayback() const
