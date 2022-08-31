@@ -37,7 +37,6 @@
 #include <ClipCommand.h>
 #include <ClipAudioSource.h>
 #include <MidiRouter.h>
-#include <SamplerSynth.h>
 #include <SyncTimer.h>
 
 static const QStringList midiNoteNames{
@@ -248,7 +247,6 @@ public:
     Private() {
         playGridManager = PlayGridManager::instance();
         syncTimer = qobject_cast<SyncTimer*>(playGridManager->syncTimer());
-        samplerSynth = SamplerSynth::instance();
         for (int i = 0; i < 100; ++i) {
             notePool << new NewNoteData;
         }
@@ -322,7 +320,6 @@ public:
     int partIndex{-1};
 
     PlayGridManager *playGridManager{nullptr};
-    SamplerSynth *samplerSynth{nullptr};
 
     int gridModelStartNote{48};
     int gridModelEndNote{64};
