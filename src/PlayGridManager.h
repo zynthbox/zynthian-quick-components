@@ -86,7 +86,7 @@ class PlayGridManager : public QObject
     Q_PROPERTY(QStringList hardwareOutActiveNotes READ hardwareOutActiveNotes NOTIFY hardwareOutActiveNotesChanged)
 
     /**
-     * \brief The global instance of Zynthiloops' session dashboard
+     * \brief The global instance of Sketchpad' session dashboard
      */
     Q_PROPERTY(QObject* zlDashboard READ zlDashboard WRITE setZlDashboard NOTIFY zlDashboardChanged)
     /**

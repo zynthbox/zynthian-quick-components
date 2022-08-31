@@ -27,7 +27,7 @@
 #include "SettingsContainer.h"
 #include "MidiListener.h"
 
-// ZynthiLoops library
+// Sketchpad library
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 #include <juce_audio_formats/juce_audio_formats.h>

@@ -27,7 +27,7 @@
 
 class SegmentHandlerPrivate;
 /**
- * \brief A method for handling song-style playback, based on the Zynthiloops Segments data
+ * \brief A method for handling song-style playback, based on the Sketchpad Segments data
  */
 class SegmentHandler : public QObject
 {
