@@ -380,8 +380,8 @@ PatternModel::PatternModel(SequenceModel* parent)
 {
     d->zlSyncManager = new ZLPatternSynchronisationManager(this);
     d->segmentHandler = SegmentHandler::instance();
-    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this](int channel, int sketch, int part){
-        if (d->sequence && channel == d->channelIndex && part == d->partIndex && sketch == d->sequence->sceneIndex()) {
+    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this](int channel, int track, int part){
+        if (d->sequence && channel == d->channelIndex && part == d->partIndex && track == d->sequence->sceneIndex()) {
             Q_EMIT isPlayingChanged();
         }
     }, Qt::QueuedConnection);

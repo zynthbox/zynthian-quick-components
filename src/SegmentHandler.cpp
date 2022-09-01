@@ -35,8 +35,8 @@
 #include <QTimer>
 #include <QVariant>
 
-struct SketchState {
-    SketchState() {
+struct TrackState {
+    TrackState() {
         for (int partIndex = 0; partIndex < 5; ++partIndex) {
             partStates << false;
             partOffset << 0;
@@ -48,14 +48,14 @@ struct SketchState {
 };
 struct ChannelState {
     ChannelState() {
-        for (int sketchIndex = 0; sketchIndex < 10; ++sketchIndex) {
-            sketchStates << new SketchState();
+        for (int trackIndex = 0; trackIndex < 10; ++trackIndex) {
+            trackStates << new TrackState();
         }
     }
     ~ChannelState() {
-        qDeleteAll(sketchStates);
+        qDeleteAll(trackStates);
     }
-    QList<SketchState*> sketchStates;
+    QList<TrackState*> trackStates;
 };
 struct PlayfieldState {
     PlayfieldState() {
@@ -146,12 +146,12 @@ public:
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
 //             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->channelStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = true;
-            playfieldState->channelStates.at(command->parameter)->sketchStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
+            playfieldState->channelStates.at(command->parameter)->trackStates.at(command->parameter2)->partStates[command->parameter3] = true;
+            playfieldState->channelStates.at(command->parameter)->trackStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
             Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if(command->operation == TimerCommand::StopPartOperation) {
 //             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->channelStates.at(command->parameter)->sketchStates.at(command->parameter2)->partStates[command->parameter3] = false;
+            playfieldState->channelStates.at(command->parameter)->trackStates.at(command->parameter2)->partStates[command->parameter3] = false;
             Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
@@ -307,7 +307,7 @@ public Q_SLOTS:
     }
     void fetchSequenceModels() {
         for (int i = 1; i < 11; ++i) {
-            SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("S%1").arg(i)));
+            SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("T%1").arg(i)));
             if (sequence) {
                 d->sequenceModels << sequence;
             } else {
@@ -502,7 +502,7 @@ void SegmentHandler::startPlayback(quint64 startOffset, quint64 duration)
     }
     // Hook up the global sequences to playback
     for (int i = 1; i < 11; ++i) {
-        SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("S%1").arg(i)));
+        SequenceModel *sequence = qobject_cast<SequenceModel*>(d->playGridManager->getSequenceModel(QString("T%1").arg(i)));
         if (sequence) {
             sequence->prepareSequencePlayback();
         } else {
@@ -522,14 +522,14 @@ void SegmentHandler::stopPlayback()
     d->movePlayhead(0, true);
 }
 
-bool SegmentHandler::playfieldState(int channel, int sketch, int part) const
+bool SegmentHandler::playfieldState(int channel, int track, int part) const
 {
-    return d->playfieldState->channelStates.at(channel)->sketchStates.at(sketch)->partStates.at(part);
+    return d->playfieldState->channelStates.at(channel)->trackStates.at(track)->partStates.at(part);
 }
 
-quint64 SegmentHandler::playfieldOffset(int channel, int sketch, int part) const
+quint64 SegmentHandler::playfieldOffset(int channel, int track, int part) const
 {
-    return d->playfieldState->channelStates.at(channel)->sketchStates.at(sketch)->partOffset.at(part);
+    return d->playfieldState->channelStates.at(channel)->trackStates.at(track)->partOffset.at(part);
 }
 
 void SegmentHandler::progressPlayback() const
