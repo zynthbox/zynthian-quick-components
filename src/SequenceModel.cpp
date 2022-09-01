@@ -186,9 +186,9 @@ public:
         }
         if (filePath.isEmpty()) {
             if (song) {
-                QString sketchFolder = song->property("sketchFolder").toString();
+                QString sketchpadFolder = song->property("sketchpadFolder").toString();
                 const QString sequenceNameForFiles = QString(q->objectName().toLower()).replace(" ", "-");
-                q->setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(sequenceNameForFiles));
+                q->setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchpadFolder).arg(sequenceNameForFiles));
             }
         }
     }
@@ -522,7 +522,7 @@ void SequenceModel::load(const QString &fileName)
                 // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
                 const int intermediaryChannelIndex = actualIndex / PART_COUNT;
                 const QString &intermediaryPartName = partNames[actualIndex - (intermediaryChannelIndex * PART_COUNT)];
-                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryChannelIndex + 1)).arg(intermediaryPartName), this));
+                PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketchpad %1-%2%3").arg(sketchName).arg(QString::number(intermediaryChannelIndex + 1)).arg(intermediaryPartName), this));
                 model->startLongOperation();
                 model->resetPattern(true);
                 model->setChannelIndex(intermediaryChannelIndex);
@@ -532,7 +532,7 @@ void SequenceModel::load(const QString &fileName)
 //                 qWarning() << "Sequence missing patterns prior to that, added:" << model;
                 ++actualIndex;
             }
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(channelIndex + 1)).arg(partName), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketchpad %1-%2%3").arg(sketchName).arg(QString::number(channelIndex + 1)).arg(partName), this));
             model->startLongOperation();
             model->resetPattern(true);
             model->setChannelIndex(channelIndex);
@@ -561,7 +561,7 @@ void SequenceModel::load(const QString &fileName)
         for (int i = d->patternModels.count(); i < PATTERN_COUNT; ++i) {
             const int intermediaryChannelIndex = i / PART_COUNT;
             const QString &intermediaryPartName = partNames[i % PART_COUNT];
-            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketch %1-%2%3").arg(sketchName).arg(QString::number(intermediaryChannelIndex + 1)).arg(intermediaryPartName), this));
+            PatternModel *model = qobject_cast<PatternModel*>(playGridManager()->getPatternModel(QString("Sketchpad %1-%2%3").arg(sketchName).arg(QString::number(intermediaryChannelIndex + 1)).arg(intermediaryPartName), this));
             model->startLongOperation();
             model->resetPattern(true);
             model->setChannelIndex(intermediaryChannelIndex);
@@ -666,9 +666,9 @@ void SequenceModel::setSong(QObject* song)
         }
         d->song = song;
         if (d->song) {
-            QString sketchFolder = d->song->property("sketchFolder").toString();
+            QString sketchpadFolder = d->song->property("sketchpadFolder").toString();
             const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
-            setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchFolder).arg(sequenceNameForFiles));
+            setFilePath(QString("%1/sequences/%2/metadata.sequence.json").arg(sketchpadFolder).arg(sequenceNameForFiles));
         }
         load();
         Q_EMIT songChanged();
