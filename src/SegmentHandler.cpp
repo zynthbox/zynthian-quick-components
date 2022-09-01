@@ -205,8 +205,8 @@ public:
     SegmentHandler *q{nullptr};
     SegmentHandlerPrivate* d{nullptr};
     QObject *zlSong{nullptr};
-    QObject *zlMixesModel{nullptr};
-    QObject *zLSelectedMix{nullptr};
+    QObject *zlSketchesModel{nullptr};
+    QObject *zLSelectedSketch{nullptr};
     QObject *zLSegmentsModel{nullptr};
     QList<QObject*> zlChannels;
     QTimer segmentUpdater;
@@ -220,7 +220,7 @@ public:
             }
             zlSong = newZlSong;
             if (zlSong) {
-                setZLMixesModel(zlSong->property("mixesModel").value<QObject*>());
+                setZLSketchesModel(zlSong->property("sketchesModel").value<QObject*>());
                 connect(zlSong, SIGNAL(isLoadingChanged()), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 fetchSequenceModels();
             }
@@ -228,34 +228,34 @@ public:
         }
     }
 
-    void setZLMixesModel(QObject *newZLMixesModel) {
-//         qDebug() << Q_FUNC_INFO << "Setting new mixes model:" << newZLMixesModel;
-        if (zlMixesModel != newZLMixesModel) {
-            if (zlMixesModel) {
-                zlMixesModel->disconnect(this);
-                zlMixesModel->disconnect(&segmentUpdater);
+    void setZLSketchesModel(QObject *newZLSketchesModel) {
+//         qDebug() << Q_FUNC_INFO << "Setting new sketches model:" << newZLSketchesModel;
+        if (zlSketchesModel != newZLSketchesModel) {
+            if (zlSketchesModel) {
+                zlSketchesModel->disconnect(this);
+                zlSketchesModel->disconnect(&segmentUpdater);
             }
-            zlMixesModel = newZLMixesModel;
-            if (zlMixesModel) {
-                connect(zlMixesModel, SIGNAL(songModeChanged()), this, SLOT(songModeChanged()), Qt::QueuedConnection);
-                connect(zlMixesModel, SIGNAL(selectedMixIndexChanged()), this, SLOT(selectedMixIndexChanged()), Qt::QueuedConnection);
-                connect(zlMixesModel, SIGNAL(clipAdded(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
-                connect(zlMixesModel, SIGNAL(clipRemoved(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+            zlSketchesModel = newZLSketchesModel;
+            if (zlSketchesModel) {
+                connect(zlSketchesModel, SIGNAL(songModeChanged()), this, SLOT(songModeChanged()), Qt::QueuedConnection);
+                connect(zlSketchesModel, SIGNAL(selectedSketchIndexChanged()), this, SLOT(selectedSketchIndexChanged()), Qt::QueuedConnection);
+                connect(zlSketchesModel, SIGNAL(clipAdded(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
+                connect(zlSketchesModel, SIGNAL(clipRemoved(int, int, QObject*)), &segmentUpdater, SLOT(start()), Qt::QueuedConnection);
                 songModeChanged();
-                selectedMixIndexChanged();
+                selectedSketchIndexChanged();
             }
         }
     }
 
-    void setZLSelectedMix(QObject *newSelectedMix) {
-        if (zLSelectedMix != newSelectedMix) {
-            if (zLSelectedMix) {
-                zLSelectedMix->disconnect(this);
+    void setZLSelectedSketch(QObject *newSelectedSketch) {
+        if (zLSelectedSketch != newSelectedSketch) {
+            if (zLSelectedSketch) {
+                zLSelectedSketch->disconnect(this);
                 setZLSegmentsModel(nullptr);
             }
-            zLSelectedMix = newSelectedMix;
-            if (zLSelectedMix) {
-                setZLSegmentsModel(zLSelectedMix->property("segmentsModel").value<QObject*>());
+            zLSelectedSketch = newSelectedSketch;
+            if (zLSelectedSketch) {
+                setZLSegmentsModel(zLSelectedSketch->property("segmentsModel").value<QObject*>());
             }
         }
     }
@@ -295,15 +295,15 @@ public:
     }
 public Q_SLOTS:
     void songModeChanged() {
-        d->songMode = zlMixesModel->property("songMode").toBool();
+        d->songMode = zlSketchesModel->property("songMode").toBool();
         segmentUpdater.start();
         Q_EMIT q->songModeChanged();
     }
-    void selectedMixIndexChanged() {
-        int mixIndex = zlMixesModel->property("selectedMixIndex").toInt();
-        QObject *mix{nullptr};
-        QMetaObject::invokeMethod(zlMixesModel, "getMix", Qt::DirectConnection, Q_RETURN_ARG(QObject*, mix), Q_ARG(int, mixIndex));
-        setZLSelectedMix(mix);
+    void selectedSketchIndexChanged() {
+        int sketchIndex = zlSketchesModel->property("selectedSketchIndex").toInt();
+        QObject *sketch{nullptr};
+        QMetaObject::invokeMethod(zlSketchesModel, "getSketch", Qt::DirectConnection, Q_RETURN_ARG(QObject*, sketch), Q_ARG(int, sketchIndex));
+        setZLSelectedSketch(sketch);
     }
     void fetchSequenceModels() {
         for (int i = 1; i < 11; ++i) {
