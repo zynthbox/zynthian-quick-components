@@ -113,7 +113,7 @@ class PatternModel : public NotesModel
      * \brief The duration which should be any newly added note (by default 0, meaning auto-quantized)
      *
      * By default, notes on a pattern are played back in a quantized fashion, but they can also be given an explicit duration
-     * instead. This property should be used to store the duration that any new note gets given (in particular by drumatique,
+     * instead. This property should be used to store the duration that any new note gets given (in particular by stepsequencer,
      * but also by any other sequencer which creates patterns).
      *
      * The default, 0, means that newly added notes will be auto-quantized for playback (until they are given an explicit

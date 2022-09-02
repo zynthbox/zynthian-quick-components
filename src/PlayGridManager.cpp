@@ -180,7 +180,7 @@ public:
         listenToEverything();
         currentPlaygrids = {
             {"minigrid", 1}, // As these are sorted alphabetically, notesgrid for minigrid and
-            {"playgrid", 0}, // drumatique for playgrid
+            {"playgrid", 0}, // stepsequencer for playgrid
         };
     }
     ~Private() {
@@ -486,7 +486,7 @@ int PlayGridManager::sequenceEditorIndex() const
     int sequencerIndex{d->playgrids.indexOf(d->preferredSequencer)};
     if (sequencerIndex < 0) {
         for (int i = 0; i < d->playgrids.count(); ++i) {
-            if (d->playgrids[i].contains("drumatique")) {
+            if (d->playgrids[i].contains("stepsequencer")) {
                 sequencerIndex = i;
                 break;
             }
