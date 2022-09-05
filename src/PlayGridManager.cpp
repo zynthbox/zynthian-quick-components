@@ -25,7 +25,6 @@
 #include "PatternModel.h"
 #include "SegmentHandler.h"
 #include "SettingsContainer.h"
-#include "MidiListener.h"
 
 // Sketchpad library
 // Hackety hack - we don't need all the thing, just need some storage things (MidiBuffer and MidiNote specifically)
@@ -177,14 +176,21 @@ public:
             hardwareOutActiveNotes = activated;
             Q_EMIT q->hardwareOutActiveNotesChanged();
         });
-        listenToEverything();
+        for (int i = 0; i < 128; ++i) {
+            noteActivations[i] = 0;
+            internalPassthroughNoteActivations[i] = 0;
+            hardwareInNoteActivations[i] = 0;
+            hardwareOutNoteActivations[i] = 0;
+        }
+        QObject::connect(midiRouter, &MidiRouter::noteChanged, q, [this](const MidiRouter::ListenerPort &port, const int &midiNote, const int &midiChannel, const int &velocity, const bool &setOn, const double &timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ emitMidiMessage(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
+        QObject::connect(midiRouter, &MidiRouter::noteChanged, q, [this](const MidiRouter::ListenerPort &port, const int &midiNote, const int &midiChannel, const int &velocity, const bool &setOn, const double &timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ updateNoteState(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
+        QObject::connect(midiRouter, &MidiRouter::noteChanged, q, [this](const MidiRouter::ListenerPort &port, const int &midiNote, const int &midiChannel, const int &velocity, const bool &setOn, const double &timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ handleInputEvent(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
         currentPlaygrids = {
             {"minigrid", 0}, // As these are sorted alphabetically, notesgrid for minigrid and
             {"playgrid", 1}, // stepsequencer for playgrid
         };
     }
     ~Private() {
-        midiListener->markAsDone();
     }
     PlayGridManager *q;
     ZLPGMSynchronisationManager *zlSyncManager{nullptr};
@@ -220,7 +226,7 @@ public:
     int currentMidiChannel{-1};
 
     std::vector<unsigned char> midiMessage;
-    MidiListener* midiListener{nullptr};
+    MidiRouter* midiRouter{MidiRouter::instance()};
 
     SyncTimer *syncTimer{nullptr};
     int metronomeBeat4th{0};
@@ -232,43 +238,21 @@ public:
 
     QFileSystemWatcher watcher;
 
-    void listenToEverything() {
-        noteActivations.clear();
-        internalPassthroughNoteActivations.clear();
-        hardwareOutNoteActivations.clear();
-        hardwareInNoteActivations.clear();
-        for (int i = 0; i < 128; ++i) {
-            noteActivations[i] = 0;
-            internalPassthroughNoteActivations[i] = 0;
-            hardwareInNoteActivations[i] = 0;
-            hardwareOutNoteActivations[i] = 0;
-        }
-        if (midiListener) {
-            midiListener->markAsDone();
-            midiListener->deleteLater();
-        }
-        midiListener = new MidiListener(q);
-        QObject::connect(midiListener, &QThread::finished, midiListener, &QObject::deleteLater);
-        QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](MidiListener::Port port, int midiNote, int midiChannel, int velocity, bool setOn, double timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ updateNoteState(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::DirectConnection);
-        QObject::connect(midiListener, &MidiListener::noteChanged, q, [this](MidiListener::Port port, int midiNote, int midiChannel, int velocity, bool setOn, double timeStamp, const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3){ handleInputEvent(port, timeStamp, midiNote, midiChannel, velocity, setOn, byte1, byte2, byte3); }, Qt::QueuedConnection);
-        midiListener->start();
-    }
-
-    void handleInputEvent(MidiListener::Port port, double /*timeStamp*/, int midiNote, int /*midiChannel*/, int /*velocity*/, bool setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
+    void handleInputEvent(const MidiRouter::ListenerPort &port, const double &/*timeStamp*/, const int &midiNote, const int &/*midiChannel*/, const int &/*velocity*/, const bool &setOn, const unsigned char &/*byte1*/, const unsigned char &/*byte2*/, const unsigned char &/*byte3*/) {
         switch(port) {
-            case MidiListener::PassthroughPort:
+            case MidiRouter::PassthroughPort:
                 noteActivations[midiNote] = setOn ? 1 : 0;
                 activeNotesUpdater->start();
                 break;
-            case MidiListener::InternalPassthroughPort:
+            case MidiRouter::InternalPassthroughPort:
                 internalPassthroughNoteActivations[midiNote] = setOn ? 1 : 0;
                 internalPassthroughActiveNotesUpdater->start();
                 break;
-            case MidiListener::HardwareInPassthrough:
+            case MidiRouter::HardwareInPassthroughPort:
                 hardwareInNoteActivations[midiNote] = setOn ? 1 : 0;
                 hardwareInActiveNotesUpdater->start();
                 break;
-            case MidiListener::ExternalOutPort:
+            case MidiRouter::ExternalOutPort:
                 hardwareOutNoteActivations[midiNote] = setOn ? 1 : 0;
                 hardwareOutActiveNotesUpdater->start();
                 break;
@@ -278,10 +262,15 @@ public:
         }
     }
 
-    void updateNoteState(MidiListener::Port port, double timeStamp, int midiNote, int midiChannel, int velocity, bool setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
-        if (port == MidiListener::PassthroughPort) {
+    void emitMidiMessage(const MidiRouter::ListenerPort &port, const double &timeStamp, const int &midiNote, const int &midiChannel, const int &velocity, const bool &setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
+        if (port == MidiRouter::PassthroughPort) {
             // First notify all our friends of the thing (because they might like to know very quickly)
             Q_EMIT q->midiMessage(byte1, byte2, byte3, timeStamp);
+        }
+    }
+
+    void updateNoteState(const MidiRouter::ListenerPort &port, const double &timeStamp, const int &midiNote, const int &midiChannel, const int &velocity, const bool &setOn, const unsigned char &byte1, const unsigned char &byte2, const unsigned char &byte3) {
+        if (port == MidiRouter::PassthroughPort) {
             static const QLatin1String note_on{"note_on"};
             static const QLatin1String note_off{"note_off"};
 
