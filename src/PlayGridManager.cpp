@@ -179,8 +179,8 @@ public:
         });
         listenToEverything();
         currentPlaygrids = {
-            {"minigrid", 1}, // As these are sorted alphabetically, notesgrid for minigrid and
-            {"playgrid", 0}, // stepsequencer for playgrid
+            {"minigrid", 0}, // As these are sorted alphabetically, notesgrid for minigrid and
+            {"playgrid", 1}, // stepsequencer for playgrid
         };
     }
     ~Private() {
