@@ -38,6 +38,7 @@
 #include <ClipAudioSource.h>
 #include <MidiRouter.h>
 #include <SyncTimer.h>
+#include <TimerCommand.h>
 
 static const QStringList midiNoteNames{
     "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
@@ -76,8 +77,10 @@ public:
         layerDataPuller->setInterval(100);
         layerDataPuller->setSingleShot(true);
         connect(layerDataPuller, &QTimer::timeout, this, &ZLPatternSynchronisationManager::retrieveLayerData);
+        syncTimer = qobject_cast<SyncTimer*>(SyncTimer_instance());
     };
     PatternModel *q{nullptr};
+    SyncTimer *syncTimer{nullptr};
     QObject *zlChannel{nullptr};
     QObject *zlPart{nullptr};
     QObject *zlScene{nullptr};
@@ -172,17 +175,26 @@ public Q_SLOTS:
         static const QLatin1String external{"external"};
 //         static const QLatin1String synth{"synth"}; // the default
         const QString channelAudioType = zlChannel->property("channelAudioType").toString();
+        TimerCommand* timerCommand = new TimerCommand();
+        timerCommand->operation = TimerCommand::SamplerChannelEnabledStateOperation;
+        timerCommand->parameter = q->channelIndex();
         if (channelAudioType == sampleTrig) {
             q->setNoteDestination(PatternModel::SampleTriggerDestination);
+            timerCommand->parameter2 = true;
         } else if (channelAudioType == sampleSlice) {
             q->setNoteDestination(PatternModel::SampleSlicedDestination);
+            timerCommand->parameter2 = true;
         } else if (channelAudioType == sampleLoop) {
             q->setNoteDestination(PatternModel::SampleLoopedDestination);
+            timerCommand->parameter2 = true;
         } else if (channelAudioType == external) {
             q->setNoteDestination(PatternModel::ExternalDestination);
+            timerCommand->parameter2 = false;
         } else { // or in other words "if (channelAudioType == synth)"
             q->setNoteDestination(PatternModel::SynthDestination);
+            timerCommand->parameter2 = false;
         }
+        syncTimer->scheduleTimerCommand(0, timerCommand);
     }
     void externalMidiChannelChanged() {
         q->setExternalMidiChannel(zlChannel->property("externalMidiChannel").toInt());
