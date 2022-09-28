@@ -1159,7 +1159,11 @@ QVariantList PatternModel::clipIds() const
 {
     QVariantList ids;
     for (ClipAudioSource *clip : qAsConst(d->clips)) {
-        ids << clip->id();
+        if (clip) {
+            ids << clip->id();
+        } else {
+            ids << -1;
+        }
     }
     return ids;
 }
