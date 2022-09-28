@@ -35,6 +35,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QTimer>
 
 #define CHANNEL_COUNT 10
@@ -508,16 +509,23 @@ void SequenceModel::load(const QString &fileName)
         // Now we have a list of all the entries in the patterns directory that has the pattern
         // file suffix, sorted naturally (so 10 is at the end, not after 1, which is just silly)
         int actualIndex{0};
+        // The filename for patterns is "pattern-t(trackIndex)-ch(channelIndex)-part(partLetter).pattern.json"
+        // where trackIndex is a number from 1 through 10, channelIndex is a number from 1 through 10, and partName is a single lower-case letter
+        QRegularExpression patternFilenameRegexp("pattern-t(\\d\\d?)-ch(\\d\\d?)-part([a-z])\\.pattern\\.json");
         for (const QFileInfo &entry : entries) {
             // The filename for patterns is "sequencename-(channelIndex)(partName).pattern.json"
-            // where channelIndex is a number from 1 through 10 and partName is a single lower-case letter
             const QString absolutePath{entry.absoluteFilePath()};
-            const int startPos{absolutePath.lastIndexOf('-')};
-            const int length{absolutePath.length() - startPos - 14}; // 14 is the length+1 of the string .pattern.json, our pattern file suffix
-            int channelIndex{absolutePath.midRef(startPos + 1, length - 1).toInt() - 1};
-            const QString partName{absolutePath.mid(startPos + length, 1)};
-            int partIndex = partNames.indexOf(partName);
-//             qDebug() << "Loading pattern" << channelIndex + 1 << partName << "for sequence" << this << "from file" << absolutePath;
+            QRegularExpressionMatch match = patternFilenameRegexp.match(entry.fileName());
+            if (!match.hasMatch()) {
+                qWarning() << Q_FUNC_INFO << "This file is not recognised as a pattern file, skipping:" << entry.fileName();
+                continue;
+            }
+            const int trackIndex{match.captured(1).toInt() - 1};
+            const int channelIndex{match.captured(2).toInt() - 1};
+            const QString partName{match.captured(3)};
+            const int partIndex = partNames.indexOf(partName);
+            Q_UNUSED(trackIndex)
+//             qDebug() << "Loading pattern track" << trackIndex + 1 << "channel" << channelIndex + 1 << "part" << partName << "for sequence" << this << "from file" << absolutePath;
             while (actualIndex < (channelIndex * PART_COUNT) + partIndex) {
                 // then we're missing some patterns, which is not great and we should deal with that so we don't end up with holes in the model...
                 const int intermediaryChannelIndex = actualIndex / PART_COUNT;
@@ -613,13 +621,14 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
             dataFile.close();
             if (patternLocation.exists() || patternLocation.mkpath(patternLocation.path())) {
                 int i{0};
+                // The filename for patterns is "pattern-t(trackIndex)-ch(channelIndex)-part(partLetter).pattern.json"
                 const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
                 for (PatternModel *pattern : d->patternModels) {
                     QString patternIdentifier = QString::number(i + 1);
                     if (pattern->channelIndex() > -1 && pattern->partIndex() > -1) {
-                        patternIdentifier = QString("%1%2").arg(QString::number(pattern->channelIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                        patternIdentifier = QString("ch%1-part%2").arg(QString::number(pattern->channelIndex() + 1)).arg(partNames[pattern->partIndex()]);
                     }
-                    QString fileName = QString("%1/%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
+                    QString fileName = QString("%1/pattern-%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
                     QFile patternFile(fileName);
                     if (pattern->hasNotes()) {
                         pattern->exportToFile(fileName);
