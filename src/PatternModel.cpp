@@ -1204,6 +1204,8 @@ QObject *PatternModel::clipSliceNotes() const
             }
             int howManyRows{int(sqrt(notesToFit.length()))};
             int i{0};
+            d->clipSliceNotes->startLongOperation();
+            d->clipSliceNotes->clear();
             for (int row = 0; row < howManyRows; ++row) {
                 QVariantList notes;
                 QVariantList metadata;
@@ -1217,6 +1219,7 @@ QObject *PatternModel::clipSliceNotes() const
                 }
                 d->clipSliceNotes->appendRow(notes, metadata);
             }
+            d->clipSliceNotes->endLongOperation();
         };
         QTimer *refilTimer = new QTimer(d->gridModel);
         refilTimer->setInterval(100);
