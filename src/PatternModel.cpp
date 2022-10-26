@@ -97,6 +97,7 @@ public:
             zlChannel = newZlChannel;
             if (zlChannel) {
                 connect(zlChannel, SIGNAL(channel_audio_type_changed()), this, SLOT(channelAudioTypeChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(channel_audio_type_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
                 connect(zlChannel, SIGNAL(externalMidiChannelChanged()), this, SLOT(externalMidiChannelChanged()), Qt::QueuedConnection);
                 connect(zlChannel, SIGNAL(samples_changed()), this, SLOT(updateSamples()), Qt::QueuedConnection);
                 connect(zlChannel, SIGNAL(selectedPartChanged()), this, SLOT(selectedPartChanged()), Qt::QueuedConnection);
@@ -212,13 +213,18 @@ public Q_SLOTS:
         if (zlChannel && zlPart) {
             const QVariantList channelSamples = zlChannel->property("samples").toList();
             const QVariantList partSamples = zlPart->property("samples").toList();
+            int sampleIndex{0};
             for (const QVariant& partSample : partSamples) {
                 int sampleCppId{-1};
-                const QObject *sample = channelSamples[partSample.toInt()].value<QObject*>();
-                if (sample) {
-                    sampleCppId = sample->property("cppObjId").toInt();
+                // If we are in sample-trig mode, we want all five samples, otherwise we only want the equivalent sample to our associated part
+                if (q->noteDestination() == PatternModel::SampleTriggerDestination || sampleIndex == q->partIndex()) {
+                    const QObject *sample = channelSamples[partSample.toInt()].value<QObject*>();
+                    if (sample) {
+                        sampleCppId = sample->property("cppObjId").toInt();
+                    }
                 }
                 clipIds << sampleCppId;
+                ++sampleIndex;
             }
         }
         q->setClipIds(clipIds);
