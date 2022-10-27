@@ -343,11 +343,11 @@ public:
     int gridModelEndNote{64};
     NotesModel *gridModel{nullptr};
     NotesModel *clipSliceNotes{nullptr};
-    QList< QPointer<ClipAudioSource> > clips;
+    QList<ClipAudioSource*> clips;
     /**
      * This function will return all clip sin the list which has a
      * keyZoneStart higher or equal to the given midi note and a keyZoneEnd
-     * lower or equal to the given midi note (that is, all clipa for
+     * lower or equal to the given midi note (that is, all clips for
      * which the midi note is inside the keyzone).
      * @param midiNote The midi note to find a clip for
      * @return The list of clip audio source instances that matches the given midi note (list can be empty)
@@ -1148,7 +1148,7 @@ void PatternModel::setClipIds(const QVariantList &clipIds)
         changed = true;
     }
     if (changed) {
-        QList<QPointer<ClipAudioSource>> newClips;
+        QList<ClipAudioSource*> newClips;
         for (const QVariant &clipId: clipIds) {
             ClipAudioSource *newClip = ClipAudioSource_byID(clipId.toInt());
             newClips << newClip;
