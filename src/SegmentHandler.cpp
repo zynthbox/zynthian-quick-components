@@ -94,7 +94,7 @@ public:
     inline void ensureTimerClipCommand(TimerCommand* command) {
         if (!command->variantParameter.value<void*>()) {
             // Since the clip command is swallowed each time, we'll need to reset it
-            ClipCommand* clipCommand = new ClipCommand();
+            ClipCommand* clipCommand = syncTimer->getClipCommand();
             clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
             clipCommand->stopPlayback = !clipCommand->startPlayback;
             clipCommand->midiChannel = command->parameter;
@@ -338,7 +338,7 @@ public Q_SLOTS:
                         if (shouldResetPlaybackposition || !clipsInPrevious.contains(clip)) {
                             qDebug() << Q_FUNC_INFO << "The clip" << clip << "was not in the previous segment, so we should start playing it";
                             // If the clip was not there in the previous step, that means we should turn it on
-                            TimerCommand* command = new TimerCommand;
+                            TimerCommand* command = new TimerCommand; // This does not need to use the pool, as we might make a LOT of these, and also don't do so during playback time.
                             command->parameter = clip->property("row").toInt();
                             const QObject *channelObject = zlChannels.at(command->parameter);
                             const QString channelAudioType = channelObject->property("channelAudioType").toString();
@@ -362,7 +362,7 @@ public Q_SLOTS:
                             qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the previous segment but not in this one, so we should stop playing that clip";
                             // If the clip was in the previous step, but not in this step, that means it
                             // should be turned off when reaching this position
-                            TimerCommand* command = new TimerCommand;
+                            TimerCommand* command = new TimerCommand; // This does not need to use the pool, as we might make a LOT of these, and also don't do so during playback time.
                             command->parameter = clip->property("row").toInt();
                             const QObject *channelObject = zlChannels.at(command->parameter);
                             const QString channelAudioType = channelObject->property("channelAudioType").toString();
@@ -393,7 +393,7 @@ public Q_SLOTS:
             QList<TimerCommand*> commands;
             for (QObject *clip : clipsInPrevious) {
                 qDebug() << Q_FUNC_INFO << "The clip" << clip << "was in the final segment, so we should stop playing that clip at the end of playback";
-                TimerCommand* command = new TimerCommand;
+                TimerCommand* command = new TimerCommand; // This does not need to use the pool, as we might make a LOT of these, and also don't do so during playback time.
                 command->parameter = clip->property("row").toInt();
                 const QObject *channelObject = zlChannels.at(command->parameter);
                 const QString channelAudioType = channelObject->property("channelAudioType").toString();
@@ -409,7 +409,7 @@ public Q_SLOTS:
                 commands << command;
             }
             // And finally, add one stop command right at the end, so playback will stop itself when we get to the end of the song
-            TimerCommand *stopCommand = new TimerCommand;
+            TimerCommand *stopCommand = d->syncTimer->getTimerCommand();
             stopCommand->operation = TimerCommand::StopPlaybackOperation;
             commands << stopCommand;
             playlist[segmentPosition] = commands;
@@ -496,7 +496,7 @@ void SegmentHandler::startPlayback(quint64 startOffset, quint64 duration)
     d->movePlayhead(0, true);
     d->movePlayhead(startOffset, true);
     if (duration > 0) {
-        TimerCommand *stopCommand = new TimerCommand;
+        TimerCommand *stopCommand = d->syncTimer->getTimerCommand();
         stopCommand->operation = TimerCommand::StopPlaybackOperation;
         d->syncTimer->scheduleTimerCommand(duration, stopCommand);
     }
