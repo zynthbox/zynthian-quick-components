@@ -40,7 +40,7 @@
 #include <SyncTimer.h>
 #include <TimerCommand.h>
 
-static const QStringList midiNoteNames{
+static const QString midiNoteNames[128]{
     "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
     "C0", "C#0", "D0", "D#0", "E0", "F0", "F#0", "G0", "G#0", "A0", "A#0", "B0",
     "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", "A1", "A#1", "B1",
@@ -857,8 +857,8 @@ int PatternModel::partIndex() const
 
 QString PatternModel::partName() const
 {
-    static const QStringList partNames{"a", "b", "c", "d", "e"};
-    return (d->partIndex > -1 && d->partIndex < partNames.length()) ? partNames[d->partIndex] : "";
+    static const QString partNames[5]{"a", "b", "c", "d", "e"};
+    return (d->partIndex > -1 && d->partIndex < 5) ? partNames[d->partIndex] : "";
 }
 
 void PatternModel::setPartIndex(int partIndex)
@@ -1041,10 +1041,10 @@ void PatternModel::setBank(const QString& bank)
 
 QString PatternModel::bank() const
 {
-    static const QStringList names{QLatin1String{"I"}, QLatin1String{"II"}, QLatin1String{"III"}};
+    static const QString names[3]{QLatin1String{"I"}, QLatin1String{"II"}, QLatin1String{"III"}};
     int bankNumber{d->bankOffset / d->bankLength};
     QString result{"(?)"};
-    if (bankNumber < names.count()) {
+    if (bankNumber < 3) {
         result = names[bankNumber];
     }
     return result;

@@ -556,9 +556,9 @@ QObject* PlayGridManager::getNote(int midiNote, int midiChannel)
             }
         }
         if (!note) {
-            static const QStringList note_int_to_str_map{"C", "C#","D","D#","E","F","F#","G","G#","A","A#","B"};
+            static const QString note_int_to_str_map[12]{"C", "C#","D","D#","E","F","F#","G","G#","A","A#","B"};
             note = new Note(this);
-            note->setName(note_int_to_str_map.value(midiNote % 12));
+            note->setName(note_int_to_str_map[midiNote % 12]);
             note->setMidiNote(midiNote);
             note->setMidiChannel(midiChannel);
             QQmlEngine::setObjectOwnership(note, QQmlEngine::CppOwnership);
