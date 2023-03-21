@@ -42,7 +42,7 @@ public:
     MidiRecorderPrivate() {}
     bool isRecording{false};
     bool isPlaying{false};
-    QList<int> channels;
+    bool channels[16];
     juce::MidiMessageSequence midiMessageSequence;
     frame_clock::time_point recordingStartTime;
     void handleMidiMessage(const unsigned char& byte1, const unsigned char& byte2, const unsigned char& byte3) {
@@ -51,10 +51,9 @@ public:
                 // Using microseconds for timestamps (midi is commonly that anyway)
                 // and juce expects ongoing timestamps, not intervals (it will create those when saving)
                 const std::chrono::duration<double, std::micro> timestamp = frame_clock::now() - recordingStartTime;
-                juce::MidiMessage message(byte1, byte2, byte3, timestamp.count());
-                // Always remember, juce thinks channels are 1-indexed
-                if (channels.contains(message.getChannel() - 1)) {
-                    midiMessageSequence.addEvent(message);
+                const int eventChannel = byte1 & 0xf;
+                if (channels[eventChannel]) {
+                    midiMessageSequence.addEvent(juce::MidiMessage(byte1, byte2, byte3, timestamp.count()));
                 }
             }
         }
@@ -95,7 +94,9 @@ void MidiRecorder::startRecording(int channel, bool clear)
     if (clear) {
         clearRecording();
     }
-    d->channels << channel;
+    for (int i = 0; i < 16; ++i) {
+        d->channels[i] = false;
+    }
     if (!d->isRecording) {
         d->recordingStartTime = frame_clock::now();
         d->isRecording = true;
@@ -106,11 +107,20 @@ void MidiRecorder::startRecording(int channel, bool clear)
 void MidiRecorder::stopRecording(int channel)
 {
     if (channel == -1) {
-        d->channels.clear();
+        for (int i = 0; i < 16; ++i) {
+            d->channels[i] = false;
+        }
     } else {
-        d->channels.removeAll(channel);
+        d->channels[channel] = false;
     }
-    if (d->channels.isEmpty()) {
+    bool isEmpty{true};
+    for (int i = 0; i < 16; ++i) {
+        if (d->channels[i]) {
+            isEmpty = false;
+            break;
+        }
+    }
+    if (isEmpty) {
         d->isRecording = false;
         Q_EMIT isRecordingChanged();
     }
