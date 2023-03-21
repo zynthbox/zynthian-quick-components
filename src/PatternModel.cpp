@@ -176,7 +176,7 @@ public Q_SLOTS:
         static const QLatin1String external{"external"};
 //         static const QLatin1String synth{"synth"}; // the default
         const QString channelAudioType = zlChannel->property("channelAudioType").toString();
-        TimerCommand* timerCommand = new TimerCommand();
+        TimerCommand* timerCommand = syncTimer->getTimerCommand();
         timerCommand->operation = TimerCommand::SamplerChannelEnabledStateOperation;
         timerCommand->parameter = q->channelIndex();
         if (channelAudioType == sampleTrig) {

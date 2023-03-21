@@ -92,7 +92,7 @@ public:
     QList<ClipAudioSource*> runningLoops;
 
     inline void ensureTimerClipCommand(TimerCommand* command) {
-        if (!command->variantParameter.value<void*>()) {
+        if (command->dataParameter == nullptr) {
             // Since the clip command is swallowed each time, we'll need to reset it
             ClipCommand* clipCommand = syncTimer->getClipCommand();
             clipCommand->startPlayback = (command->operation == TimerCommand::StartClipLoopOperation); // otherwise, if statement above ensures it's a stop clip loop operation
@@ -102,8 +102,9 @@ public:
             clipCommand->midiNote = command->parameter3;
             clipCommand->volume = clipCommand->clip->volumeAbsolute();
             clipCommand->looping = true;
-            command->variantParameter.setValue<void*>(clipCommand);
-            qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->variantParameter << command->variantParameter.value<void*>() << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
+            command->operation = TimerCommand::ClipCommandOperation;
+            command->dataParameter = clipCommand;
+            qDebug() << Q_FUNC_INFO << "Added clip command to timer command:" << command->dataParameter << clipCommand << "Start playback?" << clipCommand->startPlayback << "Stop playback?" << clipCommand->stopPlayback << clipCommand->midiChannel << clipCommand->midiNote << clipCommand->clip;
         }
     }
 
@@ -131,10 +132,10 @@ public:
                             sequence->disconnectSequencePlayback();
                         }
                         qDebug() << Q_FUNC_INFO << "Scheduled" << command;
-                        syncTimer->scheduleTimerCommand(0, command);
+                        syncTimer->scheduleTimerCommand(0, TimerCommand::cloneTimerCommand(command));
                     } else {
                         qDebug() << Q_FUNC_INFO << "Scheduled" << command;
-                        syncTimer->scheduleTimerCommand(0, command);
+                        syncTimer->scheduleTimerCommand(0, TimerCommand::cloneTimerCommand(command));
                     }
                 }
             }
@@ -176,8 +177,9 @@ public:
                         } else if (command->operation == TimerCommand::StartClipLoopOperation || command->operation == TimerCommand::StopClipLoopOperation) {
                             // If there's no clip to start or stop looping, we should really just ignore the command
                             if (command->parameter2 > 0) {
-                                ensureTimerClipCommand(command);
-                                syncTimer->scheduleTimerCommand(0, command);
+                                TimerCommand *clonedCommand = TimerCommand::cloneTimerCommand(command);
+                                ensureTimerClipCommand(clonedCommand);
+                                syncTimer->scheduleTimerCommand(0, clonedCommand);
                             }
                         } else {
                             handleTimerCommand(command);
@@ -296,7 +298,8 @@ public:
 public Q_SLOTS:
     void songModeChanged() {
         d->songMode = zlSketchesModel->property("songMode").toBool();
-        segmentUpdater.start();
+        // Since song mode playback is changed when we start and end playback, update the segments immediately, to ensure we're actually synced, otherwise we... won't be.
+        updateSegments();
         Q_EMIT q->songModeChanged();
     }
     void selectedSketchIndexChanged() {
