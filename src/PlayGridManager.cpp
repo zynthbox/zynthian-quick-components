@@ -49,7 +49,7 @@
 #include <QSettings>
 #include <QTimer>
 
-static const QStringList midiNoteNames{
+static const QString midiNoteNames[128]{
     "C-1", "C#-1", "D-1", "D#-1", "E-1", "F-1", "F#-1", "G-1", "G#-1", "A-1", "A#-1", "B-1",
     "C0", "C#0", "D0", "D#0", "E0", "F0", "F#0", "G0", "G#0", "A0", "A#0", "B0",
     "C1", "C#1", "D1", "D#1", "E1", "F1", "F#1", "G1", "G#1", "A1", "A#1", "B1",
@@ -120,13 +120,11 @@ public:
         activeNotesUpdater->setSingleShot(true);
         activeNotesUpdater->setInterval(0);
         connect(activeNotesUpdater, &QTimer::timeout, q, [this, q](){
-            QHash<int, int>::const_iterator iterator = noteActivations.constBegin();
             QStringList activated;
-            while (iterator != noteActivations.constEnd()) {
-                if (iterator.value() > 0) {
-                    activated << midiNoteNames[iterator.key()];
+            for (int i = 0; i < 128; ++i) {
+                if (noteActivations[i]) {
+                    activated << midiNoteNames[i];
                 }
-                ++iterator;
             }
             activeNotes = activated;
             Q_EMIT q->activeNotesChanged();
@@ -135,13 +133,11 @@ public:
         internalPassthroughActiveNotesUpdater->setSingleShot(true);
         internalPassthroughActiveNotesUpdater->setInterval(0);
         connect(internalPassthroughActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
-            QHash<int, int>::const_iterator iterator = internalPassthroughNoteActivations.constBegin();
             QStringList activated;
-            while (iterator != internalPassthroughNoteActivations.constEnd()) {
-                if (iterator.value() > 0) {
-                    activated << midiNoteNames[iterator.key()];
+            for (int i = 0; i < 128; ++i) {
+                if (internalPassthroughNoteActivations[i]) {
+                    activated << midiNoteNames[i];
                 }
-                ++iterator;
             }
             internalPassthroughActiveNotes = activated;
             Q_EMIT q->internalPassthroughActiveNotesChanged();
@@ -150,13 +146,11 @@ public:
         hardwareInActiveNotesUpdater->setSingleShot(true);
         hardwareInActiveNotesUpdater->setInterval(0);
         connect(hardwareInActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
-            QHash<int, int>::const_iterator iterator = hardwareInNoteActivations.constBegin();
             QStringList activated;
-            while (iterator != hardwareInNoteActivations.constEnd()) {
-                if (iterator.value() > 0) {
-                    activated << midiNoteNames[iterator.key()];
+            for (int i = 0; i < 128; ++i) {
+                if (hardwareInNoteActivations[i]) {
+                    activated << midiNoteNames[i];
                 }
-                ++iterator;
             }
             hardwareInActiveNotes = activated;
             Q_EMIT q->hardwareInActiveNotesChanged();
@@ -165,13 +159,11 @@ public:
         hardwareOutActiveNotesUpdater->setSingleShot(true);
         hardwareOutActiveNotesUpdater->setInterval(0);
         connect(hardwareOutActiveNotesUpdater, &QTimer::timeout, q, [this, q](){
-            QHash<int, int>::const_iterator iterator = hardwareOutNoteActivations.constBegin();
             QStringList activated;
-            while (iterator != hardwareOutNoteActivations.constEnd()) {
-                if (iterator.value() > 0) {
-                    activated << midiNoteNames[iterator.key()];
+            for (int i = 0; i < 128; ++i) {
+                if (hardwareOutNoteActivations[i]) {
+                    activated << midiNoteNames[i];
                 }
-                ++iterator;
             }
             hardwareOutActiveNotes = activated;
             Q_EMIT q->hardwareOutActiveNotesChanged();
@@ -210,18 +202,18 @@ public:
     QHash<Note*, int> noteStateMap;
     QVariantList mostRecentlyChangedNotes;
 
-    QHash<int, int> noteActivations;
+    int noteActivations[128];
     QTimer *activeNotesUpdater;
     QStringList activeNotes;
     QTimer *internalPassthroughActiveNotesUpdater;
     QStringList internalPassthroughActiveNotes;
-    QHash<int, int> hardwareInNoteActivations;
+    int hardwareInNoteActivations[128];
     QTimer *hardwareInActiveNotesUpdater;
     QStringList hardwareInActiveNotes;
-    QHash<int, int> hardwareOutNoteActivations;
+    int hardwareOutNoteActivations[128];
     QTimer *hardwareOutActiveNotesUpdater;
     QStringList hardwareOutActiveNotes;
-    QHash<int, int> internalPassthroughNoteActivations;
+    int internalPassthroughNoteActivations[128];
 
     int currentMidiChannel{-1};
 
