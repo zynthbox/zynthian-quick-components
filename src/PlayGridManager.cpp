@@ -63,10 +63,10 @@ static const QString midiNoteNames[128]{
     "C9", "C#9", "D9", "D#9", "E9", "F9", "F#9", "G9"
 };
 
-Q_GLOBAL_STATIC(QList<PlayGridManager*>, timer_callback_tickers)
+PlayGridManager* timer_callback_ticker{nullptr};
 void timer_callback(int beat) {
-    for (PlayGridManager* pgm : qAsConst(*timer_callback_tickers)) {
-        pgm->metronomeTick(beat);
+    if (timer_callback_ticker) {
+        timer_callback_ticker->metronomeTick(beat);
     }
 }
 
@@ -187,6 +187,7 @@ public:
     PlayGridManager *q;
     ZLPGMSynchronisationManager *zlSyncManager{nullptr};
     QQmlEngine *engine{nullptr};
+    SegmentHandler *segmentHandler{nullptr};
     QStringList playgrids;
     QVariantMap currentPlaygrids;
     QString preferredSequencer;
@@ -993,7 +994,10 @@ void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiCha
 
 void PlayGridManager::metronomeTick(int beat)
 {
-    SegmentHandler::instance()->progressPlayback();
+    if (d->segmentHandler == nullptr) {
+        d->segmentHandler = SegmentHandler::instance();
+    }
+    d->segmentHandler->progressPlayback();
     d->metronomeBeat128th = beat;
     Q_EMIT metronomeBeat128thChanged();
     if (beat % 2 == 0) {
@@ -1072,9 +1076,9 @@ QObject* PlayGridManager::syncTimer()
 void hookUpAndMaybeStartTimer(PlayGridManager* pgm, bool startTimer = false)
 {
     // If we've already registered ourselves to get a callback, don't do that again, it just gets silly
-    if (!timer_callback_tickers->contains(pgm)) {
+    if (!timer_callback_ticker) {
         // TODO Send start metronome request to libzl directly
-        timer_callback_tickers->append(pgm);
+        timer_callback_ticker = pgm;
     }
     if (startTimer) {
         Q_EMIT pgm->requestMetronomeStart();
@@ -1094,7 +1098,7 @@ void PlayGridManager::startMetronome()
 void PlayGridManager::stopMetronome()
 {
     // TODO Send stop metronome request to libzl
-    timer_callback_tickers->removeAll(this);
+    timer_callback_ticker = nullptr;
     Q_EMIT requestMetronomeStop();
     QMetaObject::invokeMethod(this, "metronomeActiveChanged", Qt::QueuedConnection);
     d->metronomeBeat4th = 0;
