@@ -35,38 +35,45 @@
 #include <QTimer>
 #include <QVariant>
 
+#define PartCount 5
+#define TrackCount 5
+#define ChannelCount 10
 struct TrackState {
     TrackState() {
-        for (int partIndex = 0; partIndex < 5; ++partIndex) {
-            partStates << false;
-            partOffset << 0;
+        for (int partIndex = 0; partIndex < PartCount; ++partIndex) {
+            partStates[partIndex] = false;
+            partOffset[partIndex] = 0;
         }
     }
     // Whether or not the specified part should be making sounds right now
-    QList<bool> partStates;
-    QList<quint64> partOffset;
+    bool partStates[PartCount];
+    quint64 partOffset[PartCount];
 };
 struct ChannelState {
     ChannelState() {
-        for (int trackIndex = 0; trackIndex < 10; ++trackIndex) {
-            trackStates << new TrackState();
+        for (int trackIndex = 0; trackIndex < TrackCount; ++trackIndex) {
+            trackStates[trackIndex] = new TrackState();
         }
     }
     ~ChannelState() {
-        qDeleteAll(trackStates);
+        for (int trackIndex = 0; trackIndex < TrackCount; ++trackIndex) {
+            delete trackStates[trackIndex];
+        }
     }
-    QList<TrackState*> trackStates;
+    TrackState* trackStates[TrackCount];
 };
 struct PlayfieldState {
     PlayfieldState() {
-        for (int channelIndex = 0; channelIndex < 10; ++channelIndex) {
-            channelStates << new ChannelState();
+        for (int channelIndex = 0; channelIndex < ChannelCount; ++channelIndex) {
+            channelStates[channelIndex] = new ChannelState();
         }
     };
     ~PlayfieldState() {
-        qDeleteAll(channelStates);
+        for (int channelIndex = 0; channelIndex < ChannelCount; ++channelIndex) {
+            delete channelStates[channelIndex];
+        }
     }
-    QList<ChannelState*> channelStates;
+    ChannelState* channelStates[ChannelCount];
 };
 
 class ZLSegmentHandlerSynchronisationManager;
@@ -147,12 +154,12 @@ public:
         // Yes, these are dangerous, but also we really, really want this to be fast
         if (command->operation == TimerCommand::StartPartOperation) {
 //             qDebug() << Q_FUNC_INFO << "Timer command says to start part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->channelStates.at(command->parameter)->trackStates.at(command->parameter2)->partStates[command->parameter3] = true;
-            playfieldState->channelStates.at(command->parameter)->trackStates.at(command->parameter2)->partOffset[command->parameter3] = command->bigParameter;
+            playfieldState->channelStates[command->parameter]->trackStates[command->parameter2]->partStates[command->parameter3] = true;
+            playfieldState->channelStates[command->parameter]->trackStates[command->parameter2]->partOffset[command->parameter3] = command->bigParameter;
             Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if(command->operation == TimerCommand::StopPartOperation) {
 //             qDebug() << Q_FUNC_INFO << "Timer command says to stop part" << command->parameter << command->parameter2 << command->parameter3;
-            playfieldState->channelStates.at(command->parameter)->trackStates.at(command->parameter2)->partStates[command->parameter3] = false;
+            playfieldState->channelStates[command->parameter]->trackStates[command->parameter2]->partStates[command->parameter3] = false;
             Q_EMIT q->playfieldInformationChanged(command->parameter, command->parameter2, command->parameter3);
         } else if (command->operation == TimerCommand::StopPlaybackOperation) {
             q->stopPlayback();
@@ -527,12 +534,12 @@ void SegmentHandler::stopPlayback()
 
 bool SegmentHandler::playfieldState(int channel, int track, int part) const
 {
-    return d->playfieldState->channelStates.at(channel)->trackStates.at(track)->partStates.at(part);
+    return d->playfieldState->channelStates[channel]->trackStates[track]->partStates[part];
 }
 
 quint64 SegmentHandler::playfieldOffset(int channel, int track, int part) const
 {
-    return d->playfieldState->channelStates.at(channel)->trackStates.at(track)->partOffset.at(part);
+    return d->playfieldState->channelStates[channel]->trackStates[track]->partOffset[part];
 }
 
 void SegmentHandler::progressPlayback() const
