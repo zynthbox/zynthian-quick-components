@@ -169,6 +169,7 @@ public:
     int soloPattern{-1};
     PatternModel *soloPatternObject{nullptr};
     QList<PatternModel*> patternModels;
+    PatternModel* patternModelIterator[PATTERN_COUNT];
     int bpm{0};
     int activePattern{0};
     QString filePath;
@@ -206,6 +207,13 @@ public:
         // test and make sure that this env var contains something, or spit out .local/zynthian or something
         return QString("%1/session/sequences/%2").arg(QString(qgetenv("ZYNTHIAN_MY_DATA_DIR"))).arg(safe);
     }
+
+    void updatePatternIterator() {
+        int actualCount = patternModels.count();
+        for (int i = 0; i < PATTERN_COUNT; ++i) {
+            patternModelIterator[i] = (i < actualCount) ? patternModels[i] : nullptr;
+        }
+    }
 };
 
 SequenceModel::SequenceModel(PlayGridManager* parent)
@@ -227,6 +235,9 @@ SequenceModel::SequenceModel(PlayGridManager* parent)
     saveThrottle->setInterval(1000);
     connect(saveThrottle, &QTimer::timeout, this, [this](){ if (isDirty()) { save(); } });
     connect(this, &SequenceModel::isDirtyChanged, saveThrottle, QOverload<>::of(&QTimer::start));
+    connect(this, &SequenceModel::countChanged, this, [this](){
+        d->updatePatternIterator();
+    });
 }
 
 SequenceModel::~SequenceModel()
@@ -252,30 +263,32 @@ QVariant SequenceModel::data(const QModelIndex& index, int role) const
 {
     QVariant result;
     if (checkIndex(index)) {
-        PatternModel *model = d->patternModels.at(index.row());
-        switch (role) {
-        case PatternRole:
-            result.setValue<QObject*>(model);
-            break;
-        // We might well want to do something more clever with the text later on, so...
-        case TextRole:
-        case NameRole:
-            result.setValue(model->name());
-            break;
-        case LayerRole:
-            result.setValue(model->midiChannel());
-            break;
-        case BankRole:
-            result.setValue(model->bank());
-            break;
-        case PlaybackPositionRole:
-            result.setValue(model->playbackPosition());
-            break;
-        case BankPlaybackPositionRole:
-            result.setValue(model->bankPlaybackPosition());
-            break;
-        default:
-            break;
+        PatternModel *model = d->patternModelIterator[index.row()];
+        if (model) {
+            switch (role) {
+            case PatternRole:
+                result.setValue<QObject*>(model);
+                break;
+            // We might well want to do something more clever with the text later on, so...
+            case TextRole:
+            case NameRole:
+                result.setValue(model->name());
+                break;
+            case LayerRole:
+                result.setValue(model->midiChannel());
+                break;
+            case BankRole:
+                result.setValue(model->bank());
+                break;
+            case PlaybackPositionRole:
+                result.setValue(model->playbackPosition());
+                break;
+            case BankPlaybackPositionRole:
+                result.setValue(model->bankPlaybackPosition());
+                break;
+            default:
+                break;
+            }
         }
     }
     return result;
@@ -286,7 +299,7 @@ int SequenceModel::rowCount(const QModelIndex& parent) const
     if (parent.isValid()) {
         return 0;
     }
-    return d->patternModels.count();
+    return PATTERN_COUNT;
 }
 
 QModelIndex SequenceModel::index(int row, int column, const QModelIndex& parent) const
@@ -298,8 +311,8 @@ QModelIndex SequenceModel::index(int row, int column, const QModelIndex& parent)
 QObject* SequenceModel::get(int patternIndex) const
 {
     QObject *pattern{nullptr};
-    if (patternIndex > -1 && patternIndex < d->patternModels.count()) {
-        pattern = d->patternModels.at(patternIndex);
+    if (patternIndex > -1 && patternIndex < PATTERN_COUNT) {
+        pattern = d->patternModelIterator[patternIndex];
     }
     return pattern;
 }
@@ -307,8 +320,8 @@ QObject* SequenceModel::get(int patternIndex) const
 QObject *SequenceModel::getByPart(int channelIndex, int partIndex) const
 {
     QObject *pattern{nullptr};
-    for (PatternModel *needle : d->patternModels) {
-        if (needle->channelIndex() == channelIndex && needle->partIndex() == partIndex) {
+    for (PatternModel *needle : d->patternModelIterator) {
+        if (needle && needle->channelIndex() == channelIndex && needle->partIndex() == partIndex) {
             pattern = needle;
             break;
         }
@@ -388,7 +401,7 @@ int SequenceModel::bpm() const
 
 void SequenceModel::setActivePattern(int activePattern)
 {
-    int adjusted = qMin(qMax(0, activePattern), d->patternModels.count());
+    int adjusted = qMin(qMax(0, activePattern), PATTERN_COUNT);
     if (d->activePattern != adjusted) {
         d->activePattern = adjusted;
         Q_EMIT activePatternChanged();
@@ -408,8 +421,11 @@ int SequenceModel::activePattern() const
 
 QObject* SequenceModel::activePatternObject() const
 {
-    if (d->activePattern > -1 && d->activePattern < d->patternModels.count()) {
-        return d->patternModels.at(d->activePattern);
+    if (d->activePattern > -1 && d->activePattern < PATTERN_COUNT) {
+        PatternModel *pattern = d->patternModelIterator[d->activePattern];
+        if (pattern) {
+            return pattern;
+        }
     }
     return nullptr;
 }
@@ -623,19 +639,22 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
                 int i{0};
                 // The filename for patterns is "pattern-t(trackIndex)-ch(channelIndex)-part(partLetter).pattern.json"
                 const QString sequenceNameForFiles = QString(objectName().toLower()).replace(" ", "-");
-                for (PatternModel *pattern : d->patternModels) {
-                    QString patternIdentifier = QString::number(i + 1);
-                    if (pattern->channelIndex() > -1 && pattern->partIndex() > -1) {
-                        patternIdentifier = QString("ch%1-part%2").arg(QString::number(pattern->channelIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                for (int i = 0; i < PATTERN_COUNT; ++i) {
+                    PatternModel *pattern = d->patternModelIterator[i];
+                    if (pattern) {
+                        QString patternIdentifier = QString::number(i + 1);
+                        if (pattern->channelIndex() > -1 && pattern->partIndex() > -1) {
+                            patternIdentifier = QString("ch%1-part%2").arg(QString::number(pattern->channelIndex() + 1)).arg(partNames[pattern->partIndex()]);
+                        }
+                        QString fileName = QString("%1/pattern-%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
+                        QFile patternFile(fileName);
+                        if (pattern->hasNotes()) {
+                            pattern->exportToFile(fileName);
+                        } else if (patternFile.exists()) {
+                            patternFile.remove();
+                        }
+                        ++i;
                     }
-                    QString fileName = QString("%1/pattern-%2-%3.pattern.json").arg(patternLocation.path()).arg(sequenceNameForFiles).arg(patternIdentifier);
-                    QFile patternFile(fileName);
-                    if (pattern->hasNotes()) {
-                        pattern->exportToFile(fileName);
-                    } else if (patternFile.exists()) {
-                        patternFile.remove();
-                    }
-                    ++i;
                 }
             }
             success = true;
@@ -647,16 +666,19 @@ bool SequenceModel::save(const QString &fileName, bool exportOnly)
 
 void SequenceModel::clear()
 {
-    for (PatternModel *pattern : d->patternModels) {
-        pattern->clear();
-        pattern->setMidiChannel(0);
-        pattern->setLayerData("");
-        pattern->setNoteLength(3);
-        pattern->setAvailableBars(1);
-        pattern->setActiveBar(0);
-        pattern->setBankOffset(0);
-        pattern->setBankLength(8);
-        pattern->setEnabled(true);
+    for (int i = 0; i < PATTERN_COUNT; ++i) {
+        PatternModel *pattern = d->patternModelIterator[i];
+        if (pattern) {
+            pattern->clear();
+            pattern->setMidiChannel(0);
+            pattern->setLayerData("");
+            pattern->setNoteLength(3);
+            pattern->setAvailableBars(1);
+            pattern->setActiveBar(0);
+            pattern->setBankOffset(0);
+            pattern->setBankLength(8);
+            pattern->setEnabled(true);
+        }
     }
     setActivePattern(0);
 }
@@ -700,8 +722,8 @@ void SequenceModel::setSoloPattern(int soloPattern)
 {
     if (d->soloPattern != soloPattern) {
         d->soloPattern = soloPattern;
-        if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-            d->soloPatternObject = d->patternModels[d->soloPattern];
+        if (d->soloPattern > -1 && d->soloPattern < PATTERN_COUNT) {
+            d->soloPatternObject = d->patternModelIterator[d->soloPattern];
         } else {
             d->soloPatternObject = nullptr;
         }
@@ -712,8 +734,11 @@ void SequenceModel::setSoloPattern(int soloPattern)
 
 void SequenceModel::setPatternProperty(int patternIndex, const QString& property, const QVariant& value)
 {
-    if (patternIndex > -1 && patternIndex < d->patternModels.count()) {
-        d->patternModels.at(patternIndex)->setProperty(property.toUtf8(), value);
+    if (patternIndex > -1 && patternIndex < PATTERN_COUNT) {
+        PatternModel *model = d->patternModelIterator[patternIndex];
+        if (model) {
+            model->setProperty(property.toUtf8(), value);
+        }
     }
 }
 
@@ -733,9 +758,10 @@ void SequenceModel::setPositionOn(int row, int column, bool stopPrevious) const
     if (stopPrevious) {
         setPreviousOff();
     }
-    for (PatternModel *model : d->patternModels) {
-        if (model->enabled()) {
-            d->onifiedNotes.append(model->setPositionOn(row + model->bankOffset(), column));
+    for (int i = 0; i < PATTERN_COUNT; ++i) {
+        PatternModel *pattern = d->patternModelIterator[i];
+        if (pattern && pattern->enabled()) {
+            d->onifiedNotes.append(pattern->setPositionOn(row + pattern->bankOffset(), column));
         }
     }
 }
@@ -778,8 +804,11 @@ void SequenceModel::disconnectSequencePlayback()
         Note *note = qobject_cast<Note*>(noteObject);
         note->setOff();
     }
-    for (PatternModel *pattern : d->patternModels) {
-        pattern->handleSequenceStop();
+    for (int i = 0; i < PATTERN_COUNT; ++i) {
+        PatternModel *pattern = d->patternModelIterator[i];
+        if (pattern) {
+            pattern->handleSequenceStop();
+        }
     }
     d->queuedForOffNotes.clear();
 }
@@ -796,8 +825,11 @@ void SequenceModel::resetSequence()
 {
     // This function is mostly cosmetic... the playback will, in fact, follow the global beat.
     // TODO Maybe we need some way of feeding some reset information back to the sync timer from here?
-    for (PatternModel *pattern : d->patternModels) {
-        pattern->updateSequencePosition(0);
+    for (int i = 0; i < PATTERN_COUNT; ++i) {
+        PatternModel *pattern = d->patternModelIterator[i];
+        if (pattern) {
+            pattern->updateSequencePosition(0);
+        }
     }
 }
 
@@ -807,15 +839,17 @@ void SequenceModel::advanceSequence()
         // The timer schedules ahead internally for sequence advancement type things,
         // so the sequenceProgressionLength thing is only for prefilling at this point.
         const quint64 sequenceProgressionLength{0};
-        if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-            const PatternModel *pattern = d->patternModels.at(d->soloPattern);
+        const quint64 cumulativeBeat{d->syncTimer->cumulativeBeat()};
+        if (d->soloPattern > -1 && d->soloPattern < PATTERN_COUNT) {
+            const PatternModel *pattern = d->patternModelIterator[d->soloPattern];
             if (pattern) {
-                pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+                pattern->handleSequenceAdvancement(cumulativeBeat, sequenceProgressionLength);
             }
         } else {
-            for (const PatternModel *pattern : qAsConst(d->patternModels)) {
-                if (d->zlSyncManager->soloChannel == -1 || d->zlSyncManager->soloChannel == pattern->channelIndex()) {
-                    pattern->handleSequenceAdvancement(d->syncTimer->cumulativeBeat(), sequenceProgressionLength);
+            for (int i = 0; i < PATTERN_COUNT; ++i) {
+                const PatternModel *pattern = d->patternModelIterator[i];
+                if (pattern && (d->zlSyncManager->soloChannel == -1 || d->zlSyncManager->soloChannel == pattern->channelIndex())) {
+                    pattern->handleSequenceAdvancement(cumulativeBeat, sequenceProgressionLength);
                 }
             }
         }
@@ -825,14 +859,18 @@ void SequenceModel::advanceSequence()
 void SequenceModel::updatePatternPositions()
 {
     if (d->shouldMakeSounds) {
-        if (d->soloPattern > -1 && d->soloPattern < d->patternModels.count()) {
-            PatternModel *pattern = d->patternModels.at(d->soloPattern);
+        const quint64 sequencePosition{d->syncTimer->cumulativeBeat() - d->syncTimer->scheduleAheadAmount()};
+        if (d->soloPattern > -1 && d->soloPattern < PATTERN_COUNT) {
+            PatternModel *pattern = d->patternModelIterator[d->soloPattern];
             if (pattern) {
-                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat() - d->syncTimer->scheduleAheadAmount());
+                pattern->updateSequencePosition(sequencePosition);
             }
         } else {
-            for (PatternModel *pattern : qAsConst(d->patternModels)) {
-                pattern->updateSequencePosition(d->syncTimer->cumulativeBeat() - d->syncTimer->scheduleAheadAmount());
+            for (int i = 0; i < PATTERN_COUNT; ++i) {
+                const PatternModel *pattern = d->patternModelIterator[i];
+                if (pattern) {
+                    d->patternModelIterator[i]->updateSequencePosition(sequencePosition);
+                }
             }
         }
     }
