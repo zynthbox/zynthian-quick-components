@@ -260,17 +260,31 @@ public Q_SLOTS:
     void addRecordedNote(void* recordedNote);
 };
 
+#define NoteDataPoolSize 128
+struct alignas(32) NoteDataPoolEntry {
+    NewNoteData *object{nullptr};
+    NoteDataPoolEntry *previous{nullptr};
+    NoteDataPoolEntry *next{nullptr};
+};
+
 class PatternModel::Private {
 public:
     Private() {
         playGridManager = PlayGridManager::instance();
         syncTimer = qobject_cast<SyncTimer*>(playGridManager->syncTimer());
-        for (int i = 0; i < 100; ++i) {
-            notePool << new NewNoteData;
+
+        NoteDataPoolEntry* noteDataPrevious{&noteDataPool[NoteDataPoolSize - 1]};
+        for (quint64 i = 0; i < NoteDataPoolSize; ++i) {
+            noteDataPrevious->next = &noteDataPool[i];
+            noteDataPool[i].previous = noteDataPrevious;
+            noteDataPrevious = &noteDataPool[i];
         }
+        noteDataPoolReadHead = noteDataPoolWriteHead = noteDataPool;
     }
     ~Private() {
-        qDeleteAll(notePool);
+        for (int i = 0; i < NoteDataPoolSize; ++i) {
+            delete noteDataPool[i].object;
+        }
     }
     ZLPatternSynchronisationManager *zlSyncManager{nullptr};
     SegmentHandler *segmentHandler{nullptr};
@@ -287,13 +301,16 @@ public:
     int bankOffset{0};
     int bankLength{8};
     bool enabled{true};
+    bool isPlaying{false};
     int playingRow{0};
     int playingColumn{0};
     int previouslyUpdatedMidiChannel{-1};
 
     bool recordingLive{false};
     QList<NewNoteData*> recordingLiveNotes;
-    QList<NewNoteData*> notePool;
+    NoteDataPoolEntry noteDataPool[128];
+    NoteDataPoolEntry *noteDataPoolReadHead{nullptr};
+    NoteDataPoolEntry *noteDataPoolWriteHead{nullptr};
 
     // This bunch of lists is equivalent to the data found in each note, and is
     // stored per-position (index in the outer is row * width + column). The
@@ -398,17 +415,37 @@ PatternModel::PatternModel(SequenceModel* parent)
 {
     d->zlSyncManager = new ZLPatternSynchronisationManager(this);
     d->segmentHandler = SegmentHandler::instance();
-    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this](int channel, int track, int part){
-        if (d->sequence && channel == d->channelIndex && part == d->partIndex && track == d->sequence->sceneIndex()) {
+
+    auto updateIsPlaying = [this](){
+        bool isPlaying{false};
+        if (d->segmentHandler->songMode()) {
+            isPlaying = d->segmentHandler->playfieldState(d->channelIndex, d->sequence->sceneIndex(), d->partIndex);
+        } else if (d->sequence && d->sequence->isPlaying()) {
+            if (d->sequence->soloPattern() > -1) {
+                isPlaying = (d->sequence->soloPatternObject() == this);
+            } else {
+                isPlaying = d->enabled;
+            }
+        }
+        if (d->isPlaying != isPlaying) {
+            d->isPlaying = isPlaying;
             Q_EMIT isPlayingChanged();
         }
-    }, Qt::QueuedConnection);
+    };
+    connect(d->segmentHandler, &SegmentHandler::songModeChanged, this, updateIsPlaying);
+    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, updateIsPlaying);
+    connect(d->segmentHandler, &SegmentHandler::playfieldInformationChanged, this, [this,updateIsPlaying](int channel, int track, int part){
+        if (d->sequence && channel == d->channelIndex && part == d->partIndex && track == d->sequence->sceneIndex()) {
+            updateIsPlaying();
+        }
+    });
+    connect(this, &PatternModel::enabledChanged, this, updateIsPlaying);
+
     // We need to make sure that we support orphaned patterns (that is, a pattern that is not contained within a sequence)
     d->sequence = parent;
     if (parent) {
-        connect(d->sequence, &SequenceModel::isPlayingChanged, this, &PatternModel::isPlayingChanged);
-        connect(d->sequence, &SequenceModel::soloPatternChanged, this, &PatternModel::isPlayingChanged);
-        connect(this, &PatternModel::enabledChanged, this, &PatternModel::isPlayingChanged);
+        connect(d->sequence, &SequenceModel::isPlayingChanged, this, updateIsPlaying);
+        connect(d->sequence, &SequenceModel::soloPatternChanged, this, updateIsPlaying);
         // This is to ensure that when the current sound changes and we have no midi channel, we will schedule
         // the notes that are expected of us
         connect(d->sequence->playGridManager(), &PlayGridManager::currentMidiChannelChanged, this, [this](){
@@ -1421,17 +1458,7 @@ int PatternModel::bankPlaybackPosition() const
 
 bool PatternModel::isPlaying() const
 {
-    bool isPlaying{false};
-    if (d->segmentHandler->songMode()) {
-        isPlaying = d->segmentHandler->playfieldState(d->channelIndex, d->sequence->sceneIndex(), d->partIndex);
-    } else if (d->sequence && d->sequence->isPlaying()) {
-        if (d->sequence->soloPattern() > -1) {
-            isPlaying = (d->sequence->soloPatternObject() == this);
-        } else {
-            isPlaying = d->enabled;
-        }
-    }
-    return isPlaying;
+    return d->isPlaying;
 }
 
 void PatternModel::setPositionOff(int row, int column) const
@@ -1733,8 +1760,9 @@ void PatternModel::updateSequencePosition(quint64 sequencePosition)
             QMetaObject::invokeMethod(this, "playingColumnChanged", Qt::QueuedConnection);
         }
     }
-    while (d->notePool.count() < 100) {
-        d->notePool << new NewNoteData;
+    while (d->noteDataPoolWriteHead->object == nullptr) {
+        d->noteDataPoolWriteHead->object = new NewNoteData;
+        d->noteDataPoolWriteHead = d->noteDataPoolWriteHead->next;
     }
 }
 
@@ -1765,8 +1793,9 @@ void PatternModel::handleMidiMessage(const unsigned char &byte1, const unsigned 
         const int midiChannel = byte1 - 0x90;
         if (d->midiChannel == midiChannel) {
             // Belts and braces here - it shouldn't really happen (a hundred notes is kind of a lot to add in a single shot), but just in case...
-            if (d->notePool.count() > 0) {
-                NewNoteData *newNote = d->notePool.takeFirst();
+            if (d->noteDataPoolReadHead->object) {
+                NewNoteData *newNote = d->noteDataPoolReadHead->object;
+                d->noteDataPoolReadHead = d->noteDataPoolReadHead->next;
                 newNote->timestamp = timeStamp;
                 newNote->midiNote = byte2;
                 newNote->velocity = byte3;
