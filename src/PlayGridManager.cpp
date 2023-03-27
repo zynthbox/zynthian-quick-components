@@ -181,6 +181,13 @@ public:
             {"minigrid", 0}, // As these are sorted alphabetically, notesgrid for minigrid and
             {"playgrid", 1}, // stepsequencer for playgrid
         };
+
+        beatSubdivision = syncTimer->getMultiplier();
+        beatSubdivision2 = beatSubdivision / 2;
+        beatSubdivision3 = beatSubdivision2 / 2;
+        beatSubdivision4 = beatSubdivision3 / 2;
+        beatSubdivision5 = beatSubdivision4 / 2;
+        beatSubdivision6 = beatSubdivision5 / 2;
     }
     ~Private() {
     }
@@ -222,6 +229,12 @@ public:
     MidiRouter* midiRouter{MidiRouter::instance()};
 
     SyncTimer *syncTimer{nullptr};
+    int beatSubdivision{0};
+    int beatSubdivision2{0};
+    int beatSubdivision3{0};
+    int beatSubdivision4{0};
+    int beatSubdivision5{0};
+    int beatSubdivision6{0};
     int metronomeBeat4th{0};
     int metronomeBeat8th{0};
     int metronomeBeat16th{0};
@@ -998,26 +1011,28 @@ void PlayGridManager::metronomeTick(int beat)
         d->segmentHandler = SegmentHandler::instance();
     }
     d->segmentHandler->progressPlayback();
-    d->metronomeBeat128th = beat;
-    Q_EMIT metronomeBeat128thChanged();
-    if (beat % 2 == 0) {
-        d->metronomeBeat64th = beat / 2;
+    if (beat % d->beatSubdivision6) {
+        d->metronomeBeat128th = beat / d->beatSubdivision6;
+        Q_EMIT metronomeBeat128thChanged();
+    }
+    if (beat % d->beatSubdivision5 == 0) {
+        d->metronomeBeat64th = beat / d->beatSubdivision5;
         Q_EMIT metronomeBeat64thChanged();
     }
-    if (beat % 4 == 0) {
-        d->metronomeBeat32nd = beat / 4;
+    if (beat % d->beatSubdivision4 == 0) {
+        d->metronomeBeat32nd = beat / d->beatSubdivision4;
         Q_EMIT metronomeBeat32ndChanged();
     }
-    if (beat % 8 == 0) {
-        d->metronomeBeat16th = beat / 8;
+    if (beat % d->beatSubdivision3 == 0) {
+        d->metronomeBeat16th = beat / d->beatSubdivision3;
         Q_EMIT metronomeBeat16thChanged();
     }
-    if (beat % 16 == 0) {
-        d->metronomeBeat8th = beat / 16;
+    if (beat % d->beatSubdivision2 == 0) {
+        d->metronomeBeat8th = beat / d->beatSubdivision2;
         Q_EMIT metronomeBeat8thChanged();
     }
-    if (beat % 32 == 0) {
-        d->metronomeBeat4th = beat / 32;
+    if (beat % d->beatSubdivision == 0) {
+        d->metronomeBeat4th = beat / d->beatSubdivision;
         Q_EMIT metronomeBeat4thChanged();
     }
 }
