@@ -780,8 +780,8 @@ void SequenceModel::prepareSequencePlayback()
         // order, and all the notes will end up scheduled at the wrong time, and the
         // pattern position will be set sporadically, which leads to everything
         // all kinds of looking laggy and weird. So, direct connection.
-        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
-        connect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
+        connect(playGridManager(), &PlayGridManager::metronomeTick, this, &SequenceModel::advanceSequence, Qt::DirectConnection);
+        connect(playGridManager(), &PlayGridManager::metronomeTick, this, &SequenceModel::updatePatternPositions, Qt::DirectConnection);
     }
     playGridManager()->hookUpTimer();
 }
@@ -795,8 +795,8 @@ void SequenceModel::startSequencePlayback()
 void SequenceModel::disconnectSequencePlayback()
 {
     if (d->isPlaying) {
-        disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::advanceSequence);
-        disconnect(playGridManager(), &PlayGridManager::metronomeBeat128thChanged, this, &SequenceModel::updatePatternPositions);
+        disconnect(playGridManager(), &PlayGridManager::metronomeTick, this, &SequenceModel::advanceSequence);
+        disconnect(playGridManager(), &PlayGridManager::metronomeTick, this, &SequenceModel::updatePatternPositions);
         d->isPlaying = false;
         Q_EMIT isPlayingChanged();
     }
