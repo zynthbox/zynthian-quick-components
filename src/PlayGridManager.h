@@ -324,9 +324,15 @@ public:
     // TODO This is a temporary thing while we get the c++ side integrated properly
     Q_SIGNAL void requestMetronomeStop();
 
-    Q_INVOKABLE void metronomeTick(int beat);
-    bool metronomeActive() const;
+    /**
+     * \brief Fired for each tick of the metronome
+     * @see SyncTimer::getMultiplier()
+     * @see SyncTimer::cumulativeBeat()
+     */
     Q_SIGNAL void metronomeActiveChanged();
+    Q_INVOKABLE void handleMetronomeTick(int beat);
+    bool metronomeActive() const;
+    Q_SIGNAL void metronomeTick();
     int metronomeBeat4th() const;
     Q_SIGNAL void metronomeBeat4thChanged();
     int metronomeBeat8th() const;

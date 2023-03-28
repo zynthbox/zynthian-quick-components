@@ -66,7 +66,7 @@ static const QString midiNoteNames[128]{
 PlayGridManager* timer_callback_ticker{nullptr};
 void timer_callback(int beat) {
     if (timer_callback_ticker) {
-        timer_callback_ticker->metronomeTick(beat);
+        timer_callback_ticker->handleMetronomeTick(beat);
     }
 }
 
@@ -1005,13 +1005,14 @@ void PlayGridManager::scheduleNote(unsigned char midiNote, unsigned char midiCha
     }
 }
 
-void PlayGridManager::metronomeTick(int beat)
+void PlayGridManager::handleMetronomeTick(int beat)
 {
     if (d->segmentHandler == nullptr) {
         d->segmentHandler = SegmentHandler::instance();
     }
     d->segmentHandler->progressPlayback();
-    if (beat % d->beatSubdivision6) {
+    Q_EMIT metronomeTick();
+    if (beat % d->beatSubdivision6 == 0) {
         d->metronomeBeat128th = beat / d->beatSubdivision6;
         Q_EMIT metronomeBeat128thChanged();
     }
