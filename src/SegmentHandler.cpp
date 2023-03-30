@@ -36,7 +36,7 @@
 #include <QVariant>
 
 #define PartCount 5
-#define TrackCount 5
+#define TrackCount 10
 #define ChannelCount 10
 struct TrackState {
     TrackState() {
