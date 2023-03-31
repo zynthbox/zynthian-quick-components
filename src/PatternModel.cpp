@@ -313,6 +313,7 @@ public:
     int playingColumn{0};
     int previouslyUpdatedMidiChannel{-1};
 
+    juce::MidiBuffer &getOrCreateBuffer(QHash<int, juce::MidiBuffer> &collection, int position);
     void noteLengthDetails(int noteLength, quint64 &nextPosition, bool &relevantToUs, quint64 &noteDuration);
     int beatSubdivision{0};
     int beatSubdivision2{0};
@@ -1545,12 +1546,15 @@ void addNoteToBuffer(juce::MidiBuffer &buffer, const Note *theNote, unsigned cha
     }
 }
 
-inline juce::MidiBuffer &getOrCreateBuffer(QHash<int, juce::MidiBuffer> &collection, int position)
+inline juce::MidiBuffer &PatternModel::Private::getOrCreateBuffer(QHash<int, juce::MidiBuffer> &collection, int position)
 {
-    if (!collection.contains(position)) {
-        collection[position] = juce::MidiBuffer();
+    // Since PatternModel operates internally at 32ppqn, let's adjust things so that they match that assumption
+    // We could probably make this follow the sequencer instead, but that would require changing some behaviours
+    const int realPosition{position * beatSubdivision6};
+    if (!collection.contains(realPosition)) {
+        collection[realPosition] = juce::MidiBuffer();
     }
-    return collection[position];
+    return collection[realPosition];
 }
 
 inline void PatternModel::Private::noteLengthDetails(int noteLength, quint64 &nextPosition, bool &relevantToUs, quint64 &noteDuration)
@@ -1562,7 +1566,7 @@ inline void PatternModel::Private::noteLengthDetails(int noteLength, quint64 &ne
         if (nextPosition % beatSubdivision == 0) {
             relevantToUs = true;
             nextPosition = nextPosition / beatSubdivision;
-            noteDuration = beatSubdivision;
+            noteDuration = 32;
         } else {
             relevantToUs = false;
         }
@@ -1571,7 +1575,7 @@ inline void PatternModel::Private::noteLengthDetails(int noteLength, quint64 &ne
         if (nextPosition % beatSubdivision2 == 0) {
             relevantToUs = true;
             nextPosition = nextPosition / beatSubdivision2;
-            noteDuration = beatSubdivision2;
+            noteDuration = 16;
         } else {
             relevantToUs = false;
         }
@@ -1580,7 +1584,7 @@ inline void PatternModel::Private::noteLengthDetails(int noteLength, quint64 &ne
         if (nextPosition % beatSubdivision3 == 0) {
             relevantToUs = true;
             nextPosition = nextPosition / beatSubdivision3;
-            noteDuration = beatSubdivision3;
+            noteDuration = 8;
         } else {
             relevantToUs = false;
         }
@@ -1589,7 +1593,7 @@ inline void PatternModel::Private::noteLengthDetails(int noteLength, quint64 &ne
         if (nextPosition % beatSubdivision4 == 0) {
             relevantToUs = true;
             nextPosition = nextPosition / beatSubdivision4;
-            noteDuration = beatSubdivision4;
+            noteDuration = 4;
         } else {
             relevantToUs = false;
         }
@@ -1598,14 +1602,14 @@ inline void PatternModel::Private::noteLengthDetails(int noteLength, quint64 &ne
         if (nextPosition % beatSubdivision5 == 0) {
             relevantToUs = true;
             nextPosition = nextPosition / beatSubdivision5;
-            noteDuration = beatSubdivision5;
+            noteDuration = 2;
         } else {
             relevantToUs = false;
         }
         break;
     case 6:
         relevantToUs = true;
-        noteDuration = beatSubdivision6;
+        noteDuration = 1;
         break;
     default:
         qWarning() << "Incorrect note length in pattern, no notes will be played from this one, ever";
@@ -1668,8 +1672,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                         const QVariantHash &metaHash = meta[subnoteIndex].toHash();
                                         if (subnote) {
                                             if (metaHash.isEmpty()) {
-                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
-                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
+                                                addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
+                                                addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
                                             } else {
                                                 const int velocity{metaHash.value(velocityString, 64).toInt()};
                                                 const int delay{metaHash.value(delayString, 0).toInt()};
@@ -1677,8 +1681,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                                 if (duration < 1) {
                                                     duration = noteDuration;
                                                 }
-                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay), subnote, velocity, true, overrideChannel);
-                                                addNoteToBuffer(getOrCreateBuffer(positionBuffers, delay + duration), subnote, velocity, false, overrideChannel);
+                                                addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, delay), subnote, velocity, true, overrideChannel);
+                                                addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, delay + duration), subnote, velocity, false, overrideChannel);
                                             }
                                         }
                                     }
@@ -1686,13 +1690,13 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                     for (const QVariant &subnoteVar : subnotes) {
                                         const Note *subnote = subnoteVar.value<Note*>();
                                         if (subnote) {
-                                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
-                                            addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
+                                            addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, 0), subnote, 64, true, overrideChannel);
+                                            addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, noteDuration), subnote, 64, false, overrideChannel);
                                         }
                                     }
                                 } else {
-                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, 0), note, 64, true, overrideChannel);
-                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, noteDuration), note, 64, false, overrideChannel);
+                                    addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, 0), note, 64, true, overrideChannel);
+                                    addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, noteDuration), note, 64, false, overrideChannel);
                                 }
                             // The lookahead notes only need handling if, and only if, there is matching meta, and the delay is negative (as in, position before that step)
                             } else {
@@ -1712,8 +1716,8 @@ void PatternModel::handleSequenceAdvancement(quint64 sequencePosition, int progr
                                                     }
 //                                                     qDebug() << "Next position" << nextPosition << "with ourPosition" << ourPosition << "where delay" << delay << "is less than 0";
 //                                                     qDebug() << "With position adjustment" << positionAdjustment << "we end up with start" << positionAdjustment + delay << "and end" << positionAdjustment + delay + duration;
-                                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, positionAdjustment + delay), subnote, velocity, true, overrideChannel);
-                                                    addNoteToBuffer(getOrCreateBuffer(positionBuffers, positionAdjustment + delay + duration), subnote, velocity, false, overrideChannel);
+                                                    addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, positionAdjustment + delay), subnote, velocity, true, overrideChannel);
+                                                    addNoteToBuffer(d->getOrCreateBuffer(positionBuffers, positionAdjustment + delay + duration), subnote, velocity, false, overrideChannel);
                                                 }
                                             }
                                         }
