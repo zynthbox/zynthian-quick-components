@@ -34,6 +34,8 @@
 #include "PlayGrid.h"
 #include "SettingsContainer.h"
 #include "SegmentHandler.h"
+#include <MidiRouter.h>
+#include <SyncTimer.h>
 
 void QmlPlugins::initializeEngine(QQmlEngine *engine, const char *)
 {
@@ -68,5 +70,19 @@ void QmlPlugins::registerTypes(const char *uri)
         MidiRecorder *midiRecorder = MidiRecorder::instance();
         QQmlEngine::setObjectOwnership(midiRecorder, QQmlEngine::CppOwnership);
         return midiRecorder;
+    });
+    qmlRegisterSingletonType<MidiRouter>(uri, 1, 0, "MidiRouter", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
+        Q_UNUSED(engine)
+        Q_UNUSED(scriptEngine)
+        MidiRouter *midiRouter = MidiRouter::instance();
+        QQmlEngine::setObjectOwnership(midiRouter, QQmlEngine::CppOwnership);
+        return midiRouter;
+    });
+    qmlRegisterSingletonType<SyncTimer>(uri, 1, 0, "SyncTimer", [](QQmlEngine *engine, QJSEngine *scriptEngine) -> QObject * {
+        Q_UNUSED(engine)
+        Q_UNUSED(scriptEngine)
+        SyncTimer *syncTimer = SyncTimer::instance();
+        QQmlEngine::setObjectOwnership(syncTimer, QQmlEngine::CppOwnership);
+        return syncTimer;
     });
 }
