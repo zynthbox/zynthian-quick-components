@@ -104,7 +104,7 @@ public:
                 connect(zlChannel, SIGNAL(chained_sounds_changed()), this, SLOT(chainedSoundsChanged()), Qt::QueuedConnection);
                 connect(zlChannel, SIGNAL(chained_sounds_changed()), layerDataPuller, SLOT(start()), Qt::QueuedConnection);
                 connect(zlChannel, SIGNAL(recordingPopupActiveChanged()), this, SIGNAL(recordingPopupActiveChanged()), Qt::QueuedConnection);
-                connect(zlChannel, SIGNAL(isMutedChanged()), this, SLOT(isMutedChanged()), Qt::QueuedConnection);
+                connect(zlChannel, SIGNAL(mutedChanged()), this, SLOT(mutedChanged()), Qt::QueuedConnection);
                 q->setMidiChannel(zlChannel->property("id").toInt());
                 channelAudioTypeChanged();
                 externalMidiChannelChanged();
@@ -113,7 +113,7 @@ public:
                 layerDataPuller->start();
                 chainedSoundsChanged();
             }
-            isMutedChanged();
+            mutedChanged();
             Q_EMIT q->zlChannelChanged();
         }
     }
@@ -242,7 +242,7 @@ public Q_SLOTS:
             MidiRouter::instance()->setZynthianChannels(q->channelIndex(), chainedSounds);
         }
     }
-    void isMutedChanged() {
+    void mutedChanged() {
         if (zlChannel) {
             channelMuted = zlChannel->property("muted").toBool();
         } else {
